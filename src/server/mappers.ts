@@ -1,7 +1,8 @@
 import type { MeResponse, RenderModel, Track } from "../shared/types";
-import { guildConfigured } from "./config";
+import { guildConfigured, multiPage } from "./config";
 import type { TrackRecord, UserRecord } from "./db";
-import { db } from "./db";
+import { db, ownerOf } from "./db";
+import { canHaveManyPages } from "./pages";
 import { discordAvatarUrl } from "./services/discord";
 
 export function toTrack(t: TrackRecord): Track {
@@ -28,8 +29,12 @@ export function toMe(u: UserRecord): MeResponse {
       id: u.id,
       username: u.username,
       discordName: u.discordName,
-      discordAvatarUrl: discordAvatarUrl(u.id, u.discordAvatar),
+      discordAvatarUrl: discordAvatarUrl(ownerOf(u), u.discordAvatar),
     },
+    ownerId: ownerOf(u),
+    pages: db.pagesOf(ownerOf(u)).map(p => ({ id: p.id, username: p.username, active: p.id === u.id })),
+    canMultiPage: canHaveManyPages(u),
+    maxPages: multiPage.max,
     profile: u.profile,
     tracks: db.tracksOf(u.id).map(toTrack),
     avatarUrl: customAvatarUrl(u),
@@ -45,8 +50,8 @@ export function toPublic(u: UserRecord): RenderModel {
     username: u.username,
     profile: u.profile,
     avatarUrl: customAvatarUrl(u),
-    discordAvatarUrl: discordAvatarUrl(u.id, u.discordAvatar),
-    discordId: u.profile.discord.enabled ? u.id : null,
+    discordAvatarUrl: discordAvatarUrl(ownerOf(u), u.discordAvatar),
+    discordId: u.profile.discord.enabled ? ownerOf(u) : null,
     tracks: u.profile.music.enabled ? db.tracksOf(u.id).map(toTrack) : [],
     views: u.views,
     roles: u.roles.filter(r => !u.profile.hiddenRoles.includes(r.id)),

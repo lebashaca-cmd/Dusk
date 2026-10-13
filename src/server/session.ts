@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { config } from "./config";
-import { db } from "./db";
+import { db, ownerOf } from "./db";
 
 const COOKIE = "dusk_sid";
 const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -33,6 +33,13 @@ export function startSession(res: Response, userId: string): void {
   });
 }
 
+const PAGE_COOKIE = "dusk_page";
+
+/** Remember which of the account's pages is open in the dashboard. */
+export function setActivePage(res: Response, pageId: string): void {
+  res.cookie(PAGE_COOKIE, pageId, { httpOnly: true, sameSite: "lax", secure: config.secureCookies, maxAge: MAX_AGE_MS, path: "/" });
+}
+
 function sessionId(req: Request): string | null {
   const raw = parseCookies(req.headers.cookie)[COOKIE];
   if (!raw) return null;
@@ -54,7 +61,12 @@ export function endSession(req: Request, res: Response): void {
 export const attachUser: RequestHandler = (req, _res, next) => {
   const id = sessionId(req);
   const session = id ? db.session(id) : undefined;
-  req.user = session ? db.user(session.userId) : undefined;
+  if (session) {
+    const pages = db.pagesOf(session.userId);
+    const wanted = parseCookies(req.headers.cookie)[PAGE_COOKIE];
+    req.user = pages.find(p => p.id === wanted) ?? pages.find(p => p.id === session.userId) ?? pages[0];
+    req.ownerId = req.user ? ownerOf(req.user) : undefined;
+  }
   next();
 };
 

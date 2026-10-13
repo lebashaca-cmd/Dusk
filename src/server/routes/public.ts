@@ -2,6 +2,7 @@ import path from "node:path";
 import { Router } from "express";
 import { checkUsernameFormat, cleanUsername, USERNAME_HELP } from "../../shared/url";
 import type { SiteConfig, SiteStats, UsernameCheck } from "../../shared/types";
+import { ensureLocal } from "../storage";
 import { db, userDir } from "../db";
 import { HttpError, asyncHandler } from "../http";
 import { toPublic } from "../mappers";
@@ -78,22 +79,25 @@ publicRouter.get("/lyrics", rateLimit(60_000, 40), asyncHandler(async (req, res)
 export const mediaRouter = Router();
 const ID = /^[a-f0-9]{16}$/;
 
-mediaRouter.get("/track/:id/audio", (req, res, next) => {
+mediaRouter.get("/track/:id/audio", async (req, res, next) => {
   const id = String(req.params.id);
   const track = ID.test(id) ? db.track(id) : undefined;
   if (!track) { res.sendStatus(404); return; }
+  try { if (!(await ensureLocal(track.userId, track.audioFile))) { res.sendStatus(404); return; } } catch (e) { next(e); return; }
   res.type("audio/mpeg").sendFile(path.join(userDir(track.userId), track.audioFile), { maxAge: "1h", acceptRanges: true }, err => { if (err) next(err); });
 });
 
-mediaRouter.get("/track/:id/cover", (req, res, next) => {
+mediaRouter.get("/track/:id/cover", async (req, res, next) => {
   const id = String(req.params.id);
   const track = ID.test(id) ? db.track(id) : undefined;
   if (!track?.coverFile) { res.sendStatus(404); return; }
+  try { if (!(await ensureLocal(track.userId, track.coverFile))) { res.sendStatus(404); return; } } catch (e) { next(e); return; }
   res.type(track.coverMime ?? "image/jpeg").sendFile(path.join(userDir(track.userId), track.coverFile), { maxAge: "7d" }, err => { if (err) next(err); });
 });
 
-mediaRouter.get("/avatar/:userId", (req, res, next) => {
+mediaRouter.get("/avatar/:userId", async (req, res, next) => {
   const user = db.user(String(req.params.userId));
   if (!user?.avatarFile) { res.sendStatus(404); return; }
+  try { if (!(await ensureLocal(user.id, user.avatarFile))) { res.sendStatus(404); return; } } catch (e) { next(e); return; }
   res.type(user.avatarMime ?? "image/jpeg").sendFile(path.join(userDir(user.id), user.avatarFile), { maxAge: "7d" }, err => { if (err) next(err); });
 });

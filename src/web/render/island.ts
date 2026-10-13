@@ -68,6 +68,7 @@ export class IslandPanel {
   private metaKey = "";
   private readonly island: HTMLElement;
   private readonly onDocDown: (e: PointerEvent) => void;
+  private readonly resizeWatch: ResizeObserver;
 
   constructor(np: NowPlaying, private readonly o: IslandOptions) {
     this.np = np;
@@ -100,11 +101,16 @@ export class IslandPanel {
     this.bind();
     this.onDocDown = e => { if (this.open && !root.contains(e.target as Node)) this.o.onToggle(false); };
     document.addEventListener("pointerdown", this.onDocDown);
+    // The island changes width while it opens, which re-wraps the lyrics. Re-center the current line whenever that happens.
+    this.resizeWatch = new ResizeObserver(() => { this.lastLine = -2; this.moveLyrics(clamp(this.np.positionMs(), 0, this.np.durationMs)); });
+    this.resizeWatch.observe(this.q(".di-lyr-track"));
+    this.resizeWatch.observe(this.q(".di-lyrics"));
     this.update(np, this.showLyrics);
   }
 
   destroy(): void {
     document.removeEventListener("pointerdown", this.onDocDown);
+    this.resizeWatch.disconnect();
     this.el.remove();
   }
 

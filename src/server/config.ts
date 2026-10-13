@@ -35,5 +35,14 @@ export const config = {
   },
 } as const;
 
+const list = (v: string | undefined): string[] => (v ?? "").split(",").map(x => x.trim()).filter(Boolean);
+
+/** Who may create more than one page: listed Discord IDs, or anyone with a matching role in the Discord server. */
+export const multiPage = {
+  ids: new Set([...list(env.DUSK_OWNER_IDS), ...list(env.DUSK_DEV_IDS)]),
+  roles: list(env.DUSK_PAGE_ROLES ?? "owner,dev,developer").map(r => r.toLowerCase()),
+  max: Math.min(50, Math.max(1, Number(env.DUSK_MAX_PAGES) || 10)),
+};
+
 export const guildConfigured = Boolean(config.discord.guildId && config.discord.botToken);
 export const discordConfigured = Boolean(config.discord.clientId && config.discord.clientSecret);

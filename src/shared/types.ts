@@ -206,15 +206,27 @@ export interface Track {
 /* ---------- API payloads ---------- */
 
 export interface UserInfo {
-  /** Discord user ID. */
+  /** The ID of this page. For a first page it is the Discord user ID. */
   id: string;
   username: string;
   discordName: string;
   discordAvatarUrl: string | null;
 }
 
+export interface PageInfo {
+  id: string;
+  username: string;
+  active: boolean;
+}
+
 export interface MeResponse {
   user: UserInfo;
+  /** The Discord account that owns this page. Differs from user.id on extra pages. */
+  ownerId: string;
+  /** Every page this account has, and whether it may create more (owners and devs). */
+  pages: PageInfo[];
+  canMultiPage: boolean;
+  maxPages: number;
   profile: Profile;
   tracks: Track[];
   avatarUrl: string | null;

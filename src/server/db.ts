@@ -3,6 +3,7 @@ import path from "node:path";
 import { normalizeProfile } from "../shared/constants";
 import type { CoverSource, Lyrics, Profile, RoleTag } from "../shared/types";
 import { config } from "./config";
+import { loadState, remoteEnabled, saveState } from "./storage";
 
 /* ---------- records ---------- */
 
@@ -23,7 +24,15 @@ export interface UserRecord {
   avatarVersion: number;
   views: number;
   createdAt: number;
+  /** Discord's own @handle, as opposed to the display name above. Older accounts may not have it. */
+  discordHandle?: string;
+  /** IP address the account was created from, kept for abuse prevention. Never sent to the web app. */
+  signupIp?: string | null;
+  /** Discord ID of the account that owns this page. Missing on a first page, where the ID is the owner. */
+  ownerId?: string;
 }
+
+export const ownerOf = (u: { id: string; ownerId?: string }): string => u.ownerId ?? u.id;
 
 export interface TrackRecord {
   id: string;
@@ -54,36 +63,66 @@ interface Shape {
   usernames: Record<string, string>;
   tracks: Record<string, TrackRecord>;
   sessions: Record<string, SessionRecord>;
+  settings: { logChannelId: string | null };
 }
 
 /* ---------- a small JSON file store ---------- */
 
 class Database {
-  private data: Shape = { users: {}, usernames: {}, tracks: {}, sessions: {} };
+  private data: Shape = { users: {}, usernames: {}, tracks: {}, sessions: {}, settings: { logChannelId: null } };
   private timer: NodeJS.Timeout | null = null;
   private readonly file: string;
 
   constructor(dir: string) {
     fs.mkdirSync(dir, { recursive: true });
     this.file = path.join(dir, "db.json");
-    if (fs.existsSync(this.file)) {
-      const raw = JSON.parse(fs.readFileSync(this.file, "utf8")) as Partial<Shape>;
-      this.data = {
-        users: Object.fromEntries(Object.entries(raw.users ?? {}).map(([id, u]) => [id, {
-          ...u,
-          roles: u.roles ?? [],
-          rolesAt: u.rolesAt ?? 0,
-          profile: normalizeProfile(u.profile, u.discordName),
-        }])),
-        usernames: raw.usernames ?? {},
-        tracks: raw.tracks ?? {},
-        sessions: raw.sessions ?? {},
-      };
-    }
-    process.on("exit", () => this.flush());
+    if (!remoteEnabled && fs.existsSync(this.file)) this.load(JSON.parse(fs.readFileSync(this.file, "utf8")) as Partial<Shape>);
+    process.on("exit", () => { if (!remoteEnabled) this.flush(); });
     for (const sig of ["SIGINT", "SIGTERM"] as const) {
-      process.on(sig, () => { this.flush(); process.exit(0); });
+      process.on(sig, () => { void this.drain().finally(() => process.exit(0)); });
     }
+  }
+
+  private load(raw: Partial<Shape>): void {
+    this.data = {
+      users: Object.fromEntries(Object.entries(raw.users ?? {}).map(([id, u]) => [id, {
+        ...u,
+        roles: u.roles ?? [],
+        rolesAt: u.rolesAt ?? 0,
+        profile: normalizeProfile(u.profile, u.discordName),
+      }])),
+      usernames: raw.usernames ?? {},
+      tracks: raw.tracks ?? {},
+      sessions: raw.sessions ?? {},
+      settings: { logChannelId: raw.settings?.logChannelId ?? null },
+    };
+  }
+
+  /** Load from Supabase when it is configured. Call once before the server starts. */
+  async init(): Promise<void> {
+    if (!remoteEnabled) return;
+    const raw = (await loadState()) as Partial<Shape> | null;
+    if (raw) this.load(raw);
+  }
+
+  private pushing = false;
+  private again = false;
+
+  private async pushRemote(): Promise<void> {
+    if (this.pushing) { this.again = true; return; }
+    this.pushing = true;
+    try {
+      do {
+        this.again = false;
+        try { await saveState(this.data); } catch (e) { console.error(e); }
+      } while (this.again);
+    } finally { this.pushing = false; }
+  }
+
+  /** Finish any pending write. Used when the process is asked to stop. */
+  async drain(): Promise<void> {
+    this.flush();
+    while (this.pushing) await new Promise(r => setTimeout(r, 50));
   }
 
   /** Write soon. Many changes in a row become one write. */
@@ -94,6 +133,7 @@ class Database {
 
   flush(): void {
     if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+    if (remoteEnabled) { void this.pushRemote(); return; }
     const tmp = this.file + ".tmp";
     fs.writeFileSync(tmp, JSON.stringify(this.data));
     fs.renameSync(tmp, this.file);
@@ -150,12 +190,43 @@ class Database {
     this.save();
   }
 
+  /** Every page an account owns, oldest first. */
+  pagesOf(ownerId: string): UserRecord[] {
+    return Object.values(this.data.users).filter(u => ownerOf(u) === ownerId).sort((a, b) => a.createdAt - b.createdAt);
+  }
+
+  /** Remove a page and its songs. Returns the songs so their files can be deleted. */
+  removePage(user: UserRecord): TrackRecord[] {
+    const tracks = this.tracksOf(user.id);
+    for (const t of tracks) delete this.data.tracks[t.id];
+    delete this.data.users[user.id];
+    if (this.data.usernames[user.username] === user.id) delete this.data.usernames[user.username];
+    this.save();
+    return tracks;
+  }
+
   /** Totals for the front page. A page counts once it has a bio, a link or a song on it. */
   counts(): { users: number; pages: number } {
     const users = Object.values(this.data.users);
+    const owners = new Set(users.map(ownerOf));
     const withSong = new Set(Object.values(this.data.tracks).map(t => t.userId));
     const pages = users.filter(u => u.profile.bio.trim() || u.profile.links.length > 0 || withSong.has(u.id)).length;
-    return { users: users.length, pages };
+    return { users: owners.size, pages };
+  }
+
+  /* sign-up log */
+
+  logChannel(): string | null {
+    return this.data.settings.logChannelId;
+  }
+
+  setLogChannel(id: string | null): void {
+    this.data.settings.logChannelId = id;
+    this.save();
+  }
+
+  recentSignups(limit: number): UserRecord[] {
+    return Object.values(this.data.users).sort((a, b) => b.createdAt - a.createdAt).slice(0, limit);
   }
 
   /* sessions */

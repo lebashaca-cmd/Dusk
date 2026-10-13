@@ -44,7 +44,7 @@ class AppStore {
       profile: me.profile,
       avatarUrl: me.avatarUrl,
       discordAvatarUrl: me.user.discordAvatarUrl,
-      discordId: me.user.id,
+      discordId: me.ownerId,
       tracks: me.tracks,
       views: me.views,
       roles: me.roles.filter(r => !me.profile.hiddenRoles.includes(r.id)),

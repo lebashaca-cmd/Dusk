@@ -9,6 +9,7 @@ import { asyncHandler, currentUser, HttpError } from "../http";
 import { toTrack } from "../mappers";
 import { rateLimit } from "../rateLimit";
 import { requireAuth } from "../session";
+import { dropFile, pushFile } from "../storage";
 import { audioUpload, imageUpload } from "../uploads";
 import { imageMime, looksLikeMp3, readAudio } from "../services/audio";
 import { extForMime, findItunesCover, type CoverImage } from "../services/cover";
@@ -28,8 +29,9 @@ function ownTrack(req: Request): TrackRecord {
 async function saveCover(track: TrackRecord, cover: CoverImage, source: TrackRecord["coverSource"]): Promise<void> {
   const dir = userDir(track.userId);
   const name = `${track.id}.cover.${extForMime(cover.mime)}`;
-  if (track.coverFile && track.coverFile !== name) await fs.rm(path.join(dir, track.coverFile), { force: true });
+  if (track.coverFile && track.coverFile !== name) { await fs.rm(path.join(dir, track.coverFile), { force: true }); await dropFile(track.userId, track.coverFile); }
   await fs.writeFile(path.join(dir, name), cover.data);
+  await pushFile(track.userId, name);
   track.coverFile = name;
   track.coverMime = cover.mime;
   track.coverSource = source;
@@ -64,6 +66,7 @@ tracksRouter.post("/", rateLimit(60_000, 20), audioUpload.single("file"), asyncH
   const id = crypto.randomBytes(8).toString("hex");
   const audioFile = `${id}.mp3`;
   await fs.rename(file.path, path.join(userDir(user.id), audioFile));
+  try { await pushFile(user.id, audioFile); } catch (e) { await fs.rm(path.join(userDir(user.id), audioFile), { force: true }); throw e; }
 
   const now = Date.now();
   const existing = db.tracksOf(user.id);
@@ -139,7 +142,8 @@ tracksRouter.delete("/:id", asyncHandler(async (req, res) => {
   const track = ownTrack(req);
   const dir = userDir(track.userId);
   await fs.rm(path.join(dir, track.audioFile), { force: true });
-  if (track.coverFile) await fs.rm(path.join(dir, track.coverFile), { force: true });
+  await dropFile(track.userId, track.audioFile);
+  if (track.coverFile) { await fs.rm(path.join(dir, track.coverFile), { force: true }); await dropFile(track.userId, track.coverFile); }
   db.removeTrack(track.id);
   res.status(204).end();
 }));
