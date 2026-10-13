@@ -1,0 +1,32 @@
+/* Narrow screens. */
+@media (max-width: 960px) {
+  .hero { grid-template-columns: minmax(0, 1fr); gap: 32px; padding-block: 0 40px; }
+  .intro { padding-top: 0; }
+  .device { height: 520px; }
+  .dash-body { grid-template-columns: minmax(0, 1fr); }
+  .side { border-right: 0; }
+  .mobile-switch { display: inline-flex; }
+  .dash[data-pane="edit"] .preview-pane { display: none; }
+  .dash[data-pane="preview"] .side { display: none; }
+  .pv-bar .seg.dev { display: none; }
+  .frame.mobile { max-width: none; }
+}
+@media (max-width: 520px) {
+  .home { padding-inline: 16px; }
+  .claim { flex-direction: column; align-items: stretch; }
+  .claim .btn-white { width: 100%; }
+  .claim-field { padding-inline: 16px; flex: none; }
+  .claim .btn-white { flex: none; }
+  .themes { grid-template-columns: repeat(2, 1fr); }
+  .dash-top { padding-inline: 16px; }
+  .url-chip { display: none; }
+  .side-body { padding-inline: 16px; }
+  .preview-pane { padding-inline: 16px; }
+  .two { grid-template-columns: 1fr; }
+  .track-item { grid-template-columns: 48px minmax(0, 1fr); }
+  .track-tools { grid-column: 1 / -1; justify-content: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fx-aurora i, .gate span, .pbio.type::after { animation: none; }
+  .mount, .plink { transition: none; }
+}

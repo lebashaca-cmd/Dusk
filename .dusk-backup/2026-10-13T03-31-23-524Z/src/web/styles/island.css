@@ -1,0 +1,85 @@
+/* Dynamic Island music pill. Based on the supplied component, placed inside the profile stage instead of the page. */
+.di-root { position: absolute; top: var(--di-top, 11px); left: 50%; transform: translateX(-50%); z-index: var(--di-z, 20); display: flex; justify-content: center; width: calc(100% - 24px); max-width: 384px; pointer-events: none; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, sans-serif; -webkit-font-smoothing: antialiased; -webkit-user-select: none; user-select: none; --di-ease: cubic-bezier(0.34, 1.35, 0.5, 1); --di-t: 0.5s; }
+.di-root, .di-root * { box-sizing: border-box; }
+.di-root button, .di-root input { font: inherit; margin: 0; -webkit-tap-highlight-color: transparent; }
+.di-root button { padding: 0; border: 0; background: none; color: inherit; cursor: pointer; touch-action: manipulation; }
+
+.di-island { position: relative; width: 196px; height: 37px; border-radius: 19px; max-width: 100%; overflow: hidden; background: #000; color: #fff; box-shadow: 0 0 0 1px #ffffff0d; transform-origin: 50% 0; pointer-events: auto; transition: width var(--di-t) var(--di-ease), height var(--di-t) var(--di-ease), border-radius var(--di-t) var(--di-ease), box-shadow 0.3s; }
+.di-island.is-expanded { width: 384px; height: 230px; border-radius: 44px; box-shadow: 0 0 0 1px #ffffff0d, 0 22px 50px #0009; }
+.di-island.is-expanded.has-lyrics { height: 340px; }
+.di-island.is-expanded.is-readonly:not(.has-lyrics) { height: 200px; }
+.di-island.is-expanded.is-readonly.has-lyrics { height: 310px; }
+
+.di-trigger { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit; }
+.di-trigger:focus-visible { outline: 2px solid #ffffff80; outline-offset: -2px; }
+.di-trigger:disabled { pointer-events: none; }
+
+.di-art { position: absolute; left: 8px; top: 7px; width: 23px; height: 23px; border-radius: 5px; display: block; overflow: hidden; pointer-events: none; transition: all var(--di-t) var(--di-ease); }
+.is-expanded .di-art { left: 24px; top: 24px; width: 64px; height: 64px; border-radius: 15px; }
+.di-cover { display: block; width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+.di-cover-empty { display: grid; place-items: center; background: #2c2c30; color: #8e8e93; }
+
+.di-wave-anchor { position: absolute; right: 14px; top: 10px; pointer-events: none; transform-origin: right center; transition: all var(--di-t) var(--di-ease); }
+.is-expanded .di-wave-anchor { right: 25px; top: 47px; transform: scale(0.8); }
+.di-wave { display: flex; align-items: center; gap: 1px; height: 17px; }
+.di-wave i { display: block; width: 1px; height: var(--bar-height); background: #99999f; border-radius: 1px; }
+.di-wave i:nth-child(-n+3) { background: color-mix(in srgb, rgb(var(--di-color-1, 52 53 58)), white 35%); }
+.di-wave.is-playing i { animation: di-wave 0.65s ease-in-out infinite alternate; animation-delay: var(--bar-delay); }
+@keyframes di-wave { to { transform: scaleY(0.35); } }
+
+.di-player { position: absolute; inset: 0; pointer-events: none; opacity: 0; filter: blur(6px); transition: opacity 0.18s, filter 0.18s; }
+.is-expanded .di-player { opacity: 1; filter: blur(0); pointer-events: auto; transition-delay: 0.1s; }
+.di-player[inert] { visibility: hidden; transition: opacity 0.18s, filter 0.18s, visibility 0s 0.2s; }
+
+.di-meta { position: absolute; top: 33px; left: 104px; right: 88px; display: flex; flex-direction: column; gap: 2px; }
+.di-meta strong, .di-meta > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 22px; font-size: 17px; letter-spacing: -0.01em; }
+.di-meta strong { font-weight: 600; }
+.di-meta > span { color: #ebebf599; }
+
+.di-bottom { position: absolute; top: 105px; left: 24px; right: 24px; }
+.di-progress { display: flex; align-items: center; gap: 10px; height: 24px; }
+.di-progress > span { width: 38px; flex-shrink: 0; color: #ebebf599; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.di-progress > span:last-child { text-align: right; }
+.di-progress input, .di-volume input { appearance: none; -webkit-appearance: none; min-width: 0; flex: 1; height: 6px; border-radius: 99px; background: linear-gradient(to right, #fff var(--progress, 0%), #ffffff38 var(--progress, 0%)); cursor: pointer; }
+.di-progress input:disabled { cursor: default; }
+.di-progress input::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 0; height: 0; }
+.di-progress input::-moz-range-thumb { width: 0; height: 0; border: 0; }
+.di-progress input:active:not(:disabled) { transform: scaleY(1.5); }
+
+.di-controls { display: flex; align-items: center; justify-content: center; gap: 42px; margin-top: 5px; }
+.di-controls button { position: relative; display: grid; place-items: center; width: 58px; height: 48px; color: #fff; border-radius: 50%; transition: background 0.15s, transform 0.15s; }
+.di-controls button:hover, .di-controls button:focus-visible { background: #ffffff14; }
+.di-controls button:focus-visible { outline: none; }
+.di-controls button:active { background: #ffffff24; transform: scale(0.88); }
+.di-controls button:disabled { opacity: 0.35; pointer-events: none; }
+
+.di-volume { display: flex; align-items: center; justify-content: center; gap: 12px; width: 70%; height: 31px; margin: 8px auto 0; }
+.di-volume button { display: grid; place-items: center; width: 25px; height: 25px; color: #ebebf599; }
+.di-volume input { height: 4px; }
+.di-volume input::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%; background: #fff; }
+.di-volume input::-moz-range-thumb { width: 10px; height: 10px; border: 0; border-radius: 50%; background: #fff; }
+.is-readonly .di-bottom .di-controls { opacity: 0.6; }
+
+/* Lyrics, added below the controls. The current line is bright and the lines around it fade out. */
+.di-lyrics { position: absolute; left: 24px; right: 24px; bottom: 22px; height: 84px; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 24%, #000 76%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 24%, #000 76%, transparent); display: none; }
+.has-lyrics .di-lyrics { display: block; }
+.di-lyrics.plain { overflow-y: auto; -webkit-mask-image: none; mask-image: none; user-select: text; -webkit-user-select: text; }
+.di-lyr-track { position: absolute; left: 0; right: 0; top: 0; text-align: center; transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+.di-lyrics.plain .di-lyr-track { position: static; }
+.di-line { font-size: 17px; font-weight: 700; line-height: 1.25; padding: 4px 0; opacity: 0.35; transition: opacity 0.4s; overflow-wrap: anywhere; letter-spacing: -0.01em; }
+.di-line.cur { opacity: 1; }
+.di-line.msg { font-size: 14px; font-weight: 500; opacity: 0.6; padding-top: 30px; }
+.di-plain { white-space: pre-wrap; font-size: 14px; line-height: 1.5; color: #ebebf5cc; text-align: left; padding: 4px 0; }
+
+/* Room at the top of the page so the closed island doesn't sit on the card. */
+.stage.has-island .scroll { padding-top: 66px; }
+
+@media (max-width: 360px) {
+  .di-meta { left: 98px; right: 80px; }
+  .di-meta strong, .di-meta > span { font-size: 15px; }
+  .di-controls { gap: 30px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .di-wave.is-playing i { animation: none; }
+  .di-island, .di-art, .di-wave-anchor, .di-player, .di-lyr-track { transition: none; }
+}
