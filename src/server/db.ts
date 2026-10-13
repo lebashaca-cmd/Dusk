@@ -24,6 +24,10 @@ export interface UserRecord {
   avatarVersion: number;
   views: number;
   createdAt: number;
+  /** Discord's own @handle, as opposed to the display name above. Older accounts may not have it. */
+  discordHandle?: string;
+  /** IP address the account was created from, kept for abuse prevention. Never sent to the web app. */
+  signupIp?: string | null;
 }
 
 export interface TrackRecord {
@@ -55,12 +59,13 @@ interface Shape {
   usernames: Record<string, string>;
   tracks: Record<string, TrackRecord>;
   sessions: Record<string, SessionRecord>;
+  settings: { logChannelId: string | null };
 }
 
 /* ---------- a small JSON file store ---------- */
 
 class Database {
-  private data: Shape = { users: {}, usernames: {}, tracks: {}, sessions: {} };
+  private data: Shape = { users: {}, usernames: {}, tracks: {}, sessions: {}, settings: { logChannelId: null } };
   private timer: NodeJS.Timeout | null = null;
   private readonly file: string;
 
@@ -85,6 +90,7 @@ class Database {
       usernames: raw.usernames ?? {},
       tracks: raw.tracks ?? {},
       sessions: raw.sessions ?? {},
+      settings: { logChannelId: raw.settings?.logChannelId ?? null },
     };
   }
 
@@ -186,6 +192,21 @@ class Database {
     const withSong = new Set(Object.values(this.data.tracks).map(t => t.userId));
     const pages = users.filter(u => u.profile.bio.trim() || u.profile.links.length > 0 || withSong.has(u.id)).length;
     return { users: users.length, pages };
+  }
+
+  /* sign-up log */
+
+  logChannel(): string | null {
+    return this.data.settings.logChannelId;
+  }
+
+  setLogChannel(id: string | null): void {
+    this.data.settings.logChannelId = id;
+    this.save();
+  }
+
+  recentSignups(limit: number): UserRecord[] {
+    return Object.values(this.data.users).sort((a, b) => b.createdAt - a.createdAt).slice(0, limit);
   }
 
   /* sessions */

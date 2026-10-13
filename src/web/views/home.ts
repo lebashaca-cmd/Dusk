@@ -27,6 +27,7 @@ const FAQ: ReadonlyArray<{ q: string; a: string }> = [
   { q: "Why do I log in with Discord?", a: "It proves the name is yours, gives your page your Discord picture and name, and lets us show your live status and server roles." },
   { q: "How does the live status work?", a: "It uses Lanyard, a free service. Join the Lanyard Discord server with the same account, then turn on live status in the dashboard." },
   { q: "Where do the lyrics come from?", a: "From LRCLIB, a free open lyrics database. If it has no lyrics for a song, the page says so instead of guessing." },
+  { q: "What do you store about me?", a: "Your Discord name and picture, what you put on your page, and your IP address and the time you signed up. The IP and sign-up time are kept for abuse prevention and are never shown on your page." },
   { q: "What can I upload?", a: `MP3 files up to ${Math.round(LIMITS.audioBytes / 1024 / 1024)} MB, and up to ${LIMITS.tracks} songs per page.` },
 ];
 
