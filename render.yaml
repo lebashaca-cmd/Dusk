@@ -1,23 +1,16 @@
 # Render Blueprint. In Render: New > Blueprint, pick your repo.
-# Persistent disks need a paid instance (starter or higher). Without a disk,
-# accounts, pages and uploaded songs are wiped on every deploy or restart.
+# Data lives in Supabase (see supabase/setup.sql), so no persistent disk is needed.
 services:
   - type: web
     name: dusk
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /api/stats
-    disk:
-      name: dusk-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: 22
-      - key: DATA_DIR
-        value: /var/data
       - key: TRUST_PROXY
         value: "1"
       - key: SESSION_SECRET
@@ -35,4 +28,8 @@ services:
       - key: DISCORD_BOT_TOKEN
         sync: false
       - key: DISCORD_INVITE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
         sync: false

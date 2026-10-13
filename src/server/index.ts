@@ -3,6 +3,8 @@ import path from "node:path";
 import express, { type ErrorRequestHandler } from "express";
 import multer from "multer";
 import { config, discordConfigured } from "./config";
+import { db } from "./db";
+import { ensureBucket, remoteEnabled } from "./storage";
 import { HttpError } from "./http";
 import { authRouter } from "./routes/auth";
 import { profileRouter } from "./routes/profile";
@@ -46,6 +48,12 @@ const onError: ErrorRequestHandler = (err, req, res, _next) => {
   else res.status(status).type("text").send(message);
 };
 app.use(onError);
+
+if (remoteEnabled) {
+  await db.init();
+  await ensureBucket();
+  console.log("Using Supabase for the database and uploaded files.");
+}
 
 app.listen(config.port, () => {
   console.log(`Dusk server listening on http://localhost:${config.port}`);
