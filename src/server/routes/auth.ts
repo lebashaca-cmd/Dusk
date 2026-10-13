@@ -4,7 +4,6 @@ import { defaultProfile } from "../../shared/constants";
 import type { RoleTag } from "../../shared/types";
 import { checkUsernameFormat, cleanUsername } from "../../shared/url";
 import { config, discordConfigured, guildConfigured } from "../config";
-import { announceSignup } from "../services/signuplog";
 import { db, type UserRecord } from "../db";
 import { asyncHandler } from "../http";
 import { rateLimit } from "../rateLimit";
@@ -31,13 +30,12 @@ function pickUsername(wanted: string, discordUsername: string): string {
   return `user${crypto.randomBytes(4).toString("hex")}`;
 }
 
-function upsertUser(du: DiscordUser, wantedUsername: string, ip: string | undefined, roles: RoleTag[] = []): UserRecord {
+function upsertUser(du: DiscordUser, wantedUsername: string, roles: RoleTag[] = []): UserRecord {
   const displayName = du.global_name || du.username;
   const existing = db.user(du.id);
   if (existing) {
     existing.discordName = displayName;
     existing.discordAvatar = du.avatar;
-    existing.discordHandle = du.username;
     existing.roles = roles;
     existing.rolesAt = Date.now();
     db.save();
@@ -56,11 +54,8 @@ function upsertUser(du: DiscordUser, wantedUsername: string, ip: string | undefi
     avatarVersion: 0,
     views: 0,
     createdAt: Date.now(),
-    discordHandle: du.username,
-    signupIp: ip ?? null,
   };
   db.addUser(user);
-  announceSignup(user);
   return user;
 }
 
@@ -101,7 +96,7 @@ authRouter.get("/discord/callback", asyncHandler(async (req, res) => {
       if (!found) { res.redirect("/?login=join"); return; }
       roles = found;
     }
-    const user = upsertUser(discordUser, saved.claim ?? "", req.ip, roles);
+    const user = upsertUser(discordUser, saved.claim ?? "", roles);
     startSession(res, user.id);
     res.redirect("/dashboard");
   } catch (e) {
@@ -117,7 +112,7 @@ authRouter.get("/discord/callback", asyncHandler(async (req, res) => {
 if (config.devLogin) {
   authRouter.get("/dev", (req, res) => {
     const name = cleanUsername(String(req.query.as ?? "")) || "tester";
-    const user = upsertUser({ id: `dev-${name}`, username: name, global_name: name, avatar: null }, name, req.ip);
+    const user = upsertUser({ id: `dev-${name}`, username: name, global_name: name, avatar: null }, name);
     startSession(res, user.id);
     res.redirect("/dashboard");
   });

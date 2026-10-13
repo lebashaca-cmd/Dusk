@@ -3,10 +3,7 @@ import path from "node:path";
 import express, { type ErrorRequestHandler } from "express";
 import multer from "multer";
 import { config, discordConfigured } from "./config";
-import { db } from "./db";
-import { ensureBucket, remoteEnabled } from "./storage";
 import { HttpError } from "./http";
-import { adminRouter } from "./routes/admin";
 import { authRouter } from "./routes/auth";
 import { profileRouter } from "./routes/profile";
 import { mediaRouter, publicRouter } from "./routes/public";
@@ -27,7 +24,6 @@ app.use(attachUser);
 
 app.use("/auth", authRouter);
 app.use("/media", mediaRouter);
-app.use("/api/admin", adminRouter);
 app.use("/api", csrfGuard, publicRouter, profileRouter);
 app.use("/api/tracks", csrfGuard, tracksRouter);
 app.use("/api", (_req, res) => { res.status(404).json({ error: "Not found." }); });
@@ -50,12 +46,6 @@ const onError: ErrorRequestHandler = (err, req, res, _next) => {
   else res.status(status).type("text").send(message);
 };
 app.use(onError);
-
-if (remoteEnabled) {
-  await db.init();
-  await ensureBucket();
-  console.log("Using Supabase for the database and uploaded files.");
-}
 
 app.listen(config.port, () => {
   console.log(`Dusk server listening on http://localhost:${config.port}`);

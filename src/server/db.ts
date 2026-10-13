@@ -3,7 +3,6 @@ import path from "node:path";
 import { normalizeProfile } from "../shared/constants";
 import type { CoverSource, Lyrics, Profile, RoleTag } from "../shared/types";
 import { config } from "./config";
-import { loadState, remoteEnabled, saveState } from "./storage";
 
 /* ---------- records ---------- */
 
@@ -24,10 +23,6 @@ export interface UserRecord {
   avatarVersion: number;
   views: number;
   createdAt: number;
-  /** Discord's own @handle, as opposed to the display name above. Older accounts may not have it. */
-  discordHandle?: string;
-  /** IP address the account was created from, kept for abuse prevention. Never sent to the web app. */
-  signupIp?: string | null;
 }
 
 export interface TrackRecord {
@@ -59,66 +54,36 @@ interface Shape {
   usernames: Record<string, string>;
   tracks: Record<string, TrackRecord>;
   sessions: Record<string, SessionRecord>;
-  settings: { logChannelId: string | null };
 }
 
 /* ---------- a small JSON file store ---------- */
 
 class Database {
-  private data: Shape = { users: {}, usernames: {}, tracks: {}, sessions: {}, settings: { logChannelId: null } };
+  private data: Shape = { users: {}, usernames: {}, tracks: {}, sessions: {} };
   private timer: NodeJS.Timeout | null = null;
   private readonly file: string;
 
   constructor(dir: string) {
     fs.mkdirSync(dir, { recursive: true });
     this.file = path.join(dir, "db.json");
-    if (!remoteEnabled && fs.existsSync(this.file)) this.load(JSON.parse(fs.readFileSync(this.file, "utf8")) as Partial<Shape>);
-    process.on("exit", () => { if (!remoteEnabled) this.flush(); });
-    for (const sig of ["SIGINT", "SIGTERM"] as const) {
-      process.on(sig, () => { void this.drain().finally(() => process.exit(0)); });
+    if (fs.existsSync(this.file)) {
+      const raw = JSON.parse(fs.readFileSync(this.file, "utf8")) as Partial<Shape>;
+      this.data = {
+        users: Object.fromEntries(Object.entries(raw.users ?? {}).map(([id, u]) => [id, {
+          ...u,
+          roles: u.roles ?? [],
+          rolesAt: u.rolesAt ?? 0,
+          profile: normalizeProfile(u.profile, u.discordName),
+        }])),
+        usernames: raw.usernames ?? {},
+        tracks: raw.tracks ?? {},
+        sessions: raw.sessions ?? {},
+      };
     }
-  }
-
-  private load(raw: Partial<Shape>): void {
-    this.data = {
-      users: Object.fromEntries(Object.entries(raw.users ?? {}).map(([id, u]) => [id, {
-        ...u,
-        roles: u.roles ?? [],
-        rolesAt: u.rolesAt ?? 0,
-        profile: normalizeProfile(u.profile, u.discordName),
-      }])),
-      usernames: raw.usernames ?? {},
-      tracks: raw.tracks ?? {},
-      sessions: raw.sessions ?? {},
-      settings: { logChannelId: raw.settings?.logChannelId ?? null },
-    };
-  }
-
-  /** Load from Supabase when it is configured. Call once before the server starts. */
-  async init(): Promise<void> {
-    if (!remoteEnabled) return;
-    const raw = (await loadState()) as Partial<Shape> | null;
-    if (raw) this.load(raw);
-  }
-
-  private pushing = false;
-  private again = false;
-
-  private async pushRemote(): Promise<void> {
-    if (this.pushing) { this.again = true; return; }
-    this.pushing = true;
-    try {
-      do {
-        this.again = false;
-        try { await saveState(this.data); } catch (e) { console.error(e); }
-      } while (this.again);
-    } finally { this.pushing = false; }
-  }
-
-  /** Finish any pending write. Used when the process is asked to stop. */
-  async drain(): Promise<void> {
-    this.flush();
-    while (this.pushing) await new Promise(r => setTimeout(r, 50));
+    process.on("exit", () => this.flush());
+    for (const sig of ["SIGINT", "SIGTERM"] as const) {
+      process.on(sig, () => { this.flush(); process.exit(0); });
+    }
   }
 
   /** Write soon. Many changes in a row become one write. */
@@ -129,7 +94,6 @@ class Database {
 
   flush(): void {
     if (this.timer) { clearTimeout(this.timer); this.timer = null; }
-    if (remoteEnabled) { void this.pushRemote(); return; }
     const tmp = this.file + ".tmp";
     fs.writeFileSync(tmp, JSON.stringify(this.data));
     fs.renameSync(tmp, this.file);
@@ -192,21 +156,6 @@ class Database {
     const withSong = new Set(Object.values(this.data.tracks).map(t => t.userId));
     const pages = users.filter(u => u.profile.bio.trim() || u.profile.links.length > 0 || withSong.has(u.id)).length;
     return { users: users.length, pages };
-  }
-
-  /* sign-up log */
-
-  logChannel(): string | null {
-    return this.data.settings.logChannelId;
-  }
-
-  setLogChannel(id: string | null): void {
-    this.data.settings.logChannelId = id;
-    this.save();
-  }
-
-  recentSignups(limit: number): UserRecord[] {
-    return Object.values(this.data.users).sort((a, b) => b.createdAt - a.createdAt).slice(0, limit);
   }
 
   /* sessions */

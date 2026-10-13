@@ -39,12 +39,6 @@ npm start          # serves the site and the API on PORT (default 3000)
 
 Put it behind HTTPS. Set `TRUST_PROXY=1` behind a reverse proxy, and keep `DATA_DIR` on a disk that persists: it holds the database (`db.json`) and the uploaded files. In production `DISCORD_REDIRECT_URI` and `BASE_URL` must be your real address.
 
-## Supabase (no persistent disk needed)
-
-Set `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` and dusk keeps its database in a Supabase table and its MP3s, covers and avatars in a private Storage bucket (`dusk`, created on first start). Run `supabase/setup.sql` in the Supabase SQL Editor once. Without those two variables everything stays in `DATA_DIR`.
-
-The database is stored as one JSON document, which is fine for a small site on a single server. Run one instance only.
-
 ## Live Discord status
 
 Lanyard can only see accounts that joined its Discord server: <https://discord.gg/lanyard>. Join with the same account you log in with, then turn on **Discord → Show my live Discord status** in the dashboard.
