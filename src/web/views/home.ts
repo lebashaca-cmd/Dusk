@@ -85,7 +85,7 @@ export function mountHome(root: HTMLElement): () => void {
   root.innerHTML = `<div class="home">
     <nav class="nav">
       <a class="logo" href="/" data-link>${MARK}dusk</a>
-      <div class="nav-r">${me ? `<a class="btn-ghost" href="/dashboard" data-link>Dashboard</a>` : `<a class="btn-text" href="/auth/discord">Log in</a>`}</div>
+      <div class="nav-r"><a class="btn-ghost" href="/community" data-link>Community</a>${me ? `<a class="btn-ghost" href="/dashboard" data-link>Dashboard</a>` : `<a class="btn-text" href="/auth/discord">Log in</a>`}</div>
     </nav>
     <main class="hero">
       <section class="intro">
@@ -106,6 +106,19 @@ export function mountHome(root: HTMLElement): () => void {
     </footer>
   </div>`;
 
+  // Sections fade up as they scroll into view.
+  const reveal = "IntersectionObserver" in window
+    ? new IntersectionObserver(entries => entries.forEach(en => {
+      if (en.isIntersecting) { en.target.classList.add("in"); reveal?.unobserve(en.target); }
+    }), { threshold: 0.12 })
+    : null;
+  root.querySelectorAll<HTMLElement>(".band h2, .band .band-sub, .feature, .steps li, .theme-chip, .faq, .cta > *, .stats").forEach(el => {
+    el.setAttribute("data-reveal", "");
+    const sibling = el.parentElement ? Array.from(el.parentElement.children).indexOf(el) : 0;
+    el.style.setProperty("--d", `${Math.min(sibling, 6) * 60}ms`);
+    if (reveal) reveal.observe(el); else el.classList.add("in");
+  });
+
   let alive = true;
   let statsTimer = 0;
   const loadStats = (): void => {
@@ -121,7 +134,7 @@ export function mountHome(root: HTMLElement): () => void {
   statsTimer = window.setInterval(loadStats, 20_000);
   const stopStats = (): void => { alive = false; window.clearInterval(statsTimer); };
 
-  if (me) return stopStats;
+  if (me) return () => { reveal?.disconnect(); stopStats(); };
   root.querySelector("#to-top")?.addEventListener("click", () => {
     window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
     window.setTimeout(() => root.querySelector<HTMLInputElement>("#name")?.focus(), 350);
@@ -178,5 +191,5 @@ export function mountHome(root: HTMLElement): () => void {
   }).catch(() => { /* the page works without it */ });
 
   if (notice) history.replaceState(null, "", location.pathname);
-  return () => { window.clearTimeout(timer); stopStats(); };
+  return () => { window.clearTimeout(timer); reveal?.disconnect(); stopStats(); };
 }

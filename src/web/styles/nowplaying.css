@@ -73,3 +73,12 @@
 .lyr-foot .np-bar { background: rgba(255, 255, 255, 0.2); }
 .lyr-foot .np-fill { background: #fff; }
 @media (prefers-reduced-motion: reduce) { .eq i { animation: none; height: 8px; } .lyr-panel { animation: none; } .lyr-track { transition: none; } }
+
+/* Open in Spotify */
+.np-open { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px 7px 10px; border-radius: 999px; background: #1ed760; color: #000; font-size: 0.78rem; font-weight: 700; text-decoration: none; transition: transform 0.2s, filter 0.2s; }
+.np-open:hover { transform: translateY(-1px); filter: brightness(1.08); }
+.np-open .ic { width: 16px; height: 16px; display: block; }
+.np-open .ic svg { fill: currentColor; stroke: none; }
+.lyr-open { background: #1ed760; color: #000; }
+.lyr-open:hover { background: #1ed760; filter: brightness(1.1); }
+.lyr-open .ic svg { fill: currentColor; stroke: none; }

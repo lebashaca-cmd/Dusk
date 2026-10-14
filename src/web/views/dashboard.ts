@@ -33,13 +33,14 @@ export function mountDashboard(root: HTMLElement): () => void {
       </div>
       <div class="top-r">
         <span class="saved" id="saved" role="status"></span>
+        <a class="btn-ghost" href="/community" data-link>Community</a>
         <a class="btn-ghost" id="view" href="#" data-link>View my page</a>
         <button class="btn-text" type="button" id="logout">Log out</button>
       </div>
     </header>
     <div class="dash-body">
       <aside class="side">
-        <div class="tabs" role="tablist">${PANES.map(p => `<button class="tab" type="button" role="tab" data-tab="${p.id}" aria-selected="${p === active}">${p.label}</button>`).join("")}</div>
+        <div class="tabs" role="tablist">${PANES.map((p, i) => `<button class="tab" style="--i:${i}" type="button" role="tab" data-tab="${p.id}" aria-selected="${p === active}">${p.label}</button>`).join("")}</div>
         <div class="side-body" id="pane"></div>
       </aside>
       <section class="preview-pane">

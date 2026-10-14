@@ -1,5 +1,5 @@
 import type {
-  ApiErrorBody, Lyrics, MeResponse, PublicProfile, SiteConfig, SiteStats, Track, UsernameCheck,
+  ApiErrorBody, CommunityMe, CommunityProfile, CommunityTemplate, Lyrics, MeResponse, PublicProfile, SiteConfig, SiteStats, Track, UsernameCheck,
 } from "../shared/types";
 
 export class ApiError extends Error {
@@ -53,6 +53,13 @@ export const api = {
   createPage: (username: string) => send<MeResponse>("POST", "/api/pages", { username }),
   switchPage: (id: string) => send<MeResponse>("PUT", "/api/pages/active", { id }),
   deletePage: (id: string) => send<{ loggedOut: boolean }>("DELETE", `/api/pages/${encodeURIComponent(id)}`),
+  communityProfiles: () => get<CommunityProfile[]>("/api/community/profiles"),
+  communityTemplates: () => get<CommunityTemplate[]>("/api/community/templates"),
+  communityMe: () => get<CommunityMe>("/api/community/me"),
+  setListed: (listed: boolean) => send<CommunityMe>("PUT", "/api/community/listing", { listed }),
+  shareTemplate: (name: string, description: string) => send<CommunityTemplate>("POST", "/api/community/templates", { name, description }),
+  deleteTemplate: (id: string) => send<void>("DELETE", `/api/community/templates/${id}`),
+  useTemplate: (id: string) => send<MeResponse>("POST", `/api/community/templates/${id}/use`),
   logout: () => send<void>("POST", "/api/logout"),
 
   uploadAvatar: (blob: Blob) => {

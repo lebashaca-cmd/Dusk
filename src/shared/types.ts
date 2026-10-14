@@ -277,3 +277,36 @@ export interface UsernameCheck {
 export interface ApiErrorBody {
   error: string;
 }
+
+/* ---------- community ---------- */
+
+export interface CommunityProfile {
+  username: string;
+  name: string;
+  bio: string;
+  avatarUrl: string | null;
+  discordAvatarUrl: string | null;
+  colors: ProfileColors;
+  bgType: BgType;
+  views: number;
+}
+
+export interface CommunityTemplate {
+  id: string;
+  name: string;
+  description: string;
+  author: string;
+  colors: ProfileColors;
+  bgType: BgType;
+  font: FontKey;
+  uses: number;
+  createdAt: number;
+  /** True for the logged-in person's own templates, which they can delete. */
+  mine: boolean;
+}
+
+export interface CommunityMe {
+  listed: boolean;
+  /** True when the open page has something to show (a name is always there, so this is about the bio). */
+  hasBio: boolean;
+}

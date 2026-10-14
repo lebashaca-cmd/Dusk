@@ -1,3 +1,4 @@
+import { mountCommunity } from "./views/community";
 import { mountDashboard } from "./views/dashboard";
 import { mountHome } from "./views/home";
 import { mountPublic } from "./views/public";
@@ -17,6 +18,7 @@ function show(route: Route): void {
   switch (route.name) {
     case "home": cleanup = mountHome(root); break;
     case "dashboard": cleanup = mountDashboard(root); break;
+    case "community": cleanup = mountCommunity(root); break;
     case "public": cleanup = mountPublic(root, route.username); break;
   }
 }

@@ -35,7 +35,7 @@ export class LyricPanel {
       <div class="lyr-head">
         ${np.coverUrl ? `<img src="${esc(np.coverUrl)}" alt="" referrerpolicy="no-referrer">` : ""}
         <div class="lyr-meta"><b>${esc(np.title)}</b><span>${esc(np.artist)}</span></div>
-        ${np.link ? `<a class="lyr-btn" href="${esc(np.link)}" target="_blank" rel="noopener noreferrer" aria-label="Open song">${icon("arrow")}</a>` : ""}
+        ${np.link ? `<a class="lyr-btn lyr-open" href="${esc(np.link)}" target="_blank" rel="noopener noreferrer" aria-label="Go to Spotify" title="Go to Spotify">${icon(np.source === "spotify" ? "spotify" : "arrow")}</a>` : ""}
         <button class="lyr-btn" type="button" data-close aria-label="Close lyrics">${icon("close")}</button>
       </div>
       ${content}

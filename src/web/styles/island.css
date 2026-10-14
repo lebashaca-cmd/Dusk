@@ -83,3 +83,13 @@
   .di-wave.is-playing i { animation: none; }
   .di-island, .di-art, .di-wave-anchor, .di-player, .di-lyr-track { transition: none; }
 }
+
+/* Open in Spotify, top right of the open island. */
+.di-open { position: absolute; top: 20px; right: 22px; width: 30px; height: 30px; border-radius: 50%; background: #1ed760; color: #000; display: grid; place-items: center; text-decoration: none; transition: transform 0.2s, filter 0.2s; }
+.di-open[hidden] { display: none; }
+.di-open:hover { transform: scale(1.08); filter: brightness(1.08); }
+.di-open:focus-visible { outline: 2px solid var(--p-accent, #fff); outline-offset: 2px; }
+.di-open .ic { width: 18px; height: 18px; display: block; }
+.di-open .ic svg { fill: currentColor; stroke: none; }
+.is-expanded.has-open .di-wave-anchor { top: 62px; }
+.di-meta { right: 64px; }

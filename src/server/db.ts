@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { normalizeProfile } from "../shared/constants";
+import { normalizeProfile, type TemplateStyle } from "../shared/constants";
 import type { CoverSource, Lyrics, Profile, RoleTag } from "../shared/types";
 import { config } from "./config";
 import { loadState, remoteEnabled, saveState } from "./storage";
@@ -30,6 +30,19 @@ export interface UserRecord {
   signupIp?: string | null;
   /** Discord ID of the account that owns this page. Missing on a first page, where the ID is the owner. */
   ownerId?: string;
+  /** Shown in the Community tab when true. */
+  listed?: boolean;
+}
+
+export interface TemplateRecord {
+  id: string;
+  ownerId: string;
+  author: string;
+  name: string;
+  description: string;
+  style: TemplateStyle;
+  uses: number;
+  createdAt: number;
 }
 
 export const ownerOf = (u: { id: string; ownerId?: string }): string => u.ownerId ?? u.id;
@@ -64,12 +77,13 @@ interface Shape {
   tracks: Record<string, TrackRecord>;
   sessions: Record<string, SessionRecord>;
   settings: { logChannelId: string | null };
+  templates: Record<string, TemplateRecord>;
 }
 
 /* ---------- a small JSON file store ---------- */
 
 class Database {
-  private data: Shape = { users: {}, usernames: {}, tracks: {}, sessions: {}, settings: { logChannelId: null } };
+  private data: Shape = { users: {}, usernames: {}, tracks: {}, sessions: {}, settings: { logChannelId: null }, templates: {} };
   private timer: NodeJS.Timeout | null = null;
   private readonly file: string;
 
@@ -95,6 +109,7 @@ class Database {
       tracks: raw.tracks ?? {},
       sessions: raw.sessions ?? {},
       settings: { logChannelId: raw.settings?.logChannelId ?? null },
+      templates: raw.templates ?? {},
     };
   }
 
@@ -212,6 +227,30 @@ class Database {
     const withSong = new Set(Object.values(this.data.tracks).map(t => t.userId));
     const pages = users.filter(u => u.profile.bio.trim() || u.profile.links.length > 0 || withSong.has(u.id)).length;
     return { users: owners.size, pages };
+  }
+
+  /* community */
+
+  listedPages(): UserRecord[] {
+    return Object.values(this.data.users).filter(u => u.listed);
+  }
+
+  templates(): TemplateRecord[] {
+    return Object.values(this.data.templates);
+  }
+
+  template(id: string): TemplateRecord | undefined {
+    return this.data.templates[id];
+  }
+
+  addTemplate(t: TemplateRecord): void {
+    this.data.templates[t.id] = t;
+    this.save();
+  }
+
+  removeTemplate(id: string): void {
+    delete this.data.templates[id];
+    this.save();
   }
 
   /* sign-up log */

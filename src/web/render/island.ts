@@ -1,4 +1,5 @@
 import { clamp, fmtTime } from "../util/format";
+import { icon } from "../ui/icons";
 import { esc } from "../util/dom";
 import { activeLine, lyricsMessage } from "../media/lyrics";
 import type { NowPlaying } from "../media/nowplaying";
@@ -80,6 +81,7 @@ export class IslandPanel {
       <span class="di-art"></span>
       <span class="di-wave-anchor"><span class="di-wave">${WAVE.map((h, i) => `<i style="--bar-height:${h}px;--bar-delay:${i * -0.08}s"></i>`).join("")}</span></span>
       <div class="di-player" inert>
+        <a class="di-open" href="#" target="_blank" rel="noopener noreferrer" aria-label="Go to Spotify" title="Go to Spotify" hidden></a>
         <div class="di-meta"><strong></strong><span></span></div>
         <div class="di-bottom">
           <label class="di-progress"><span data-cur>0:00</span><input type="range" aria-label="Song progress" min="0" max="1" step=".1" value="0"><span data-left>-0:00</span></label>
@@ -154,6 +156,14 @@ export class IslandPanel {
         const wanted = key;
         void coverColor(np.coverUrl).then(c => { if (wanted === this.metaKey) this.island.style.setProperty("--di-color-1", c); });
       }
+    }
+    const open = this.q<HTMLAnchorElement>(".di-open");
+    const hasLink = np.source === "spotify" && Boolean(np.link);
+    open.hidden = !hasLink;
+    this.island.classList.toggle("has-open", hasLink);
+    if (hasLink) {
+      if (open.getAttribute("href") !== np.link) open.href = np.link!;
+      if (!open.firstElementChild) open.innerHTML = icon("spotify");
     }
     const vol = this.q<HTMLInputElement>(".di-volume input");
     if (!this.dragging) vol.value = String(player.audio.volume);
@@ -267,7 +277,7 @@ export class IslandPanel {
 
     // Swipe up on the open island to close it, like on a phone.
     this.island.addEventListener("pointerdown", e => {
-      if (!this.open || e.button !== 0 || (e.target as Element).closest("button, input")) return;
+      if (!this.open || e.button !== 0 || (e.target as Element).closest("button, input, a")) return;
       this.swipe = { y: e.clientY, t: e.timeStamp };
       this.island.setPointerCapture(e.pointerId);
     });

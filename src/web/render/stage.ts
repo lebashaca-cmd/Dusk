@@ -47,6 +47,10 @@ export class Stage {
   private islandSource: Source | null = null;
   private openLyrics: Source | null = null;
   private lyricsDecided = false;
+  private spotifyOn = false;
+  private introTimer = 0;
+  private slotKey = "";
+  private slotTimer = 0;
   private entrance = "";
   private nowPlaying = new Map<Source, NowPlaying>();
   private tickTimer = 0;
@@ -61,6 +65,9 @@ export class Stage {
     el.className = "stage";
     el.innerHTML = `<div class="fx-aurora"><i></i><i></i><i></i></div><canvas class="fx-canvas fx-particles"></canvas><canvas class="fx-canvas fx-grid"></canvas>      <div class="scroll"><div class="wrap"><div class="mount"></div></div></div>`;
     this.el = el;
+    // Entrance animations only run for the first moments, so edits in the dashboard never replay them.
+    el.classList.add("is-intro");
+    this.introTimer = window.setTimeout(() => el.classList.remove("is-intro"), 1600);
     this.mount = el.querySelector<HTMLElement>(".mount")!;
     this.wrap = el.querySelector<HTMLElement>(".wrap")!;
 
@@ -130,6 +137,8 @@ export class Stage {
 
   destroy(): void {
     window.clearInterval(this.tickTimer);
+    window.clearTimeout(this.introTimer);
+    window.clearTimeout(this.slotTimer);
     this.stopTyping();
     this.field.destroy();
     cancelAnimationFrame(this.tiltRaf);
@@ -146,9 +155,10 @@ export class Stage {
   private collect(): Map<Source, NowPlaying> {
     const p = this.model.profile;
     const out = new Map<Source, NowPlaying>();
-    const up = p.music.enabled ? uploadNowPlaying() : null;
-    if (up) out.set("upload", up);
     const sp = p.discord.enabled && p.discord.showSpotify ? lanyard.data?.spotify : null;
+    // While Spotify is playing, the uploaded songs (and their lyrics) step aside.
+    const up = p.music.enabled && !sp ? uploadNowPlaying() : null;
+    if (up) out.set("upload", up);
     if (sp) out.set("spotify", spotifyNowPlaying(sp));
     return out;
   }
@@ -159,6 +169,17 @@ export class Stage {
     const p = this.model.profile;
     const d = lanyard.data;
     this.nowPlaying = this.collect();
+
+    const spotifyOn = this.nowPlaying.has("spotify");
+    if (spotifyOn !== this.spotifyOn) {
+      this.spotifyOn = spotifyOn;
+      if (spotifyOn) {
+        // Stop the uploaded song and close its lyrics, so Spotify's own lyrics can open by their setting.
+        if (player.playing) player.pause();
+        if (this.openLyrics === "upload") this.openLyrics = null;
+        this.lyricsDecided = false;
+      } else if (this.openLyrics === "spotify") this.openLyrics = null;
+    }
 
     if (!this.lyricsDecided && this.nowPlaying.size) {
       this.lyricsDecided = true;
@@ -176,6 +197,16 @@ export class Stage {
     if (markup !== this.cardKey) {
       this.cardKey = markup;
       slot.innerHTML = markup;
+      // Cards slide in when a new kind of card shows up (a song starts, Discord answers), not on every small change.
+      const kinds = [...this.nowPlaying.keys()].join(",") + (p.discord.enabled && p.discord.showCard && d ? ",presence" : "");
+      if (kinds !== this.slotKey) {
+        this.slotKey = kinds;
+        slot.classList.remove("anim");
+        void slot.offsetWidth;
+        slot.classList.add("anim");
+        window.clearTimeout(this.slotTimer);
+        this.slotTimer = window.setTimeout(() => slot.classList.remove("anim"), 900);
+      }
     }
     this.updateDot();
     this.renderPanel();

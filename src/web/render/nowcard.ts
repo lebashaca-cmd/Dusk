@@ -36,6 +36,7 @@ export function nowCardHTML(np: NowPlaying, o: NowCardOptions): string {
       <div class="np-info"><span class="np-label"><i></i>${label}</span>${title}<span class="np-artist">${esc(np.artist)}</span></div>
       ${side}
     </div>
+    ${np.source === "spotify" && np.link ? `<a class="np-open" href="${esc(np.link)}" target="_blank" rel="noopener noreferrer">${icon("spotify")}<span>Go to Spotify</span></a>` : ""}
     ${o.showProgress ? `<div class="np-prog"><span data-cur>0:00</span><div class="np-hit"${c ? " data-seek" : ""}><div class="np-bar"><div class="np-fill"></div></div></div><span>${fmtTime(np.durationMs)}</span></div>` : ""}
     ${o.showLyrics ? `<button class="np-lyr" type="button" data-lyr aria-label="Open lyrics"><span class="np-lyr-now"></span><span class="np-lyr-next"></span>${icon("expand", "np-exp")}</button>` : ""}
   </div>`;

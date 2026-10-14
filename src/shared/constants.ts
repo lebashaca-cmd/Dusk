@@ -16,7 +16,7 @@ export const USERNAME_RE = /^[a-z0-9._-]{3,20}$/;
 export const RESERVED_USERNAMES: readonly string[] = [
   "api", "auth", "media", "dashboard", "login", "logout", "assets", "static", "admin", "root",
   "support", "help", "www", "dusk", "settings", "about", "terms", "privacy", "explore",
-  "favicon.ico", "robots.txt", "index.html", "official", "staff", "null", "undefined",
+  "community", "favicon.ico", "robots.txt", "index.html", "official", "staff", "null", "undefined",
 ];
 
 export const PRESENCE_COLORS: Record<PresenceStatus, string> = {
@@ -108,4 +108,22 @@ export function normalizeProfile(saved: Partial<Profile> | undefined, name: stri
     music: { ...d.music, ...s.music },
     discord: { ...d.discord, ...s.discord },
   };
+}
+
+/** The parts of a profile that make up its look. A template is a copy of these, never anyone's links, bio or music. */
+export const STYLE_KEYS = [
+  "linkLayout", "iconColor", "linkHover", "tagStyle", "theme", "colors", "bgType", "gradAngle", "gridSize", "gridPush",
+  "density", "card", "font", "nameSize", "nameWeight", "nameGlow", "nameGradient", "effects",
+] as const satisfies ReadonlyArray<keyof Profile>;
+
+export type TemplateStyle = Pick<Profile, (typeof STYLE_KEYS)[number]>;
+
+export function pickStyle(p: Profile): TemplateStyle {
+  const out: Record<string, unknown> = {};
+  for (const k of STYLE_KEYS) out[k] = structuredClone(p[k]);
+  return out as unknown as TemplateStyle;
+}
+
+export function applyStyle(p: Profile, style: TemplateStyle): Profile {
+  return { ...p, ...structuredClone(style) };
 }

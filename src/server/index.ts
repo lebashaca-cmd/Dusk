@@ -9,6 +9,7 @@ import { HttpError } from "./http";
 import { adminRouter } from "./routes/admin";
 import { authRouter } from "./routes/auth";
 import { pagesRouter } from "./routes/pages";
+import { communityRouter } from "./routes/community";
 import { profileRouter } from "./routes/profile";
 import { mediaRouter, publicRouter } from "./routes/public";
 import { tracksRouter } from "./routes/tracks";
@@ -32,6 +33,7 @@ app.use("/api/admin", adminRouter);
 app.use("/api", csrfGuard, publicRouter, profileRouter);
 app.use("/api/tracks", csrfGuard, tracksRouter);
 app.use("/api/pages", csrfGuard, pagesRouter);
+app.use("/api/community", csrfGuard, communityRouter);
 app.use("/api", (_req, res) => { res.status(404).json({ error: "Not found." }); });
 
 /* The built web app. During development Vite serves it instead and proxies /api, /auth and /media here. */
