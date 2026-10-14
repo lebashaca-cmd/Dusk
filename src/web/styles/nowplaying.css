@@ -74,11 +74,17 @@
 .lyr-foot .np-fill { background: #fff; }
 @media (prefers-reduced-motion: reduce) { .eq i { animation: none; height: 8px; } .lyr-panel { animation: none; } .lyr-track { transition: none; } }
 
-/* Open in Spotify */
-.np-open { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px 7px 10px; border-radius: 999px; background: #1ed760; color: #000; font-size: 0.78rem; font-weight: 700; text-decoration: none; transition: transform 0.2s, filter 0.2s; }
-.np-open:hover { transform: translateY(-1px); filter: brightness(1.08); }
-.np-open .ic { width: 16px; height: 16px; display: block; }
+/* Go to Spotify: follows the page's tag style (pill, solid, outline, minimal), in Spotify green. */
+.np-open { --tc: #1ed760; --tt: #000; align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; font-size: 0.65rem; font-weight: 500; text-transform: uppercase; letter-spacing: 1.5px; padding: 6px 12px 6px 9px; border-radius: 999px; color: var(--p-dim); border: 1px solid color-mix(in srgb, var(--p-text) 14%, transparent); background: color-mix(in srgb, var(--p-text) 3%, transparent); text-decoration: none; transition: transform 0.2s, background 0.2s, border-color 0.2s, color 0.2s; }
+.np-open:hover { transform: translateY(-1px); border-color: var(--tc); color: var(--p-text); }
+.np-open .ic { width: 14px; height: 14px; display: block; color: var(--tc); }
 .np-open .ic svg { fill: currentColor; stroke: none; }
+.stage[data-tag="solid"] .np-open { background: var(--tc); color: var(--tt); border-color: transparent; font-weight: 700; }
+.stage[data-tag="solid"] .np-open .ic { color: var(--tt); }
+.stage[data-tag="solid"] .np-open:hover { color: var(--tt); filter: brightness(1.08); }
+.stage[data-tag="outline"] .np-open { background: transparent; color: var(--tc); border-color: var(--tc); }
+.stage[data-tag="outline"] .np-open:hover { background: color-mix(in srgb, var(--tc) 14%, transparent); color: var(--tc); }
+.stage[data-tag="minimal"] .np-open { background: transparent; border-color: transparent; padding-inline: 4px; }
 .lyr-open { background: #1ed760; color: #000; }
 .lyr-open:hover { background: #1ed760; filter: brightness(1.1); }
 .lyr-open .ic svg { fill: currentColor; stroke: none; }

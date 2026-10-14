@@ -225,7 +225,8 @@ class Database {
     const users = Object.values(this.data.users);
     const owners = new Set(users.map(ownerOf));
     const withSong = new Set(Object.values(this.data.tracks).map(t => t.userId));
-    const pages = users.filter(u => u.profile.bio.trim() || u.profile.links.length > 0 || withSong.has(u.id)).length;
+    // A first page counts once it has a bio, a link or a song. An extra page counts as soon as it is made, since someone chose to make it.
+    const pages = users.filter(u => (u.ownerId && u.ownerId !== u.id) || u.profile.bio.trim() || u.profile.links.length > 0 || withSong.has(u.id)).length;
     return { users: owners.size, pages };
   }
 

@@ -132,6 +132,8 @@ export class Stage {
 
   /** Start the uploaded music. Browsers need this to follow a tap. */
   startMusic(): void {
+    // Spotify wins: if it is already playing, the uploaded songs stay quiet. (If Spotify shows up a moment later, renderSlot pauses them.)
+    if (this.spotifyPlaying()) return;
     if (this.model.profile.music.enabled && this.model.profile.music.autoplay) player.play();
   }
 
@@ -151,6 +153,12 @@ export class Stage {
   }
 
   /* ---------- music and Discord cards ---------- */
+
+  /** Whether the owner is listening to Spotify right now, and the page is set to show it. */
+  private spotifyPlaying(): boolean {
+    const d = this.model.profile.discord;
+    return Boolean(d.enabled && d.showSpotify && lanyard.data?.spotify);
+  }
 
   private collect(): Map<Source, NowPlaying> {
     const p = this.model.profile;
