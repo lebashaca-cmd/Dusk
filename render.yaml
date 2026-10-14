@@ -10,7 +10,7 @@ services:
     healthCheckPath: /api/stats
     envVars:
       - key: NODE_VERSION
-        value: 22
+        value: "22"
       - key: TRUST_PROXY
         value: "1"
       - key: SESSION_SECRET

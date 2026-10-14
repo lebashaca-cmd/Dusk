@@ -4,7 +4,7 @@ import express, { type ErrorRequestHandler } from "express";
 import multer from "multer";
 import { config, discordConfigured } from "./config";
 import { db } from "./db";
-import { ensureBucket, remoteEnabled } from "./storage";
+import { remoteEnabled, verifyRemote } from "./storage";
 import { HttpError } from "./http";
 import { adminRouter } from "./routes/admin";
 import { authRouter } from "./routes/auth";
@@ -56,8 +56,14 @@ const onError: ErrorRequestHandler = (err, req, res, _next) => {
 app.use(onError);
 
 if (remoteEnabled) {
-  await db.init();
-  await ensureBucket();
+  try {
+    await verifyRemote();
+    await db.init();
+  } catch (e) {
+    // Stopping is deliberate: starting with an empty database could overwrite the real one.
+    console.error(`\nSTARTUP ERROR: ${e instanceof Error ? e.message : e}\n`);
+    process.exit(1);
+  }
   console.log("Using Supabase for the database and uploaded files.");
 }
 
