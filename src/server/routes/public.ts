@@ -16,7 +16,7 @@ import { config, guildConfigured } from "../config";
 export const publicRouter = Router();
 
 publicRouter.get("/config", (_req, res) => {
-  const body: SiteConfig = { guildRequired: guildConfigured, inviteUrl: config.discord.inviteUrl || null };
+  const body: SiteConfig = { guildRequired: guildConfigured, inviteUrl: config.discord.inviteUrl || null, creditUrl: config.discord.creditUrl || null };
   res.json(body);
 });
 

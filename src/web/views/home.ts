@@ -2,6 +2,7 @@ import { LIMITS, THEMES } from "../../shared/constants";
 import { THEME_KEYS } from "../../shared/types";
 import { USERNAME_HELP, checkUsernameFormat, cleanUsername } from "../../shared/url";
 import { api } from "../api";
+import { Stage } from "../render/stage";
 import { store } from "../state";
 import { icon } from "../ui/icons";
 import { esc, must } from "../util/dom";
@@ -94,8 +95,8 @@ export function mountHome(root: HTMLElement): () => void {
         ${action}
       </section>
       <aside class="demo" aria-label="Preview">
-        <div class="device"><div class="device-empty"><div>${icon("music")}<strong>Your page shows up here</strong><span>Log in with Discord, add your links and upload a song. Nothing here is pre-filled.</span></div></div></div>
-        <p class="cap">Discord login · Lanyard presence · LRCLIB lyrics</p>
+        <div class="device">${me ? "" : `<div class="device-empty"><div>${icon("music")}<strong>Your page shows up here</strong><span>Log in with Discord, add your links and upload a song. Nothing here is pre-filled.</span></div></div>`}</div>
+        <p class="cap">${me ? `This is your page. <a href="/dashboard" data-link>Edit it in the dashboard</a>` : "Discord login · Lanyard presence · LRCLIB lyrics"}</p>
       </aside>
     </main>
     ${sectionsHTML(!!me)}
@@ -104,6 +105,7 @@ export function mountHome(root: HTMLElement): () => void {
       <div><b data-stat="users">–</b><span>users</span></div>
       <div><b data-stat="online">–</b><span><i class="live-dot"></i>online now</span></div>
     </footer>
+    <p class="credit">©Provided By <a id="credit-link" href="#" target="_blank" rel="noopener noreferrer">Risk</a></p>
   </div>`;
 
   // Sections fade up as they scroll into view.
@@ -118,6 +120,19 @@ export function mountHome(root: HTMLElement): () => void {
     el.style.setProperty("--d", `${Math.min(sibling, 6) * 60}ms`);
     if (reveal) reveal.observe(el); else el.classList.add("in");
   });
+
+  // Logged in: the phone shows your real page, drawn from your own data.
+  let stage: Stage | null = null;
+  const model = me ? store.model : null;
+  if (model) {
+    stage = new Stage(model, { width: 330 });
+    must(".device", root).append(stage.el);
+  }
+
+  // "Risk" links to the Discord server from DISCORD_INVITE_URL. Without one it is plain text.
+  const credit = must<HTMLAnchorElement>("#credit-link", root);
+  credit.removeAttribute("href");
+  api.config().then(c => { if (c.creditUrl && alive) credit.href = c.creditUrl; }).catch(() => { /* stays plain text */ });
 
   let alive = true;
   let statsTimer = 0;
@@ -134,7 +149,7 @@ export function mountHome(root: HTMLElement): () => void {
   statsTimer = window.setInterval(loadStats, 20_000);
   const stopStats = (): void => { alive = false; window.clearInterval(statsTimer); };
 
-  if (me) return () => { reveal?.disconnect(); stopStats(); };
+  if (me) return () => { reveal?.disconnect(); stopStats(); stage?.destroy(); };
   root.querySelector("#to-top")?.addEventListener("click", () => {
     window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
     window.setTimeout(() => root.querySelector<HTMLInputElement>("#name")?.focus(), 350);

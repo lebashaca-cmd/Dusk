@@ -32,6 +32,8 @@ export const config = {
     guildId: env.DISCORD_GUILD_ID ?? "",
     botToken: env.DISCORD_BOT_TOKEN ?? "",
     inviteUrl: env.DISCORD_INVITE_URL ?? "",
+    /** Where "Risk" in the footer links. Defaults to the invite link above. */
+    creditUrl: env.DUSK_CREDIT_URL || env.DISCORD_INVITE_URL || "",
   },
 } as const;
 

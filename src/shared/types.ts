@@ -255,6 +255,8 @@ export interface SiteConfig {
   /** Everyone has to be in this Discord server to log in. */
   guildRequired: boolean;
   inviteUrl: string | null;
+  /** Where "Risk" in the footer credit links. */
+  creditUrl: string | null;
 }
 
 export type PublicProfile = RenderModel;

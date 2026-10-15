@@ -29,6 +29,8 @@ services:
         sync: false
       - key: DISCORD_INVITE_URL
         sync: false
+      - key: DUSK_CREDIT_URL
+        sync: false
       - key: DUSK_OWNER_IDS
         sync: false
       - key: DUSK_DEV_IDS
