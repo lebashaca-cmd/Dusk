@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { Router } from "express";
-import { applyStyle, pickStyle } from "../../shared/constants";
+import { applyStyle, limitProfile, normalizeProfile, pickStyle } from "../../shared/constants";
 import type { CommunityMe, CommunityProfile, CommunityTemplate } from "../../shared/types";
 import { db, ownerOf, type TemplateRecord, type UserRecord } from "../db";
 import { asyncHandler, currentUser, HttpError } from "../http";
@@ -9,6 +9,7 @@ import { rateLimit } from "../rateLimit";
 import { requireAuth } from "../session";
 import { cleanText, parseProfile } from "../validation";
 import { discordAvatarUrl } from "../services/discord";
+import { isVip } from "../pages";
 
 export const communityRouter = Router();
 
@@ -107,9 +108,9 @@ communityRouter.post("/templates/:id/use", requireAuth, rateLimit(60_000, 20), a
   const u = currentUser(req);
   const t = db.template(String(req.params.id));
   if (!t) throw new HttpError(404, "Template not found.");
-  const parsed = parseProfile(applyStyle(u.profile, t.style));
+  const parsed = parseProfile(normalizeProfile(applyStyle(u.profile, t.style), u.discordName));
   if (!parsed.ok) throw new HttpError(400, "That template can't be applied.");
-  u.profile = parsed.value;
+  u.profile = limitProfile(parsed.value, isVip(u));
   if (t.ownerId !== ownerOf(u)) t.uses += 1;
   db.save();
   res.json(toMe(u));

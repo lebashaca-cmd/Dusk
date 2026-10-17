@@ -35,6 +35,10 @@ services:
         sync: false
       - key: DUSK_DEV_IDS
         sync: false
+      - key: DUSK_VIP_IDS
+        sync: false
+      - key: DUSK_VIP_ROLES
+        sync: false
       - key: DUSK_ADMIN_TOKEN
         generateValue: true
       - key: SUPABASE_URL

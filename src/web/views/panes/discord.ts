@@ -2,8 +2,7 @@ import { lanyard } from "../../media/lanyard";
 import { store } from "../../state";
 import { esc } from "../../util/dom";
 import { delegate } from "../../util/dom";
-import { LYRIC_STYLES } from "../../../shared/types";
-import { bindFields, group, selectField, toggle, type Pane } from "./fields";
+import { bindFields, choiceGrid, group, LYRIC_CHOICES, toggle, type Pane } from "./fields";
 
 export const discordPane: Pane = {
   id: "discord",
@@ -27,7 +26,7 @@ export const discordPane: Pane = {
           toggle("discord.showCard", "Discord card", d.showCard) +
           toggle("discord.showActivity", "The game or app I'm using", d.showActivity) +
           toggle("discord.showSpotify", "Spotify card when I'm listening", d.showSpotify) +
-          (d.showSpotify ? toggle("discord.showProgress", "Spotify progress bar", d.showProgress) + toggle("discord.showLyrics", "Spotify lyrics (from LRCLIB)", d.showLyrics) + selectField("discord.lyricsStyle", "Lyrics style", d.lyricsStyle, LYRIC_STYLES.map(s => [s, s === "panel" ? "Panel beside the card" : "Dynamic Island"] as const)) + toggle("discord.lyricsOpen", "Open lyrics by default", d.lyricsOpen) : "")) : "",
+          (d.showSpotify ? toggle("discord.showProgress", "Spotify progress bar", d.showProgress) + toggle("discord.showLyrics", "Spotify lyrics (from LRCLIB)", d.showLyrics) + choiceGrid("discord.lyricsStyle", "Lyrics style", d.lyricsStyle, LYRIC_CHOICES, store.me!.vip, { cols: 2 }) + toggle("discord.lyricsOpen", "Open lyrics by default", d.lyricsOpen) : "")) : "",
       ].join("");
       paint();
     };

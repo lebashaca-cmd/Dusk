@@ -15,11 +15,20 @@ export type IconName = (typeof ICON_NAMES)[number];
 export const PRESENCE_STATUSES = ["online", "idle", "dnd", "offline"] as const;
 export type PresenceStatus = (typeof PRESENCE_STATUSES)[number];
 
-export const BG_TYPES = ["solid", "gradient", "aurora", "particles", "grid"] as const;
+export const BG_TYPES = [
+  "solid", "gradient", "aurora", "particles", "grid", "dots", "lines", "spotlight",
+  "mesh", "stars", "rain", "grain", "image",
+] as const;
 export type BgType = (typeof BG_TYPES)[number];
 
 export const CARD_STYLES = ["glass", "solid", "outline", "none"] as const;
 export type CardStyle = (typeof CARD_STYLES)[number];
+
+export const BORDER_COLORS = ["text", "accent"] as const;
+export type BorderColor = (typeof BORDER_COLORS)[number];
+
+export const NAME_CASES = ["normal", "upper", "lower"] as const;
+export type NameCase = (typeof NAME_CASES)[number];
 
 export const ALIGNS = ["center", "left"] as const;
 export type Align = (typeof ALIGNS)[number];
@@ -43,14 +52,17 @@ export type AvatarKind = (typeof AVATAR_KINDS)[number];
 export const AVATAR_SHAPES = ["circle", "rounded", "square"] as const;
 export type AvatarShape = (typeof AVATAR_SHAPES)[number];
 
-export const FONT_KEYS = ["inter", "dm", "syne", "mono", "serif", "bebas"] as const;
+export const FONT_KEYS = ["inter", "dm", "syne", "mono", "serif", "bebas", "space", "outfit", "caveat"] as const;
 export type FontKey = (typeof FONT_KEYS)[number];
 
-export const ENTRANCES = ["rise", "fade", "zoom", "none"] as const;
+export const ENTRANCES = ["rise", "fade", "zoom", "blur", "slide", "none"] as const;
 export type Entrance = (typeof ENTRANCES)[number];
 
 export const LYRIC_STYLES = ["panel", "island"] as const;
 export type LyricStyle = (typeof LYRIC_STYLES)[number];
+
+/** Backgrounds only VIP members can pick. */
+export const VIP_BG_TYPES: readonly BgType[] = ["mesh", "stars", "rain", "grain", "image"];
 
 export const THEME_KEYS = ["midnight", "frost", "neon", "sunset", "ocean", "forest", "rose", "slate"] as const;
 export type ThemeName = (typeof THEME_KEYS)[number];
@@ -86,6 +98,8 @@ export interface AvatarSettings {
   emoji: string;
   shape: AvatarShape;
   ring: boolean;
+  /** Thickness of the ring in px. */
+  ringWidth: number;
   size: number;
 }
 
@@ -96,6 +110,9 @@ export interface CardSettings {
   width: number;
   align: Align;
   border: boolean;
+  borderColor: BorderColor;
+  /** How strong the drop shadow is, 0 to 100. */
+  shadow: number;
 }
 
 export interface EffectSettings {
@@ -160,6 +177,20 @@ export interface Profile {
   gridPush: number;
   /** Particle background amount, 0.3 (few) to 2 (many). */
   density: number;
+  /** Picture background (VIP): the image address, and how much it is blurred in px. */
+  bgImage: string;
+  bgBlur: number;
+  /** Darken any background, 0 to 80 percent. */
+  bgDim: number;
+  /** How fast animated backgrounds move, 0.2 to 3 times. */
+  bgSpeed: number;
+  /** Space between links in px. */
+  linkGap: number;
+  /** Letter spacing of the name in hundredths of an em, -6 to 8. */
+  nameTracking: number;
+  nameCase: NameCase;
+  /** Bio text size, 80 to 130 percent. */
+  bioScale: number;
   card: CardSettings;
   font: FontKey;
   nameSize: number;
@@ -235,6 +266,8 @@ export interface MeResponse {
   roles: RoleTag[];
   /** Whether this site is tied to a Discord server (so roles and joining apply). */
   guildEnabled: boolean;
+  /** VIP members can use the Dynamic Island, the premium backgrounds and picture backgrounds. */
+  vip: boolean;
 }
 
 /** Everything needed to draw a profile. Used for public pages and for the owner's own preview. */

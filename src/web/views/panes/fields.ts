@@ -39,6 +39,39 @@ export function colorField(path: string, label: string, value: string): string {
   return `<label class="clr">${esc(label)}<input type="color" data-p="${path}" data-t="color" value="${esc(value)}"></label>`;
 }
 
+export interface Choice {
+  value: string;
+  label: string;
+  /** Only VIP members may pick this one. */
+  vip?: boolean;
+  /** Class for the little preview picture (see dashboard.css). */
+  pv?: string;
+}
+
+/** How lyrics are shown. The Dynamic Island is for VIP members. */
+export const LYRIC_CHOICES: readonly Choice[] = [
+  { value: "panel", label: "Panel", pv: "lyr-panel" },
+  { value: "island", label: "Dynamic Island", vip: true, pv: "lyr-island" },
+];
+
+/**
+ * A grid of picture buttons. A VIP-only choice is blurred with "VIP" over it for regular members,
+ * and clicking it does nothing but tell them what it is.
+ */
+export function choiceGrid(path: string, label: string, value: string, choices: readonly Choice[], vip: boolean, o: { cols?: number; style?: string } = {}): string {
+  const locked = (c: Choice): boolean => Boolean(c.vip) && !vip;
+  return `<div class="fld"><span>${esc(label)}</span>
+    <div class="choices" style="--cols:${o.cols ?? 3};${o.style ?? ""}" data-choices="${path}">${choices.map(c => `<button type="button" class="choice${locked(c) ? " locked" : ""}" data-choice="${path}" data-value="${esc(c.value)}" aria-pressed="${String(value) === c.value}"${locked(c) ? ' aria-disabled="true"' : ""} title="${esc(c.label)}${locked(c) ? " (VIP only)" : ""}">
+      <i class="pv pv-${esc(c.pv ?? c.value)}"></i><span>${esc(c.label)}</span>${locked(c) ? '<b class="vip-tag">VIP</b>' : ""}</button>`).join("")}</div>
+    ${choices.some(locked) ? '<p class="note vip-hint" hidden>This one is for VIP members.</p>' : ""}</div>`;
+}
+
+/** Wrap a control so regular members see it blurred, with "VIP" on top, and can't touch it. */
+export function vipLock(html: string, vip: boolean): string {
+  if (vip) return html;
+  return `<div class="vip-lock" title="VIP only"><div class="vip-lock-in" inert aria-hidden="true">${html}</div><b class="vip-tag">VIP</b></div>`;
+}
+
 /**
  * Listens for every [data-p] control inside `el` and writes its value into the profile.
  * `after` runs once the profile is updated; return true from it to redraw the pane.
@@ -60,9 +93,27 @@ export function bindFields(el: HTMLElement, after?: (path: string) => boolean | 
     store.profileChanged();
     if (again && redraw) redraw();
   };
+  const pick = (_e: Event, t: HTMLElement): void => {
+    const path = t.dataset.choice;
+    if (!path) return;
+    if (t.classList.contains("locked")) {
+      const hint = t.closest(".fld")?.querySelector<HTMLElement>(".vip-hint");
+      if (hint) hint.hidden = false;
+      t.classList.remove("nudge");
+      void t.offsetWidth;
+      t.classList.add("nudge");
+      return;
+    }
+    setPath(store.profile, path, t.dataset.value ?? "");
+    t.closest(".choices")?.querySelectorAll<HTMLElement>("[data-choice]").forEach(b => b.setAttribute("aria-pressed", String(b === t)));
+    const again = after?.(path);
+    store.profileChanged();
+    if (again && redraw) redraw();
+  };
+  const off3 = delegate(el, "click", "[data-choice]", pick);
   const off1 = delegate(el, "input", "[data-p]:not(select):not([type=checkbox])", handle);
   const off2 = delegate(el, "change", "select[data-p], input[type=checkbox][data-p]", handle);
-  return () => { off1(); off2(); };
+  return () => { off1(); off2(); off3(); };
 }
 
 export const read = (path: string): unknown => getPath(store.profile, path);

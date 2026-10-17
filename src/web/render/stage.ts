@@ -63,7 +63,7 @@ export class Stage {
     this.model = model;
     const el = document.createElement("div");
     el.className = "stage";
-    el.innerHTML = `<div class="fx-aurora"><i></i><i></i><i></i></div><canvas class="fx-canvas fx-particles"></canvas><canvas class="fx-canvas fx-grid"></canvas>      <div class="scroll"><div class="wrap"><div class="mount"></div></div></div>`;
+    el.innerHTML = `<div class="fx-img"></div><div class="fx-bg"></div><div class="fx-aurora"><i></i><i></i><i></i></div><canvas class="fx-canvas fx-particles"></canvas><canvas class="fx-canvas fx-grid"></canvas><div class="fx-dim"></div><div class="scroll"><div class="wrap"><div class="mount"></div></div></div>`;
     this.el = el;
     // Entrance animations only run for the first moments, so edits in the dashboard never replay them.
     el.classList.add("is-intro");

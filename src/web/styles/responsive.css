@@ -3,8 +3,11 @@
   .hero { grid-template-columns: minmax(0, 1fr); gap: 32px; padding-block: 0 40px; }
   .intro { padding-top: 0; }
   .device { height: 520px; }
-  .dash-body { grid-template-columns: minmax(0, 1fr); }
+  .dash-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .rail { flex-direction: row; justify-content: flex-start; padding: 8px 14px; border-right: 0; border-bottom: 1px solid var(--line); overflow: auto hidden; }
+  .tab::after { display: none; }
   .side { border-right: 0; }
+  .dash[data-pane="preview"] .rail { display: none; }
   .mobile-switch { display: inline-flex; }
   .dash[data-pane="edit"] .preview-pane { display: none; }
   .dash[data-pane="preview"] .side { display: none; }

@@ -46,7 +46,8 @@ export const profilePane: Pane = {
             : "") +
           `<div class="two">${selectField("avatar.shape", "Shape", p.avatar.shape, AVATAR_SHAPES.map(s => [s, s[0]!.toUpperCase() + s.slice(1)] as const))}
             ${rangeField("avatar.size", "Size", p.avatar.size, 64, 160, 2, "px")}</div>` +
-          toggle("avatar.ring", "Ring around the picture", p.avatar.ring)),
+          toggle("avatar.ring", "Ring around the picture", p.avatar.ring) +
+          (p.avatar.ring ? rangeField("avatar.ringWidth", "Ring thickness", p.avatar.ringWidth, 1, 10, 1, "px") : "")),
         group("Username",
           `<form id="uname" class="tagrow"><input class="inp" id="uname-in" type="text" value="${me.user.username}" maxlength="20" spellcheck="false" aria-label="Username"><button class="btn-ghost" type="submit">Change</button></form>
            <p class="form-msg" id="uname-msg" role="status"></p>`),
@@ -55,7 +56,7 @@ export const profilePane: Pane = {
     draw();
 
     const offs = [
-      bindFields(el, path => path === "avatar.kind", draw),
+      bindFields(el, path => path === "avatar.kind" || path === "avatar.ring", draw),
       delegate(el, "change", "#avatar-file", async (_e, t) => {
         const file = (t as HTMLInputElement).files?.[0];
         if (!file) return;

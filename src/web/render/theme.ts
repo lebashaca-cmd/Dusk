@@ -21,6 +21,16 @@ export function applyTheme(host: HTMLElement, m: RenderModel, width?: number): v
   style.setProperty("--name-size", `${p.nameSize}px`);
   style.setProperty("--name-weight", String(p.nameWeight));
   style.setProperty("--av", `${p.avatar.size}px`);
+  style.setProperty("--ringw", `${p.avatar.ringWidth}px`);
+  style.setProperty("--p-shadow", String(p.card.shadow));
+  style.setProperty("--p-dim-o", String(p.bgDim / 100));
+  style.setProperty("--p-bgblur", `${p.bgBlur}px`);
+  style.setProperty("--p-speed", String(p.bgSpeed));
+  style.setProperty("--p-gap", `${p.linkGap}px`);
+  style.setProperty("--p-track", String(p.nameTracking));
+  style.setProperty("--p-bio", String(p.bioScale / 100));
+  // The address was checked on the server (http or https only). Escape what could break out of url("...").
+  style.setProperty("--p-bgimg", p.bgImage ? `url("${p.bgImage.replace(/["\\\n\r()]/g, ch => encodeURIComponent(ch))}")` : "none");
 
   const d = host.dataset;
   d.bg = p.bgType;
@@ -32,5 +42,7 @@ export function applyTheme(host: HTMLElement, m: RenderModel, width?: number): v
   d.icons = p.iconColor;
   d.hover = p.linkHover;
   d.border = p.card.border ? "on" : "off";
+  d.bcolor = p.card.borderColor;
+  d.case = p.nameCase;
   d.glow = p.effects.cursorGlow ? "on" : "off";
 }

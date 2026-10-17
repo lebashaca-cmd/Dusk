@@ -48,3 +48,13 @@ export const multiPage = {
 
 export const guildConfigured = Boolean(config.discord.guildId && config.discord.botToken);
 export const discordConfigured = Boolean(config.discord.clientId && config.discord.clientSecret);
+
+/**
+ * VIP members get the Dynamic Island, the premium backgrounds and picture backgrounds.
+ * Owners and devs are always VIP. Everyone else needs their Discord ID in DUSK_VIP_IDS,
+ * or a role in the Discord server whose name is in DUSK_VIP_ROLES.
+ */
+export const vipAccess = {
+  ids: new Set([...multiPage.ids, ...list(env.DUSK_VIP_IDS)]),
+  roles: list(env.DUSK_VIP_ROLES ?? "vip,owner,dev,developer").map(r => r.toLowerCase()),
+};

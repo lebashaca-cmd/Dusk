@@ -2,7 +2,8 @@ import type { MeResponse, RenderModel, Track } from "../shared/types";
 import { guildConfigured, multiPage } from "./config";
 import type { TrackRecord, UserRecord } from "./db";
 import { db, ownerOf } from "./db";
-import { canHaveManyPages } from "./pages";
+import { limitProfile } from "../shared/constants";
+import { canHaveManyPages, isVip } from "./pages";
 import { discordAvatarUrl } from "./services/discord";
 
 export function toTrack(t: TrackRecord): Track {
@@ -35,12 +36,13 @@ export function toMe(u: UserRecord): MeResponse {
     pages: db.pagesOf(ownerOf(u)).map(p => ({ id: p.id, username: p.username, active: p.id === u.id })),
     canMultiPage: canHaveManyPages(u),
     maxPages: multiPage.max,
-    profile: u.profile,
+    profile: limitProfile(u.profile, isVip(u)),
     tracks: db.tracksOf(u.id).map(toTrack),
     avatarUrl: customAvatarUrl(u),
     views: u.views,
     roles: u.roles,
     guildEnabled: guildConfigured,
+    vip: isVip(u),
   };
 }
 
@@ -48,7 +50,7 @@ export function toMe(u: UserRecord): MeResponse {
 export function toPublic(u: UserRecord): RenderModel {
   return {
     username: u.username,
-    profile: u.profile,
+    profile: limitProfile(u.profile, isVip(u)),
     avatarUrl: customAvatarUrl(u),
     discordAvatarUrl: discordAvatarUrl(ownerOf(u), u.discordAvatar),
     discordId: u.profile.discord.enabled ? ownerOf(u) : null,

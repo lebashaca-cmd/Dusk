@@ -6,8 +6,7 @@ import { icon } from "../../ui/icons";
 import { toast } from "../../ui/toast";
 import { delegate, esc, must } from "../../util/dom";
 import { fmtTime } from "../../util/format";
-import { LYRIC_STYLES } from "../../../shared/types";
-import { bindFields, group, rangeField, selectField, toggle, type Pane } from "./fields";
+import { bindFields, choiceGrid, group, LYRIC_CHOICES, rangeField, selectField, toggle, type Pane } from "./fields";
 
 const LYRIC_CHIP: Record<Lyrics["status"], string> = {
   synced: "Synced lyrics", plain: "Lyrics, not synced", none: "No lyrics found", instrumental: "Instrumental",
@@ -74,7 +73,7 @@ export const musicPane: Pane = {
           toggle("music.loop", "Loop the list", p.music.loop) +
           toggle("music.showProgress", "Show the progress bar", p.music.showProgress) +
           toggle("music.showLyrics", "Show the lyrics line", p.music.showLyrics) +
-          selectField("music.lyricsStyle", "Lyrics style", p.music.lyricsStyle, LYRIC_STYLES.map(s => [s, s === "panel" ? "Panel beside the card" : "Dynamic Island"] as const)) +
+          choiceGrid("music.lyricsStyle", "Lyrics style", p.music.lyricsStyle, LYRIC_CHOICES, store.me!.vip, { cols: 2 }) +
           toggle("music.lyricsOpen", "Open the lyrics by default", p.music.lyricsOpen) +
           rangeField("music.volume", "Volume", p.music.volume, 0, 1, 0.05)),
       ].join("");

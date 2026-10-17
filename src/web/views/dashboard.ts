@@ -3,6 +3,7 @@ import { Stage } from "../render/stage";
 import { navigate } from "../router";
 import { store, type SaveState } from "../state";
 import { esc, must } from "../util/dom";
+import { railIcon } from "./icons";
 import { discordPane } from "./panes/discord";
 import { extrasPane } from "./panes/extras";
 import type { Pane } from "./panes/fields";
@@ -32,6 +33,7 @@ export function mountDashboard(root: HTMLElement): () => void {
         <button type="button" data-pane-btn="preview" aria-pressed="false">Preview</button>
       </div>
       <div class="top-r">
+        ${me.vip ? '<span class="vip-chip" title="You are a VIP member">VIP</span>' : ""}
         <span class="saved" id="saved" role="status"></span>
         <a class="btn-ghost" href="/community" data-link>Community</a>
         <a class="btn-ghost" id="view" href="#" data-link>View my page</a>
@@ -39,8 +41,9 @@ export function mountDashboard(root: HTMLElement): () => void {
       </div>
     </header>
     <div class="dash-body">
+      <nav class="rail" role="tablist" aria-label="Editor sections" aria-orientation="vertical">${PANES.map((p, i) => `<button class="tab" style="--i:${i}" type="button" role="tab" data-tab="${p.id}" data-tip="${p.label}" aria-label="${p.label}" aria-selected="${p === active}">${railIcon(p.id)}</button>`).join("")}</nav>
       <aside class="side">
-        <div class="tabs" role="tablist">${PANES.map((p, i) => `<button class="tab" style="--i:${i}" type="button" role="tab" data-tab="${p.id}" aria-selected="${p === active}">${p.label}</button>`).join("")}</div>
+        <h2 class="side-title" id="side-title"></h2>
         <div class="side-body" id="pane"></div>
       </aside>
       <section class="preview-pane">
@@ -68,6 +71,7 @@ export function mountDashboard(root: HTMLElement): () => void {
     active = pane;
     try { sessionStorage.setItem("dusk.tab", pane.id); } catch { /* storage unavailable */ }
     root.querySelectorAll<HTMLElement>("[data-tab]").forEach(t => t.setAttribute("aria-selected", String(t.dataset.tab === pane.id)));
+    must("#side-title", root).textContent = pane.label;
     paneEl.scrollTop = 0;
     unmountPane = pane.mount(paneEl);
   };

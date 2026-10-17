@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { LIMITS } from "../shared/constants";
 import {
-  ALIGNS, AVATAR_KINDS, AVATAR_SHAPES, BG_TYPES, CARD_STYLES, ENTRANCES, FONT_KEYS, ICON_NAMES, ICON_COLORS, LINK_HOVERS,
+  ALIGNS, AVATAR_KINDS, AVATAR_SHAPES, BG_TYPES, BORDER_COLORS, CARD_STYLES, NAME_CASES, ENTRANCES, FONT_KEYS, ICON_NAMES, ICON_COLORS, LINK_HOVERS,
   LINK_LAYOUTS, LYRIC_STYLES, TAG_STYLES, THEME_KEYS,
   type Profile,
 } from "../shared/types";
@@ -30,6 +30,7 @@ const profileSchema = z.object({
     emoji: text(8),
     shape: z.enum(AVATAR_SHAPES),
     ring: z.boolean(),
+    ringWidth: int(0, 10),
     size: int(70, 150),
   }),
   hiddenRoles: z.array(z.string().max(30)).max(200),
@@ -45,6 +46,14 @@ const profileSchema = z.object({
   gridSize: int(16, 100),
   gridPush: int(0, 100),
   density: num(0.3, 2),
+  bgImage: z.string().max(500).transform(safeUrl),
+  bgBlur: int(0, 30),
+  bgDim: int(0, 80),
+  bgSpeed: num(0.2, 3),
+  linkGap: int(4, 28),
+  nameTracking: int(-6, 8),
+  nameCase: z.enum(NAME_CASES),
+  bioScale: int(80, 130),
   card: z.object({
     style: z.enum(CARD_STYLES),
     radius: int(0, 48),
@@ -52,6 +61,8 @@ const profileSchema = z.object({
     width: int(300, 560),
     align: z.enum(ALIGNS),
     border: z.boolean(),
+    borderColor: z.enum(BORDER_COLORS),
+    shadow: int(0, 100),
   }),
   font: z.enum(FONT_KEYS),
   nameSize: int(26, 72),

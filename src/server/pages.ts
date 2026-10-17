@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { multiPage } from "./config";
+import { multiPage, vipAccess } from "./config";
 import { defaultProfile } from "../shared/constants";
 import { db, ownerOf, userDir, type UserRecord } from "./db";
 import { dropFile } from "./storage";
@@ -9,6 +9,12 @@ import { dropFile } from "./storage";
 export function canHaveManyPages(u: UserRecord): boolean {
   if (multiPage.ids.has(ownerOf(u))) return true;
   return u.roles.some(r => multiPage.roles.includes(r.name.trim().toLowerCase()));
+}
+
+/** VIP: owners, devs, listed IDs, or anyone with a VIP role in the Discord server. */
+export function isVip(u: UserRecord): boolean {
+  if (vipAccess.ids.has(ownerOf(u))) return true;
+  return u.roles.some(r => vipAccess.roles.includes(r.name.trim().toLowerCase()));
 }
 
 /** Delete a page: its songs, covers and picture on disk and in storage, then the page itself. */

@@ -14,6 +14,8 @@ import { imageUpload } from "../uploads";
 import { imageMime } from "../services/audio";
 import { extForMime } from "../services/cover";
 import { parseProfile } from "../validation";
+import { limitProfile } from "../../shared/constants";
+import { isVip } from "../pages";
 
 export const profileRouter = Router();
 
@@ -46,7 +48,7 @@ profileRouter.put("/profile", requireAuth, (req, res) => {
   const user = currentUser(req);
   const parsed = parseProfile(req.body);
   if (!parsed.ok) throw new HttpError(400, parsed.error);
-  user.profile = parsed.value;
+  user.profile = limitProfile(parsed.value, isVip(user));
   db.save();
   res.json(user.profile);
 });

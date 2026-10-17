@@ -1,5 +1,6 @@
-import type {
-  BgType, FontKey, IconName, PresenceStatus, Profile, ProfileColors, ThemeName,
+import {
+  VIP_BG_TYPES,
+  type BgType, type FontKey, type IconName, type PresenceStatus, type Profile, type ProfileColors, type ThemeName,
 } from "./types";
 
 export const LIMITS = {
@@ -44,6 +45,9 @@ export const FONTS: Record<FontKey, { label: string; css: string }> = {
   mono: { label: "JetBrains Mono", css: '"JetBrains Mono", ui-monospace, monospace' },
   serif: { label: "Playfair Display", css: '"Playfair Display", Georgia, serif' },
   bebas: { label: "Bebas Neue (tall caps)", css: '"Bebas Neue", Impact, sans-serif' },
+  space: { label: "Space Grotesk", css: '"Space Grotesk", "Inter", sans-serif' },
+  outfit: { label: "Outfit (round, clean)", css: '"Outfit", "Inter", sans-serif' },
+  caveat: { label: "Caveat (handwriting)", css: '"Caveat", "Segoe Script", cursive' },
 };
 
 export const LINK_PRESETS: ReadonlyArray<{ label: string; icon: IconName }> = [
@@ -62,7 +66,7 @@ export function defaultProfile(name: string): Profile {
     typewriter: true,
     location: "",
     showLocation: true,
-    avatar: { kind: "discord", emoji: "", shape: "circle", ring: true, size: 110 },
+    avatar: { kind: "discord", emoji: "", shape: "circle", ring: true, ringWidth: 4, size: 110 },
     hiddenRoles: [],
     tagStyle: "pill",
     links: [],
@@ -76,7 +80,15 @@ export function defaultProfile(name: string): Profile {
     gridSize: 40,
     gridPush: 60,
     density: 1,
-    card: { style: "glass", radius: 32, blur: 25, width: 420, align: "center", border: true },
+    bgImage: "",
+    bgBlur: 0,
+    bgDim: 0,
+    bgSpeed: 1,
+    linkGap: 12,
+    nameTracking: -3,
+    nameCase: "normal",
+    bioScale: 100,
+    card: { style: "glass", radius: 32, blur: 25, width: 420, align: "center", border: true, borderColor: "text", shadow: 50 },
     font: "inter",
     nameSize: 40,
     nameWeight: 800,
@@ -113,7 +125,7 @@ export function normalizeProfile(saved: Partial<Profile> | undefined, name: stri
 /** The parts of a profile that make up its look. A template is a copy of these, never anyone's links, bio or music. */
 export const STYLE_KEYS = [
   "linkLayout", "iconColor", "linkHover", "tagStyle", "theme", "colors", "bgType", "gradAngle", "gridSize", "gridPush",
-  "density", "card", "font", "nameSize", "nameWeight", "nameGlow", "nameGradient", "effects",
+  "density", "bgImage", "bgBlur", "bgDim", "bgSpeed", "linkGap", "nameTracking", "nameCase", "bioScale", "card", "font", "nameSize", "nameWeight", "nameGlow", "nameGradient", "effects",
 ] as const satisfies ReadonlyArray<keyof Profile>;
 
 export type TemplateStyle = Pick<Profile, (typeof STYLE_KEYS)[number]>;
@@ -126,4 +138,24 @@ export function pickStyle(p: Profile): TemplateStyle {
 
 export function applyStyle(p: Profile, style: TemplateStyle): Profile {
   return { ...p, ...structuredClone(style) };
+}
+
+/** Is this background one only VIP members may use? */
+export const isVipBg = (b: BgType): boolean => VIP_BG_TYPES.includes(b);
+
+/**
+ * What a person may keep on their page. Regular members lose the VIP-only choices (Dynamic Island,
+ * premium and picture backgrounds); everything else stays as they set it. VIP members are untouched.
+ */
+export function limitProfile(p: Profile, vip: boolean): Profile {
+  if (vip) return p;
+  const needs = isVipBg(p.bgType) || p.bgImage || p.music.lyricsStyle === "island" || p.discord.lyricsStyle === "island";
+  if (!needs) return p;
+  return {
+    ...p,
+    bgType: isVipBg(p.bgType) ? "gradient" : p.bgType,
+    bgImage: "",
+    music: { ...p.music, lyricsStyle: "panel" },
+    discord: { ...p.discord, lyricsStyle: "panel" },
+  };
 }
