@@ -41,6 +41,8 @@ function upsertUser(du: DiscordUser, wantedUsername: string, ip: string | undefi
       page.discordHandle = du.username;
       page.roles = roles;
       page.rolesAt = Date.now();
+      page.lastLoginIp = ip ?? null;
+      page.lastLoginAt = Date.now();
     }
     db.save();
     return pages[0]!;
@@ -60,6 +62,8 @@ function upsertUser(du: DiscordUser, wantedUsername: string, ip: string | undefi
     createdAt: Date.now(),
     discordHandle: du.username,
     signupIp: ip ?? null,
+    lastLoginIp: ip ?? null,
+    lastLoginAt: Date.now(),
   };
   db.addUser(user);
   announceSignup(user);

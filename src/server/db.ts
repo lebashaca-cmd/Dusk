@@ -32,6 +32,9 @@ export interface UserRecord {
   ownerId?: string;
   /** Shown in the Community tab when true. */
   listed?: boolean;
+  /** Where and when this account last logged in. Kept for security notices. Never shown on a page. */
+  lastLoginIp?: string | null;
+  lastLoginAt?: number;
 }
 
 export interface TemplateRecord {
@@ -210,6 +213,14 @@ class Database {
     return Object.values(this.data.users).filter(u => ownerOf(u) === ownerId).sort((a, b) => a.createdAt - b.createdAt);
   }
 
+  /** Remove a page's songs, keeping the page. Returns them so their files can be deleted. */
+  removePageTracks(userId: string): TrackRecord[] {
+    const tracks = this.tracksOf(userId);
+    for (const t of tracks) delete this.data.tracks[t.id];
+    if (tracks.length) this.save();
+    return tracks;
+  }
+
   /** Remove a page and its songs. Returns the songs so their files can be deleted. */
   removePage(user: UserRecord): TrackRecord[] {
     const tracks = this.tracksOf(user.id);
@@ -280,6 +291,14 @@ class Database {
   addSession(session: SessionRecord): void {
     this.data.sessions[session.id] = session;
     this.save();
+  }
+
+  /** Log an account out everywhere. */
+  removeSessionsOf(userId: string): number {
+    let n = 0;
+    for (const [id, s] of Object.entries(this.data.sessions)) if (s.userId === userId) { delete this.data.sessions[id]; n++; }
+    if (n) this.save();
+    return n;
   }
 
   removeSession(id: string): void {
