@@ -1,0 +1,72 @@
+/* The experimental board: a free-form set of cards you can move around, resize and hide. */
+
+.board-pane { display: none; }
+.dash[data-wide="true"] .board-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: auto; }
+.board-wrap { display: flex; flex-direction: column; gap: 16px; min-height: 100%; }
+
+.board-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 18px 22px 0; flex: none; }
+.board-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.board-bar .btn-ghost { margin-left: auto; }
+
+/* The surface the cards sit on. */
+.board-canvas {
+  position: relative;
+  min-height: 1500px;
+  margin: 0 22px 40px;
+  border: 1px dashed var(--line);
+  border-radius: 20px;
+  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.08) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+/* ---------- one card ---------- */
+
+.wcard {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  max-width: calc(100% - 40px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--bg-3);
+  box-shadow: var(--lift);
+  overflow: hidden;
+}
+.wcard.dragging { border-color: var(--line-2); box-shadow: 0 30px 60px -22px rgba(0, 0, 0, 0.95); z-index: 5; }
+.wcard:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+
+.whead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 6px;
+  border-bottom: 1px solid var(--line);
+  background: var(--glass);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  flex: none;
+}
+.whead b { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; }
+.wgrip { width: 16px; height: 16px; flex: none; display: grid; place-items: center; color: var(--faint); }
+.wgrip svg { width: 14px; height: 14px; }
+.whead .icon-btn { width: 24px; height: 24px; border-radius: 8px; }
+.whead .icon-btn .ic { width: 12px; height: 12px; }
+
+.wbody { flex: 1; min-height: 0; overflow: auto; padding: 14px; display: flex; flex-direction: column; gap: 20px; }
+.wbody .grp > h3 { font-size: 10px; }
+.wbody > .stage { flex: 1 1 auto; min-height: 260px; border-radius: 12px; }
+
+/* The corner you pull to make the card bigger. */
+.wresize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 20px;
+  height: 20px;
+  cursor: nwse-resize;
+  touch-action: none;
+  opacity: 0.55;
+  background: linear-gradient(135deg, transparent 52%, var(--faint) 52%, var(--faint) 62%, transparent 62%, transparent 74%, var(--faint) 74%, var(--faint) 84%, transparent 84%);
+}
+.wresize:hover { opacity: 1; }

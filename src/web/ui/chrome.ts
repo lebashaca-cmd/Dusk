@@ -1,6 +1,6 @@
 import { esc } from "../util/dom";
 
-/** The backdrop every page sits on: a violet sky, an amber glow and a little grain. */
+/** The backdrop every page sits on: a soft light above, darkness below, and a little grain. */
 export const SKY = `<div class="sky" aria-hidden="true"><i></i><i></i><i></i></div><div class="grain" aria-hidden="true"></div>`;
 
 /** A sun on the horizon. The dusk mark. */

@@ -6,8 +6,8 @@
   flex-direction: column;
   padding-bottom: 70px;
   background:
-    radial-gradient(90% 60% at 12% -8%, rgba(139, 123, 255, 0.16), transparent 62%),
-    radial-gradient(70% 50% at 92% 4%, rgba(255, 176, 92, 0.10), transparent 60%);
+    radial-gradient(90% 60% at 12% -8%, rgba(255, 255, 255, 0.05), transparent 62%),
+    radial-gradient(70% 50% at 92% 4%, rgba(255, 255, 255, 0.03), transparent 60%);
 }
 
 /* ---------- the bar at the top ---------- */
@@ -18,7 +18,7 @@
   gap: 12px;
   padding: 14px clamp(16px, 4vw, 44px);
   border-bottom: 1px solid var(--line);
-  background: rgba(9, 7, 20, 0.6);
+  background: rgba(11, 11, 12, 0.7);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   position: sticky;
@@ -38,7 +38,7 @@
   font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--amber);
+  color: var(--ink-2);
   margin-bottom: 14px;
 }
 .cm-hero h1 {
@@ -48,18 +48,15 @@
   font-size: clamp(2.6rem, 8vw, 4.6rem);
   letter-spacing: -0.05em;
   line-height: 0.95;
-  background: linear-gradient(120deg, #fff 20%, #b6a9ff 62%, #ffc37a 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--ink);
 }
 .cm-hero p { margin: 16px 0 0; max-width: 54ch; color: var(--dim); font-size: 16px; line-height: 1.6; }
 .cm-tabs { margin-top: 26px; }
 .cm-tabs button { padding: 9px 24px; font-size: 14px; cursor: pointer; }
 .cm-tabs button[aria-selected="true"] {
-  background: linear-gradient(135deg, var(--violet), #a06bff);
-  color: #fff;
-  box-shadow: 0 8px 24px -10px rgba(139, 123, 255, 0.9);
+  background: var(--accent);
+  color: #0b0b0c;
+  box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.9);
 }
 
 /* ---------- the body ---------- */
@@ -75,7 +72,7 @@
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--violet-2);
+  color: var(--ink-2);
 }
 .cm-sec::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--line), transparent); }
 .cm-sec em { font-style: normal; color: var(--faint); letter-spacing: 0.1em; }
@@ -107,7 +104,7 @@
   color: #fff;
   font: inherit;
 }
-.cm-share-f input:focus { outline: none; border-color: var(--violet); box-shadow: 0 0 0 3px rgba(139, 123, 255, 0.18); }
+.cm-share-f input:focus { outline: none; border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16); }
 
 /* ---------- the cards ---------- */
 
@@ -126,7 +123,7 @@
   animation-delay: calc(var(--i, 0) * 45ms);
 }
 a.cm-card:hover {
-  border-color: rgba(139, 123, 255, 0.55);
+  border-color: rgba(255, 255, 255, 0.4);
   background: var(--glass-2);
   transform: translateY(-4px);
   box-shadow: 0 24px 50px -26px rgba(0, 0, 0, 0.95);
@@ -139,8 +136,8 @@ a.cm-card:hover {
   height: 60px;
   margin: -30px 0 0 22px;
   border-radius: 50%;
-  border: 3px solid #0a0817;
-  background: #17142c;
+  border: 3px solid #0b0b0c;
+  background: #17171a;
   overflow: hidden;
   display: grid;
   place-items: center;

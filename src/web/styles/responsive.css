@@ -3,13 +3,14 @@
   .hero { grid-template-columns: minmax(0, 1fr); gap: 32px; padding-block: 0 40px; }
   .intro { padding-top: 0; }
   .device { height: 520px; }
-  .dash-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .dash-body, .dash-body[data-side="left"] { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: none; }
+  .dash-nav, .side, .preview-pane, .board-pane { grid-area: auto; }
   /* The sidebar turns into a row of icons across the top. */
   .dash-nav { flex-direction: row; align-items: center; gap: 6px; padding: 8px 12px; border-right: 0; border-bottom: 1px solid var(--line); overflow-x: auto; overflow-y: hidden; }
-  .nav-sec { display: contents; }
-  .nav-sec-label { display: none; }
+  .nav-list { flex-direction: row; align-items: center; gap: 6px; flex: none; }
+  .nav-reset { display: none; }
   .tab { width: auto; padding: 8px 11px; }
-  .tab-label { display: none; }
+  .tab-grip, .tab-label, .tab-sec { display: none; }
   .tab[aria-selected="true"]::before { left: 50%; top: auto; bottom: -8px; translate: -50% 0; width: 20px; height: 3px; border-radius: 3px 3px 0 0; }
   .side { border-right: 0; }
   .dash[data-pane="preview"] .dash-nav { display: none; }
@@ -18,6 +19,11 @@
   .dash[data-pane="preview"] .side { display: none; }
   .pv-bar .seg.dev { display: none; }
   .frame.mobile { max-width: none; }
+  .dash[data-wide="true"] .dash-body { grid-template-columns: minmax(0, 1fr); grid-template-areas: none; }
+  /* On a phone the board is a stack of cards, not a canvas to drag around. */
+  .board-canvas { min-height: 0; width: auto !important; display: flex; flex-direction: column; gap: 14px; border-style: solid; }
+  .wcard { position: static; width: auto !important; height: auto !important; min-height: 300px; }
+  .wresize, .wgrip { display: none; }
 }
 @media (max-width: 520px) {
   .home { padding-inline: 16px; }

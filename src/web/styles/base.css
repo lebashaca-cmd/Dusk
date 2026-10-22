@@ -1,32 +1,30 @@
 /* dusk — tokens, reset, and the shared chrome.
 
-   The site has an identity of its own: deep twilight indigo, a warm amber horizon and a
-   little film grain over the top. The profile itself is themed per person through the
-   --p-* variables set on each .stage (see profile.css), so nothing here fights it. */
+   The site is ink: near-black, off-white text, hairline greys. There is exactly one
+   accent — white — and it only shows up where something is selected or in focus.
+   The profile itself is themed per person through the --p-* variables set on each
+   .stage (see profile.css), so nothing here fights it. */
 
 :root {
   /* the night */
-  --bg: #07060f;
-  --bg-2: #0b0918;
-  --bg-3: #121029;
-  --ink: #f3f0ff;
-  --ink-2: #cdc7ee;
-  --dim: #8d86b3;
-  --faint: #635d85;
+  --bg: #0b0b0c;
+  --bg-2: #101011;
+  --bg-3: #17171a;
+  --ink: #f2f2f0;
+  --ink-2: #c9c9c6;
+  --dim: #8a8a86;
+  --faint: #5c5c59;
 
-  /* the colours of the hour */
-  --violet: #8b7bff;
-  --violet-2: #b4a6ff;
-  --indigo: #3a2f9e;
-  --amber: #ffb066;
-  --amber-2: #ff8f4d;
-  --rose: #ff7a9c;
+  /* the one accent */
+  --accent: #ffffff;
+  --accent-2: #d7d7d3;
+  --accent-3: #8f8f8b;
 
-  --line: rgba(180, 166, 255, 0.14);
-  --line-2: rgba(180, 166, 255, 0.3);
-  --glass: rgba(139, 123, 255, 0.07);
-  --glass-2: rgba(139, 123, 255, 0.14);
-  --ok: #4ade80;
+  --line: rgba(255, 255, 255, 0.1);
+  --line-2: rgba(255, 255, 255, 0.2);
+  --glass: rgba(255, 255, 255, 0.045);
+  --glass-2: rgba(255, 255, 255, 0.1);
+  --ok: #6ee7a0;
   --bad: #ff6b6b;
 
   --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -63,14 +61,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 a { color: inherit; }
 a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
-  outline: 2px solid var(--violet-2);
+  outline: 2px solid var(--accent-2);
   outline-offset: 2px;
   border-radius: 4px;
 }
 #app { height: 100%; }
 
 /* ---------- the sky ---------- */
-/* A fixed backdrop: the violet of the hour, an amber glow low down, and grain on top.
+/* A fixed backdrop: a soft light at the top, dark at the bottom, and grain on top.
    Pages that want it add <div class="sky"> to their markup. */
 
 .sky { position: fixed; inset: 0; z-index: -2; overflow: hidden; pointer-events: none; }
@@ -79,35 +77,34 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   position: absolute;
   inset: -20%;
   background:
-    radial-gradient(58% 42% at 18% 6%, rgba(109, 90, 255, 0.5), transparent 62%),
-    radial-gradient(46% 36% at 84% 14%, rgba(255, 122, 156, 0.22), transparent 66%),
-    radial-gradient(70% 46% at 50% 108%, rgba(255, 176, 102, 0.3), transparent 62%),
-    linear-gradient(180deg, #0a0819 0%, #07060f 46%, #05040c 100%);
+    radial-gradient(58% 42% at 18% 6%, rgba(255, 255, 255, 0.07), transparent 62%),
+    radial-gradient(50% 38% at 86% 12%, rgba(255, 255, 255, 0.035), transparent 66%),
+    linear-gradient(180deg, #131314 0%, #0b0b0c 46%, #08080a 100%);
 }
 .sky i {
   position: absolute;
   display: block;
   border-radius: 50%;
   filter: blur(90px);
-  opacity: 0.55;
+  opacity: 0.4;
   will-change: transform;
 }
-.sky i:nth-child(1) { width: 46vw; height: 46vw; left: -10vw; top: -14vw; background: rgba(124, 92, 255, 0.75); animation: drift-a 34s ease-in-out infinite; }
-.sky i:nth-child(2) { width: 34vw; height: 34vw; right: -6vw; top: 18vh; background: rgba(255, 122, 156, 0.4); animation: drift-b 41s ease-in-out infinite; }
-.sky i:nth-child(3) { width: 52vw; height: 30vw; left: 22vw; bottom: -12vw; background: rgba(255, 150, 80, 0.42); animation: drift-c 47s ease-in-out infinite; }
+.sky i:nth-child(1) { width: 46vw; height: 46vw; left: -10vw; top: -14vw; background: rgba(255, 255, 255, 0.1); animation: drift-a 34s ease-in-out infinite; }
+.sky i:nth-child(2) { width: 34vw; height: 34vw; right: -6vw; top: 18vh; background: rgba(255, 255, 255, 0.05); animation: drift-b 41s ease-in-out infinite; }
+.sky i:nth-child(3) { width: 52vw; height: 30vw; left: 22vw; bottom: -12vw; background: rgba(255, 255, 255, 0.045); animation: drift-c 47s ease-in-out infinite; }
 
 @keyframes drift-a { 0%, 100% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(6vw, 5vh, 0) scale(1.14); } }
 @keyframes drift-b { 0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); } 50% { transform: translate3d(-7vw, 7vh, 0) scale(0.92); } }
 @keyframes drift-c { 0%, 100% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(4vw, -6vh, 0) scale(1.16); } }
 
 /* The grain, laid over everything but under the text. */
-.grain { position: fixed; inset: 0; z-index: -1; pointer-events: none; background-image: var(--grain); opacity: 0.16; mix-blend-mode: overlay; }
+.grain { position: fixed; inset: 0; z-index: -1; pointer-events: none; background-image: var(--grain); opacity: 0.05; mix-blend-mode: soft-light; }
 
 /* ---------- buttons ---------- */
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--violet) 0%, #b06bff 52%, var(--rose) 100%);
-  color: #fff;
+  background: var(--accent);
+  color: #0b0b0c;
   border: 0;
   border-radius: var(--r-pill);
   padding: 11px 24px;
@@ -119,10 +116,10 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   align-items: center;
   justify-content: center;
   gap: 8px;
-  box-shadow: 0 10px 30px -12px rgba(139, 123, 255, 0.9);
+  box-shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.9);
   transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease), filter 0.2s;
 }
-.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 18px 40px -14px rgba(139, 123, 255, 1); filter: brightness(1.06); }
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 18px 40px -14px rgba(0, 0, 0, 1); filter: brightness(0.94); }
 .btn-primary:disabled { opacity: 0.45; cursor: default; transform: none; box-shadow: none; }
 
 .btn-ghost {
@@ -151,7 +148,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .mark { display: inline-flex; align-items: center; gap: 9px; text-decoration: none; color: var(--ink); }
 .mark svg { width: 24px; height: 24px; overflow: visible; }
 .mark b { font-family: var(--display); font-weight: 800; font-size: 20px; letter-spacing: -0.04em; }
-.mark:hover b { color: var(--violet-2); }
+.mark:hover b { color: var(--ink-2); }
 
 /* ---------- shared surfaces ---------- */
 
@@ -169,19 +166,19 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--violet-2);
+  color: var(--ink-2);
   margin: 0 0 14px;
   display: inline-flex;
   align-items: center;
   gap: 9px;
 }
-.eyebrow::before { content: ""; width: 26px; height: 1px; background: linear-gradient(90deg, var(--violet), transparent); }
+.eyebrow::before { content: ""; width: 26px; height: 1px; background: linear-gradient(90deg, var(--accent-2), transparent); }
 
 .lede { font-size: 17px; line-height: 1.6; color: var(--ink-2); max-width: 46ch; margin: 0; }
 .hint { font-size: 13px; color: var(--dim); margin: 12px 0 0; }
 .hint.err { color: var(--bad); }
 .hint.ok { color: var(--ok); }
-.hint a { color: var(--violet-2); }
+.hint a { color: var(--ink); }
 
 /* A number that counts. */
 .figure { font-family: var(--display); font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.04em; }

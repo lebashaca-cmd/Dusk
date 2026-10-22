@@ -9,6 +9,8 @@ export interface Pane {
   label: string;
   /** One line about what this section is for. Shown under the title. */
   hint?: string;
+  /** A pane that wants the whole width, not just the form column. */
+  wide?: boolean;
   /** Draw the pane into `el`. Returns a function that tears it down. */
   mount(el: HTMLElement): () => void;
 }

@@ -5,7 +5,7 @@ function rgba(hex: string, alpha: number): string {
   const h = hex.replace("#", "").trim();
   const full = h.length === 3 ? h.split("").map(c => c + c).join("") : h.padEnd(6, "0").slice(0, 6);
   const n = Number.parseInt(full, 16);
-  if (!Number.isFinite(n)) return `rgba(139,123,255,${alpha})`;
+  if (!Number.isFinite(n)) return `rgba(255,255,255,${alpha})`;
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 

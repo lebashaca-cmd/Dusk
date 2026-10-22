@@ -8,16 +8,34 @@ A link-in-bio site. Log in with Discord, build your page, upload MP3s, and show 
 - Two lyrics styles per source: a panel beside the card, or a Dynamic Island pill at the top of the page (tap it to open controls and lyrics).
 - Written in TypeScript. Server in `src/server`, web app in `src/web`, shared types in `src/shared`.
 
-## The twilight look
+## The ink look
 
-The site has its own identity now: deep indigo and violet with a warm amber horizon glow, soft grain
-over the top, and layered depth instead of flat black and white. Every public page sits inside a
-glass bar with the dusk mark, an **Edit page** button and a **Share** button. Each profile keeps
-its own theme on top of that — the twilight chrome is the frame, your colours are the picture.
+The site is black and white now — no coloured glow, no tinted surfaces, nothing but ink on paper.
+One accent colour only, and it is white: it marks whatever is selected or focused. The grain is
+still there, just quiet.
 
-Twelve themes (Dusk, Midnight, Frost, Neon, Sunset, Ocean, Forest, Rose, Slate, Ember, Lilac, Moss)
-and seventeen backgrounds (Solid, Gradient, Aurora, Particles, Grid, Dots, Lines, Spotlight, Waves,
-Bokeh, Beams, Contours, Mesh, Stars, Rain, …) are yours to mix, saved as you make them.
+This is the frame only. Your page keeps its own theme on top of it — the chrome is black and white,
+your colours are the picture. Twelve themes (Dusk, Midnight, Frost, Neon, Sunset, Ocean, Forest,
+Rose, Slate, Ember, Lilac, Moss) and seventeen backgrounds (Solid, Gradient, Aurora, Particles,
+Grid, Dots, Lines, Spotlight, Waves, Bokeh, Beams, Contours, Mesh, Stars, Rain, …) are yours to
+mix, saved as you make them.
+
+## Make the dashboard yours
+
+The dashboard is yours to arrange, not just to fill in.
+
+- **The rail can be reordered.** Every row in the left rail has a small grip. Drag it to move a
+  tab up or down, or focus one and use the arrow keys. *Reset the order* at the bottom puts it
+  back.
+- **The preview can be swapped.** Grab the grip at the top-left of the preview and drag it across
+  the middle of the window; the preview moves to the other side of the editor.
+- **There is a board.** The **Experimental** tab opens a free-form canvas. Add the cards you want
+  — a live preview, your profile fields, your links, groups, music, Discord, insights, sharing —
+  then drag them anywhere, pull the corner to resize them, and close the ones you do not want.
+  The arrow keys move a card too, so none of it is mouse-only.
+
+How you arranged things is remembered in your browser, per person. It is a starting point, not a
+promise: clearing the board, or resetting the order, wipes it.
 
 ## What is on your page
 
@@ -92,5 +110,7 @@ Lanyard can only see accounts that joined its Discord server: <https://discord.g
 src/shared   types, limits, themes, username rules (used by both sides)
 src/server   Express app: auth, profile, tracks (upload, LRCLIB, covers), public pages, media
 src/web      Vite app: views/ (pages), views/panes/ (dashboard tabs), render/ (the profile and the
-             live preview), ui/ (chrome, icons, toast), media/ (player, Lanyard, lyrics), styles/
+             live preview), ui/ (chrome, icons, toast, drag), media/ (player, Lanyard, lyrics),
+             styles/
+src/web/layout.ts   how you arranged the dashboard, kept in the browser
 ```
