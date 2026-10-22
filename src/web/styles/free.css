@@ -63,18 +63,25 @@
 .pboard-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 18px 22px 0; flex: none; }
 .pboard-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .pboard-chips .chip.on { border-color: var(--line-2); color: var(--ink); background: var(--glass-2); }
-.pboard-bar .btn-ghost { margin-left: auto; }
 .pboard-note { margin: 0 22px; }
 
+/* How much of the board is on show, so the scale is never a mystery. */
+.pboard-zoom { margin-left: auto; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--dim); }
+.pboard-bar .btn-ghost { margin-left: 12px; }
+
+/* The board is scaled down to fit the pane, so all of it is in view at once. */
+.pboard-scale { position: relative; margin: 0 22px 40px; flex: none; }
+
 .pboard-canvas {
-  position: relative;
+  position: absolute;
+  left: 0;
+  top: 0;
   width: 1200px;
   height: 1000px;
-  margin: 0 22px 40px;
+  transform-origin: top left;
   border: 1px dashed var(--line);
   border-radius: 20px;
   overflow: hidden;
-  flex: none;
 }
 .pboard-canvas .fbox { cursor: grab; }
 .pboard-canvas .fbox.dragging { cursor: grabbing; z-index: 5; }

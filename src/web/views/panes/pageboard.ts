@@ -1,6 +1,6 @@
 import { BOARD_H, BOARD_W, defaultBoard, PAGE_WIDGETS } from "../../../shared/constants";
 import type { BoardBox, RenderModel } from "../../../shared/types";
-import { widgetHTML } from "../../render/free";
+import { boardScale, widgetHTML } from "../../render/free";
 import { applyTheme } from "../../render/theme";
 import { store } from "../../state";
 import { GRID, makeMover, makeResizer } from "../../ui/drag";
@@ -44,16 +44,41 @@ export const pageboardPane: Pane = {
     el.innerHTML = `<div class="pboard-wrap">
       <div class="pboard-bar">
         <div class="pboard-chips" role="group" aria-label="Pieces of the page"></div>
+        <span class="pboard-zoom" data-pb-zoom></span>
         <button class="btn-ghost" type="button" data-pb-reset>Put it back</button>
       </div>
       <p class="note pboard-note" data-pb-note></p>
-      <div class="pboard-canvas stage is-free" id="pb-canvas"></div>
+      <div class="pboard-scale" data-pb-scale>
+        <div class="pboard-canvas stage is-free" id="pb-canvas"></div>
+      </div>
     </div>`;
 
     const canvas = must<HTMLElement>("#pb-canvas", el);
+    const scaleBox = must<HTMLElement>("[data-pb-scale]", el);
+    const zoom = must<HTMLElement>("[data-pb-zoom]", el);
     const chips = must<HTMLElement>(".pboard-chips", el);
     const note = must<HTMLElement>("[data-pb-note]", el);
     const cleanups: Array<() => void> = [];
+
+    /**
+     * How big the board is drawn.
+     *
+     * The board is scaled down to fit the pane, so the whole of it is in view at once and
+     * a piece near the edge can still be reached. Visitors get the same board, scaled to
+     * their own screen.
+     */
+    let scale = 1;
+    const fit = (): void => {
+      const pane = el.getBoundingClientRect();
+      const top = canvas.getBoundingClientRect().top - pane.top + el.scrollTop;
+      const spaceW = el.clientWidth - 44;
+      const spaceH = el.clientHeight - top - 20;
+      scale = boardScale(spaceW, spaceH);
+      canvas.style.transform = `scale(${scale})`;
+      scaleBox.style.width = `${Math.round(BOARD_W * scale)}px`;
+      scaleBox.style.height = `${Math.round(BOARD_H * scale)}px`;
+      zoom.textContent = `${Math.round(scale * 100)}%`;
+    };
 
     /** The boxes on the board. The profile keeps them, so they are the ones visitors get. */
     const boxes = (): BoardBox[] => {
@@ -81,12 +106,12 @@ export const pageboardPane: Pane = {
         box.x = card.offsetLeft;
         box.y = card.offsetTop;
         store.profileChanged();
-      }));
+      }, () => scale));
       cleanups.push(makeResizer(card, () => {
         box.w = Math.max(60, card.offsetWidth);
         box.h = Math.max(40, card.offsetHeight);
         store.profileChanged();
-      }));
+      }, () => scale));
 
       // The arrow keys move a piece too, so this is not mouse-only.
       card.addEventListener("keydown", e => {
@@ -117,7 +142,7 @@ export const pageboardPane: Pane = {
     /** A word about whether this board is the one being shown. */
     const drawNote = (): void => {
       note.innerHTML = store.profile.page.layout === "experimental"
-        ? "This is the board your visitors see. Drag a piece to move it, and pull the corner to make it bigger."
+        ? "This is the board your visitors see. Drag a piece to move it, and pull the corner to make it bigger. It is drawn smaller here so the whole board fits; visitors see it scaled to their screen."
         : `Your page is set to <b>Regular</b>, so this board is not shown yet. <button class="btn-ghost" type="button" data-pb-experimental>Use the experimental layout</button>`;
     };
 
@@ -130,8 +155,16 @@ export const pageboardPane: Pane = {
       for (const box of boxes()) place(box, model);
       drawChips();
       drawNote();
+      fit();
     };
     draw();
+
+    // The board is scaled to fit the pane, so it is fitted again when the pane changes.
+    let resize: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      resize = new ResizeObserver(() => fit());
+      resize.observe(el);
+    }
 
     /* Redrawing waits for the current pointer work to finish, so a drag is never interrupted. */
     let timer = 0;
@@ -172,6 +205,7 @@ export const pageboardPane: Pane = {
 
     return () => {
       window.clearTimeout(timer);
+      resize?.disconnect();
       off();
       offs.forEach(fn => fn());
       for (const fn of cleanups.splice(0)) fn();

@@ -47,6 +47,17 @@ export function freeHTML(m: RenderModel, boxes: readonly BoardBox[] | undefined)
 }
 
 /**
+ * How big the board can be in the space it has.
+ *
+ * The board keeps its shape, so it is scaled to fit whichever way is tighter: `pad` is the
+ * room left on each side, and `top` is the room for the bar that floats over a public page.
+ */
+export function boardScale(spaceW: number, spaceH: number, pad = 0, top = 0): number {
+  const k = Math.min((spaceW - pad) / BOARD_W, (spaceH - top) / BOARD_H);
+  return Math.min(1, Math.max(0.3, k));
+}
+
+/**
  * Fit the board to the space it has. Small screens get the pieces stacked in a column
  * instead, because a board scaled down to a third is unreadable.
  */
@@ -65,7 +76,7 @@ export function fitFree(stage: HTMLElement): void {
     return;
   }
   // The bar at the top of a public page sits over the board, so room is left for it.
-  const k = Math.min(1, Math.max(0.3, Math.min((stage.clientWidth - 32) / BOARD_W, (stage.clientHeight - 88) / BOARD_H)));
+  const k = boardScale(stage.clientWidth, stage.clientHeight, 32, 88);
   canvas.style.transform = `scale(${k})`;
   scale.style.width = `${Math.round(BOARD_W * k)}px`;
   scale.style.height = `${Math.round(BOARD_H * k)}px`;
