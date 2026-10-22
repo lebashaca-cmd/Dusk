@@ -8,6 +8,7 @@ import { bindFields, group, selectField, type Pane } from "./fields";
 export const rolesPane: Pane = {
   id: "roles",
   label: "Roles",
+  hint: "The tags from our Discord server that sit under your name.",
   mount(el) {
     const draw = (): void => {
       const me = store.me!;

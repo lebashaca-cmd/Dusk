@@ -1,5 +1,6 @@
 import { api, ApiError } from "../api";
 import { store } from "../state";
+import { MARK_SVG } from "../ui/chrome";
 import { toast } from "../ui/toast";
 import { esc, must } from "../util/dom";
 import { FONTS } from "../../shared/constants";
@@ -27,7 +28,7 @@ function templateCard(t: CommunityTemplate, n: number, loggedIn: boolean): strin
     <div class="cm-body"><b>${esc(t.name)}</b><small>by @${esc(t.author)}${font ? ` · ${esc(font)}` : ""}</small>${t.description ? `<p>${esc(t.description)}</p>` : ""}</div>
     <div class="cm-foot"><span>${t.uses} ${t.uses === 1 ? "use" : "uses"}</span>
       ${t.mine ? `<button class="btn-ghost" type="button" data-del="${esc(t.id)}">Delete</button>` : ""}
-      ${loggedIn ? `<button class="btn-white" type="button" data-use="${esc(t.id)}">Use</button>` : `<a class="btn-ghost" href="/auth/discord">Log in to use</a>`}
+      ${loggedIn ? `<button class="btn-primary" type="button" data-use="${esc(t.id)}">Use</button>` : `<a class="btn-ghost" href="/auth/discord">Log in to use</a>`}
     </div>
   </article>`;
 }
@@ -40,17 +41,19 @@ export function mountCommunity(root: HTMLElement): () => void {
   let alive = true;
 
   root.innerHTML = `<div class="community">
-    <nav class="nav">
-      <a class="logo" href="/" data-link>dusk</a>
-      <div class="nav-r">${me ? `<a class="btn-ghost" href="/dashboard" data-link>Dashboard</a>` : `<a class="btn-text" href="/auth/discord">Log in</a>`}</div>
-    </nav>
-    <header class="cm-head">
-      <h1>Community</h1>
-      <div class="seg cm-tabs" role="tablist" aria-label="Community sections">
-        <button type="button" role="tab" data-tab="profile">Profile</button>
-        <button type="button" role="tab" data-tab="templates">Templates</button>
-      </div>
+    <header class="cm-top">
+      <a class="mark" href="/" data-link aria-label="dusk">${MARK_SVG}<b>dusk</b></a>
+      <div class="top-r">${me ? `<a class="btn-ghost" href="/dashboard" data-link>Dashboard</a>` : `<a class="btn-text" href="/auth/discord">Log in</a>`}</div>
     </header>
+    <div class="cm-hero">
+      <span class="cm-kicker">the gallery</span>
+      <h1>Community</h1>
+      <p>Pages people chose to show, and looks they shared. Take one and make it yours — your name, bio and links stay yours.</p>
+      <div class="seg cm-tabs" role="tablist" aria-label="Community sections">
+        <button type="button" role="tab" data-tab="profile">Pages</button>
+        <button type="button" role="tab" data-tab="templates">Looks</button>
+      </div>
+    </div>
     <section id="cm-body" class="cm-main" aria-live="polite"></section>
   </div>`;
   document.title = "Community · dusk";
@@ -74,9 +77,10 @@ export function mountCommunity(root: HTMLElement): () => void {
             <div><b>Show my page here</b><p>${mine?.hasBio === false ? "Write a bio in the dashboard first. The Community shows your name and your bio." : "Your name, picture and bio appear here with a link to your page. You can switch it off any time."}</p></div>
             <label class="sw cm-sw"><span class="sr">Show my page in the Community</span><input type="checkbox" id="cm-listed"${mine?.listed ? " checked" : ""}></label>
           </div>`
-        : `<div class="cm-panel"><div><b>Want your page here?</b><p>Log in with Discord, write a bio, then turn on "Show my page here".</p></div><a class="btn-white" href="/auth/discord">Log in</a></div>`;
+        : `<div class="cm-panel"><div><b>Want your page here?</b><p>Log in with Discord, write a bio, then turn on "Show my page here".</p></div><a class="btn-primary" href="/auth/discord">Log in</a></div>`;
       body.innerHTML = panel + (list.length
-        ? `<div class="cm-grid">${list.map(profileCard).join("")}</div>`
+        ? `<h2 class="cm-sec">Pages on show <em>${list.length}</em></h2>
+           <div class="cm-grid">${list.map(profileCard).join("")}</div>`
         : `<p class="cm-empty">Nobody has shown their page here yet.${me ? " You could be first." : ""}</p>`);
     } catch (e) { if (alive) body.innerHTML = `<p class="cm-empty">Couldn't load this. ${e instanceof ApiError ? esc(e.message) : ""}</p>`; }
   };
@@ -89,11 +93,12 @@ export function mountCommunity(root: HTMLElement): () => void {
       const share = me
         ? `<form class="cm-panel cm-share" id="cm-share">
             <div><b>Share my current style</b><p>Copies the look of the page you're editing (theme, colors, fonts, card, background, effects). Your links, bio, songs and name are never shared.</p></div>
-            <div class="cm-share-f"><input type="text" id="cm-tname" placeholder="Template name" maxlength="40" required aria-label="Template name"><input type="text" id="cm-tdesc" placeholder="Short description (optional)" maxlength="140" aria-label="Description"><button class="btn-white" type="submit">Share</button></div>
+            <div class="cm-share-f"><input type="text" id="cm-tname" placeholder="Template name" maxlength="40" required aria-label="Template name"><input type="text" id="cm-tdesc" placeholder="Short description (optional)" maxlength="140" aria-label="Description"><button class="btn-primary" type="submit">Share</button></div>
           </form>`
-        : `<div class="cm-panel"><div><b>Share your style</b><p>Log in with Discord to share the look of your page as a template, or to use one.</p></div><a class="btn-white" href="/auth/discord">Log in</a></div>`;
+        : `<div class="cm-panel"><div><b>Share your style</b><p>Log in with Discord to share the look of your page as a template, or to use one.</p></div><a class="btn-primary" href="/auth/discord">Log in</a></div>`;
       body.innerHTML = share + (list.length
-        ? `<div class="cm-grid">${list.map((t, i) => templateCard(t, i, Boolean(me))).join("")}</div>`
+        ? `<h2 class="cm-sec">Shared looks <em>${list.length}</em></h2>
+           <div class="cm-grid">${list.map((t, i) => templateCard(t, i, Boolean(me))).join("")}</div>`
         : `<p class="cm-empty">No templates yet.${me ? " Share your style to be first." : ""}</p>`);
     } catch (e) { if (alive) body.innerHTML = `<p class="cm-empty">Couldn't load this. ${e instanceof ApiError ? esc(e.message) : ""}</p>`; }
   };

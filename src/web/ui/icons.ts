@@ -30,6 +30,8 @@ const PATHS = {
   edit: '<path d="M4 20l4-1 11-11-3-3L5 16z"/>',
   refresh: '<path d="M20 11a8 8 0 0 0-14-4M4 5v4h4M4 13a8 8 0 0 0 14 4M20 19v-4h-4"/>',
   image: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 18l5-5 4 4 3-3 4 4"/>',
+  layers: '<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3.5 12.5L12 17l8.5-4.5M3.5 16.5L12 21l8.5-4.5"/>',
+  chart: '<path d="M3 20.5h18"/><rect x="5" y="11" width="3.6" height="7"/><rect x="10.2" y="5" width="3.6" height="13"/><rect x="15.4" y="14" width="3.6" height="4"/>',
   playFill: `<path ${FILL} d="M8 5v14l11-7z"/>`,
   pauseFill: `<path ${FILL} d="M7 5h4v14H7zM13 5h4v14h-4z"/>`,
   prevFill: `<path ${FILL} d="M6 5h2v14H6zM20 5v14L9 12z"/>`,

@@ -7,6 +7,7 @@ import { bindFields, choiceGrid, group, LYRIC_CHOICES, toggle, type Pane } from 
 export const discordPane: Pane = {
   id: "discord",
   label: "Discord",
+  hint: "Your live Discord status, and the card it sits in.",
   mount(el) {
     const u = store.me!.user;
     const dev = u.id.startsWith("dev-");

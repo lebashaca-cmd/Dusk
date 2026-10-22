@@ -8,6 +8,30 @@ A link-in-bio site. Log in with Discord, build your page, upload MP3s, and show 
 - Two lyrics styles per source: a panel beside the card, or a Dynamic Island pill at the top of the page (tap it to open controls and lyrics).
 - Written in TypeScript. Server in `src/server`, web app in `src/web`, shared types in `src/shared`.
 
+## The twilight look
+
+The site has its own identity now: deep indigo and violet with a warm amber horizon glow, soft grain
+over the top, and layered depth instead of flat black and white. Every public page sits inside a
+glass bar with the dusk mark, an **Edit page** button and a **Share** button. Each profile keeps
+its own theme on top of that — the twilight chrome is the frame, your colours are the picture.
+
+Twelve themes (Dusk, Midnight, Frost, Neon, Sunset, Ocean, Forest, Rose, Slate, Ember, Lilac, Moss)
+and seventeen backgrounds (Solid, Gradient, Aurora, Particles, Grid, Dots, Lines, Spotlight, Waves,
+Bokeh, Beams, Contours, Mesh, Stars, Rain, …) are yours to mix, saved as you make them.
+
+## What is on your page
+
+- **Groups of links** — put links under headings like *Work* or *Elsewhere*. Links with no heading
+  sit at the top, and the headings render on the public page with a hairline rule.
+- **Page insights** — how many people opened your page, which days they came, and which links they
+  actually clicked. The counts are only ever about your own page; you never see who they are.
+- **A social preview image** — a 1200×630 card of your page, drawn in your browser in the colours
+  of your page, for posting your link in a chat or on a feed.
+- **A badge for your README** — a small SVG of your page that follows the colours you pick, with
+  a one-line markdown snippet to paste in.
+- **Roles as tags** — your roles in the Discord server show under your name, and you hide the ones
+  you would rather not show.
+
 ## 1. Create the Discord application
 
 1. Go to <https://discord.com/developers/applications> and create an application.
@@ -67,5 +91,6 @@ Lanyard can only see accounts that joined its Discord server: <https://discord.g
 ```
 src/shared   types, limits, themes, username rules (used by both sides)
 src/server   Express app: auth, profile, tracks (upload, LRCLIB, covers), public pages, media
-src/web      Vite app: views/ (pages and dashboard tabs), render/ (the profile), media/ (player, Lanyard, lyrics), styles/
+src/web      Vite app: views/ (pages), views/panes/ (dashboard tabs), render/ (the profile and the
+             live preview), ui/ (chrome, icons, toast), media/ (player, Lanyard, lyrics), styles/
 ```

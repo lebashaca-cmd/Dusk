@@ -5,6 +5,7 @@ import { guildConfigured } from "../config";
 import { memberRoles } from "../services/guild";
 import { rateLimit } from "../rateLimit";
 import { checkUsernameFormat, cleanUsername, USERNAME_HELP } from "../../shared/url";
+import type { Insights } from "../../shared/types";
 import { db, ownerOf, userDir } from "../db";
 import { asyncHandler, currentUser, HttpError } from "../http";
 import { toMe } from "../mappers";
@@ -96,4 +97,24 @@ profileRouter.delete("/avatar", requireAuth, asyncHandler(async (req, res) => {
 profileRouter.post("/logout", (req, res) => {
   endSession(req, res);
   res.status(204).end();
+});
+
+/** How the page has been doing: views per day for a month, and which links people actually open. */
+profileRouter.get("/insights", requireAuth, (req, res) => {
+  const user = currentUser(req);
+  const days: Insights["days"] = [];
+  const now = new Date();
+  for (let back = 29; back >= 0; back--) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - back);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    days.push({ day: key, count: user.viewsByDay?.[key] ?? 0 });
+  }
+  const counts = user.clicks ?? {};
+  const clicks = user.profile.links
+    .map(l => ({ id: l.id, label: l.label || l.url || "Link", count: counts[l.id] ?? 0 }))
+    .filter(c => c.count > 0)
+    .sort((a, b) => b.count - a.count);
+  const clicksTotal = Object.values(counts).reduce((sum, n) => sum + n, 0);
+  const body: Insights = { views: user.views, days, clicks, clicksTotal };
+  res.json(body);
 });

@@ -14,6 +14,8 @@ import { profileRouter } from "./routes/profile";
 import { mediaRouter, publicRouter } from "./routes/public";
 import { tracksRouter } from "./routes/tracks";
 import { attachUser, csrfGuard } from "./session";
+import { injectMeta } from "./meta";
+import { cleanUsername } from "../shared/url";
 
 const app = express();
 app.disable("x-powered-by");
@@ -38,8 +40,19 @@ app.use("/api", (_req, res) => { res.status(404).json({ error: "Not found." }); 
 
 /* The built web app. During development Vite serves it instead and proxies /api, /auth and /media here. */
 if (fs.existsSync(path.join(config.webDir, "index.html"))) {
+  const indexFile = path.join(config.webDir, "index.html");
   app.use(express.static(config.webDir, { index: false, maxAge: "1h" }));
-  app.get("*", (_req, res) => { res.sendFile(path.join(config.webDir, "index.html")); });
+  // A page of someone's own gets the tags a crawler reads, so a shared link shows a name and a picture.
+  app.get("*", (req, res) => {
+    const name = cleanUsername(String((req.params as Record<string, string>)[0] ?? ""));
+    const user = name ? db.userByName(name) : undefined;
+    if (!user) { res.sendFile(indexFile); return; }
+    const origin = `${req.protocol}://${req.get("host") ?? "localhost"}`;
+    fs.readFile(indexFile, "utf8", (err, html) => {
+      if (err) { res.sendStatus(500); return; }
+      res.type("html").send(injectMeta(html, user, origin));
+    });
+  });
 }
 
 const onError: ErrorRequestHandler = (err, req, res, _next) => {

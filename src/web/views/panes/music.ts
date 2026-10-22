@@ -42,6 +42,7 @@ function trackHTML(t: Track, i: number, count: number, editing: boolean): string
 export const musicPane: Pane = {
   id: "music",
   label: "Music",
+  hint: "Songs on your page, and the lyrics that follow them.",
   mount(el) {
     let file: File | null = null;
     let editing: string | null = null;
@@ -62,7 +63,7 @@ export const musicPane: Pane = {
               <label class="fld">Song name<input type="text" class="inp" id="title" maxlength="120" autocomplete="off"></label>
               <label class="fld">Artist<input type="text" class="inp" id="artist" maxlength="120" autocomplete="off"></label>
             </div>
-            <button class="btn-white" type="submit"${list.length >= LIMITS.tracks ? " disabled" : ""}>${uploading ? "Uploading and finding lyrics…" : "Add song"}</button>
+            <button class="btn-primary" type="submit"${list.length >= LIMITS.tracks ? " disabled" : ""}>${uploading ? "Uploading and finding lyrics…" : "Add song"}</button>
             <p class="form-msg ${message.kind}" role="status">${esc(message.text) || (list.length >= LIMITS.tracks ? `You can add up to ${LIMITS.tracks} songs.` : "Lyrics come from LRCLIB. The cover comes from the MP3, or from an iTunes search if it has none.")}</p>
           </form>`),
         group(`Your songs${list.length ? ` (${list.length})` : ""}`,

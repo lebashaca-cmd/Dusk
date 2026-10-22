@@ -4,7 +4,7 @@ const API = process.env.API_URL ?? "http://localhost:3000";
 
 export default defineConfig({
   root: "src/web",
-  publicDir: false,
+  publicDir: "public",
   build: {
     outDir: "../../dist/web",
     emptyOutDir: true,

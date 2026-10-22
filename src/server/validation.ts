@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { LIMITS } from "../shared/constants";
+import { LIMITS, newId } from "../shared/constants";
 import {
   ALIGNS, AVATAR_KINDS, AVATAR_SHAPES, BG_TYPES, BORDER_COLORS, CARD_STYLES, NAME_CASES, ENTRANCES, FONT_KEYS, ICON_NAMES, ICON_COLORS, LINK_HOVERS,
   LINK_LAYOUTS, LYRIC_STYLES, TAG_STYLES, THEME_KEYS,
@@ -13,11 +13,17 @@ const num = (min: number, max: number) => z.number().min(min).max(max);
 const text = (max: number) => z.string().max(max);
 
 const link = z.object({
+  id: z.string().max(40).optional(),
   label: text(28),
   url: z.string().max(500).transform(safeUrl),
   note: text(40),
   icon: z.enum(ICON_NAMES),
-});
+  group: z.string().max(40).optional(),
+}).transform(l => ({
+  ...l,
+  id: l.id && /^[a-z0-9_-]{4,40}$/i.test(l.id) ? l.id : newId(),
+  group: l.group && /^[a-z0-9_-]{4,40}$/i.test(l.group) ? l.group : undefined,
+}));
 
 const profileSchema = z.object({
   name: z.string().trim().min(1, "Enter a display name").max(32),
@@ -36,6 +42,7 @@ const profileSchema = z.object({
   hiddenRoles: z.array(z.string().max(30)).max(200),
   tagStyle: z.enum(TAG_STYLES),
   links: z.array(link).max(LIMITS.links),
+  groups: z.array(z.object({ id: z.string().max(40), label: text(28) })).max(LIMITS.groups).optional().default([]),
   linkLayout: z.enum(LINK_LAYOUTS),
   iconColor: z.enum(ICON_COLORS),
   linkHover: z.enum(LINK_HOVERS),

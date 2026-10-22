@@ -16,7 +16,7 @@ function pagesHTML(): string {
         </li>`).join("")}</ul>` +
       (me.canMultiPage
         ? (me.pages.length < me.maxPages
-          ? `<form class="page-new" id="page-new"><input type="text" id="page-new-name" placeholder="new page name" maxlength="20" autocomplete="off" spellcheck="false" aria-label="New page name"><button class="btn-white" type="submit">Create page</button></form>
+          ? `<form class="page-new" id="page-new"><input type="text" id="page-new-name" placeholder="new page name" maxlength="20" autocomplete="off" spellcheck="false" aria-label="New page name"><button class="btn-primary" type="submit">Create page</button></form>
              <p class="note">Each page has its own link, songs, links and style. Your Discord status and roles are shared.</p>`
           : `<p class="note">You have reached the limit of ${me.maxPages} pages.</p>`)
         : ""))
@@ -37,6 +37,7 @@ function pagesHTML(): string {
 export const extrasPane: Pane = {
   id: "page",
   label: "Page",
+  hint: "How the page itself behaves when people open it.",
   mount(el) {
     const p = store.profile;
     el.innerHTML = group("Page",

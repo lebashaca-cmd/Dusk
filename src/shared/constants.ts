@@ -5,11 +5,19 @@ import {
 
 export const LIMITS = {
   links: 20,
+  groups: 8,
   tracks: 12,
   bio: 600,
   audioBytes: 30 * 1024 * 1024,
   imageBytes: 3 * 1024 * 1024,
 } as const;
+
+/** A short random id for a link or a group. */
+export function newId(): string {
+  let out = "";
+  for (let i = 0; i < 8; i++) out += Math.floor(Math.random() * 36).toString(36);
+  return out;
+}
 
 export const USERNAME_RE = /^[a-z0-9._-]{3,20}$/;
 
@@ -28,6 +36,7 @@ export const PRESENCE_COLORS: Record<PresenceStatus, string> = {
 };
 
 export const THEMES: Record<ThemeName, { name: string; bgType: BgType; colors: ProfileColors }> = {
+  dusk:     { name: "Dusk",     bgType: "aurora",    colors: { bg: "#07060f", bg2: "#1b1140", text: "#f3f0ff", dim: "#8d86b3", accent: "#ffb066" } },
   midnight: { name: "Midnight", bgType: "particles", colors: { bg: "#000000", bg2: "#0b0b12", text: "#ffffff", dim: "#888888", accent: "#ffffff" } },
   frost:    { name: "Frost",    bgType: "solid",     colors: { bg: "#eef1f5", bg2: "#dfe6ee", text: "#0d1117", dim: "#5b6472", accent: "#0d1117" } },
   neon:     { name: "Neon",     bgType: "aurora",    colors: { bg: "#07030f", bg2: "#1b0a3a", text: "#f5f0ff", dim: "#9a8cc0", accent: "#b26bff" } },
@@ -36,6 +45,9 @@ export const THEMES: Record<ThemeName, { name: string; bgType: BgType; colors: P
   forest:   { name: "Forest",   bgType: "grid",      colors: { bg: "#04140c", bg2: "#0a2a1a", text: "#eafff3", dim: "#7fb59a", accent: "#5eea9b" } },
   rose:     { name: "Rose",     bgType: "aurora",    colors: { bg: "#14060c", bg2: "#3a0f22", text: "#fff0f5", dim: "#c28ba0", accent: "#ff5d8f" } },
   slate:    { name: "Slate",    bgType: "solid",     colors: { bg: "#111418", bg2: "#1a1f26", text: "#e8ecf1", dim: "#7d8793", accent: "#e8ecf1" } },
+  ember:    { name: "Ember",    bgType: "gradient",  colors: { bg: "#150809", bg2: "#40140d", text: "#fff0e6", dim: "#c08d78", accent: "#ff7a45" } },
+  lilac:    { name: "Lilac",    bgType: "bokeh",     colors: { bg: "#0d0919", bg2: "#2a1c4a", text: "#f6f1ff", dim: "#a394c8", accent: "#c9a6ff" } },
+  moss:     { name: "Moss",     bgType: "dots",      colors: { bg: "#07120b", bg2: "#123020", text: "#eafff1", dim: "#7fae94", accent: "#7ce0a0" } },
 };
 
 export const FONTS: Record<FontKey, { label: string; css: string }> = {
@@ -70,12 +82,13 @@ export function defaultProfile(name: string): Profile {
     hiddenRoles: [],
     tagStyle: "pill",
     links: [],
+    groups: [],
     linkLayout: "rows",
     iconColor: "theme",
     linkHover: "lift",
-    theme: "midnight",
-    colors: { ...THEMES.midnight.colors },
-    bgType: THEMES.midnight.bgType,
+    theme: "dusk",
+    colors: { ...THEMES.dusk.colors },
+    bgType: THEMES.dusk.bgType,
     gradAngle: 160,
     gridSize: 40,
     gridPush: 60,
@@ -108,10 +121,23 @@ export function defaultProfile(name: string): Profile {
 export function normalizeProfile(saved: Partial<Profile> | undefined, name: string): Profile {
   const d = defaultProfile(name);
   const s = saved ?? {};
+  const groups = Array.isArray(s.groups)
+    ? s.groups.filter(g => g && typeof g.id === "string" && typeof g.label === "string").slice(0, LIMITS.groups)
+    : [];
+  const known = new Set(groups.map(g => g.id));
+  const links = Array.isArray(s.links)
+    ? s.links.map(l => ({
+      ...l,
+      id: l && typeof l.id === "string" && l.id ? l.id : newId(),
+      group: l && typeof l.group === "string" && known.has(l.group) ? l.group : undefined,
+    }))
+    : [];
   return {
     ...d,
     ...s,
     hiddenRoles: Array.isArray(s.hiddenRoles) ? s.hiddenRoles : [],
+    groups,
+    links,
     avatar: { ...d.avatar, ...s.avatar },
     colors: { ...d.colors, ...s.colors },
     card: { ...d.card, ...s.card },

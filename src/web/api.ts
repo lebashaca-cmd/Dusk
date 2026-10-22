@@ -1,5 +1,5 @@
 import type {
-  ApiErrorBody, CommunityMe, CommunityProfile, CommunityTemplate, Lyrics, MeResponse, PublicProfile, SiteConfig, SiteStats, Track, UsernameCheck,
+  ApiErrorBody, CommunityMe, CommunityProfile, CommunityTemplate, Insights, Lyrics, MeResponse, PublicProfile, SiteConfig, SiteStats, Track, UsernameCheck,
 } from "../shared/types";
 
 export class ApiError extends Error {
@@ -48,6 +48,8 @@ export const api = {
   checkUsername: (name: string) => get<UsernameCheck>(`/api/username/${encodeURIComponent(name)}`),
   publicProfile: (username: string) => get<PublicProfile>(`/api/public/${encodeURIComponent(username)}`),
   countView: (username: string) => send<{ views: number }>("POST", `/api/public/${encodeURIComponent(username)}/view`),
+  countClick: (username: string, id: string) => send<{ ok: boolean }>("POST", `/api/public/${encodeURIComponent(username)}/click`, { id }),
+  insights: () => get<Insights>("/api/insights"),
   lyrics: (q: { title: string; artist: string; album: string; duration: number }) =>
     get<Lyrics>(`/api/lyrics?${new URLSearchParams({ ...q, duration: String(Math.round(q.duration)) })}`),
   createPage: (username: string) => send<MeResponse>("POST", "/api/pages", { username }),

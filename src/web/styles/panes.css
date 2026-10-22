@@ -43,7 +43,7 @@
 .page-list li b { color: #fff; font-weight: 600; }
 .page-new { display: flex; gap: 8px; margin: 4px 0 8px; }
 .page-new input { flex: 1; min-width: 0; padding: 10px 16px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.04); color: #fff; font: inherit; }
-.page-new .btn-white { flex: none; }
+.page-new .btn-primary { flex: none; }
 .btn-danger { background: rgba(255, 69, 58, 0.12); color: #ff6b62; border: 1px solid rgba(255, 69, 58, 0.45); border-radius: 999px; padding: 10px 20px; font-weight: 600; font-size: 14px; cursor: pointer; transition: background 0.2s, opacity 0.2s; }
 .btn-danger:hover:not(:disabled) { background: rgba(255, 69, 58, 0.22); }
 .btn-danger:disabled { opacity: 0.4; cursor: default; }

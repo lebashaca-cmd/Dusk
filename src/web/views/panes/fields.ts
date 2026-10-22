@@ -7,6 +7,8 @@ import { store } from "../../state";
 export interface Pane {
   id: string;
   label: string;
+  /** One line about what this section is for. Shown under the title. */
+  hint?: string;
   /** Draw the pane into `el`. Returns a function that tears it down. */
   mount(el: HTMLElement): () => void;
 }

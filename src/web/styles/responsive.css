@@ -4,10 +4,15 @@
   .intro { padding-top: 0; }
   .device { height: 520px; }
   .dash-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
-  .rail { flex-direction: row; justify-content: flex-start; padding: 8px 14px; border-right: 0; border-bottom: 1px solid var(--line); overflow: auto hidden; }
-  .tab::after { display: none; }
+  /* The sidebar turns into a row of icons across the top. */
+  .dash-nav { flex-direction: row; align-items: center; gap: 6px; padding: 8px 12px; border-right: 0; border-bottom: 1px solid var(--line); overflow-x: auto; overflow-y: hidden; }
+  .nav-sec { display: contents; }
+  .nav-sec-label { display: none; }
+  .tab { width: auto; padding: 8px 11px; }
+  .tab-label { display: none; }
+  .tab[aria-selected="true"]::before { left: 50%; top: auto; bottom: -8px; translate: -50% 0; width: 20px; height: 3px; border-radius: 3px 3px 0 0; }
   .side { border-right: 0; }
-  .dash[data-pane="preview"] .rail { display: none; }
+  .dash[data-pane="preview"] .dash-nav { display: none; }
   .mobile-switch { display: inline-flex; }
   .dash[data-pane="edit"] .preview-pane { display: none; }
   .dash[data-pane="preview"] .side { display: none; }
@@ -17,17 +22,25 @@
 @media (max-width: 520px) {
   .home { padding-inline: 16px; }
   .claim { flex-direction: column; align-items: stretch; }
-  .claim .btn-white { width: 100%; }
+  .claim .btn-primary { width: 100%; }
   .claim-field { padding-inline: 16px; flex: none; }
-  .claim .btn-white { flex: none; }
+  .claim .btn-primary { flex: none; }
   .themes { grid-template-columns: repeat(2, 1fr); }
-  .dash-top { padding-inline: 16px; }
+  .dash-top { padding-inline: 12px; gap: 8px; }
+  .dash-top .saved { display: none; }
+  .dash-top .top-r { gap: 6px; }
+  .dash-top .top-r .btn-ghost, .dash-top .top-r .btn-text { padding: 7px 12px; font-size: 12px; }
   .url-chip { display: none; }
+  .cmdk span { display: none; }
   .side-body { padding-inline: 16px; }
+  .side-head { padding-inline: 16px; }
   .preview-pane { padding-inline: 16px; }
   .two { grid-template-columns: 1fr; }
+  .three { grid-template-columns: 1fr 1fr; }
   .track-item { grid-template-columns: 48px minmax(0, 1fr); }
   .track-tools { grid-column: 1 / -1; justify-content: flex-start; }
+  .share-row { flex-direction: column; align-items: stretch; }
+  .figures { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
   .fx-aurora i, .gate span, .pbio.type::after { animation: none; }

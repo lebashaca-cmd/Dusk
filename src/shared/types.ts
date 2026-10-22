@@ -18,6 +18,7 @@ export type PresenceStatus = (typeof PRESENCE_STATUSES)[number];
 export const BG_TYPES = [
   "solid", "gradient", "aurora", "particles", "grid", "dots", "lines", "spotlight",
   "mesh", "stars", "rain", "grain", "image",
+  "waves", "bokeh", "beams", "topo",
 ] as const;
 export type BgType = (typeof BG_TYPES)[number];
 
@@ -64,17 +65,29 @@ export type LyricStyle = (typeof LYRIC_STYLES)[number];
 /** Backgrounds only VIP members can pick. */
 export const VIP_BG_TYPES: readonly BgType[] = ["mesh", "stars", "rain", "grain", "image"];
 
-export const THEME_KEYS = ["midnight", "frost", "neon", "sunset", "ocean", "forest", "rose", "slate"] as const;
+export const THEME_KEYS = [
+  "dusk", "midnight", "frost", "neon", "sunset", "ocean", "forest", "rose", "slate", "ember", "lilac", "moss",
+] as const;
 export type ThemeName = (typeof THEME_KEYS)[number];
 export type ThemeKey = ThemeName | "custom";
 
 /* ---------- profile ---------- */
 
 export interface LinkItem {
+  /** A stable id, so clicks can be counted per link even if the order changes. */
+  id: string;
   label: string;
   url: string;
   note: string;
   icon: IconName;
+  /** The id of the group this link sits under, if any. */
+  group?: string;
+}
+
+/** A heading that a set of links sits under, like "Work" or "Elsewhere". */
+export interface LinkGroup {
+  id: string;
+  label: string;
 }
 
 /** A role from the Discord server, shown on the page as a tag. */
@@ -165,6 +178,8 @@ export interface Profile {
   hiddenRoles: string[];
   tagStyle: TagStyle;
   links: LinkItem[];
+  /** Headings that group the links. Links without a group come first. */
+  groups: LinkGroup[];
   linkLayout: LinkLayout;
   iconColor: IconColor;
   linkHover: LinkHover;
@@ -307,6 +322,18 @@ export interface UsernameCheck {
   available: boolean;
   /** Why it is not available, in words a person can act on. */
   reason: string;
+}
+
+/** How the page has been doing. Shown in the dashboard. */
+export interface Insights {
+  /** Views in total, all time. */
+  views: number;
+  /** Views per day for the last 30 days, oldest first. */
+  days: { day: string; count: number }[];
+  /** How many times each link was opened, most used first. */
+  clicks: { id: string; label: string; count: number }[];
+  /** Opens of any link, all time. */
+  clicksTotal: number;
 }
 
 export interface ApiErrorBody {

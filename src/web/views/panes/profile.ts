@@ -25,6 +25,7 @@ async function squareJpeg(file: File): Promise<Blob> {
 export const profilePane: Pane = {
   id: "profile",
   label: "Profile",
+  hint: "How the page introduces you.",
   mount(el) {
     const draw = (): void => {
       const p = store.profile;

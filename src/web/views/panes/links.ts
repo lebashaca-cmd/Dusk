@@ -1,6 +1,6 @@
 import { BRANDS } from "../../../shared/brands";
 import { ICON_COLORS, ICON_NAMES, LINK_HOVERS, LINK_LAYOUTS, type IconName } from "../../../shared/types";
-import { LIMITS, LINK_PRESETS } from "../../../shared/constants";
+import { LIMITS, LINK_PRESETS, newId } from "../../../shared/constants";
 import { store } from "../../state";
 import { icon } from "../../ui/icons";
 import { delegate, esc } from "../../util/dom";
@@ -15,9 +15,14 @@ const LAYOUT_LABEL: Record<(typeof LINK_LAYOUTS)[number], string> = { rows: "Row
 export const linksPane: Pane = {
   id: "links",
   label: "Links",
+  hint: "The things you want people to open.",
   mount(el) {
     const draw = (): void => {
       const p = store.profile;
+      const groupOptions: ReadonlyArray<readonly [string, string]> = [
+        ["", "No group"],
+        ...p.groups.map(g => [g.id, g.label.trim() || "Untitled group"] as const),
+      ];
       const cards = p.links.map((l, i) => `<div class="card-ed" data-i="${i}">
         <div class="row">${icon(l.icon)}<b class="sp">${esc(l.label || `Link ${i + 1}`)}</b>
           <button class="icon-btn" type="button" data-move="-1" aria-label="Move up"${i === 0 ? " disabled" : ""}>${icon("up")}</button>
@@ -29,6 +34,7 @@ export const linksPane: Pane = {
         </div>
         <label class="fld">Address<input type="text" data-p="links.${i}.url" data-t="text" value="${esc(l.url)}" placeholder="https://" maxlength="300"></label>
         <label class="fld">Small text (optional)<input type="text" data-p="links.${i}.note" data-t="text" value="${esc(l.note)}" maxlength="60"></label>
+        ${selectField(`links.${i}.group`, "Sits under", l.group ?? "", groupOptions)}
       </div>`).join("");
       el.innerHTML = group("Your links",
         `<div class="chips">${LINK_PRESETS.map((x, n) => `<button class="chip" type="button" data-preset="${n}">+ ${esc(x.label)}</button>`).join("")}</div>
@@ -45,14 +51,14 @@ export const linksPane: Pane = {
     const add = (label: string, ic: IconName): void => {
       const links = store.profile.links;
       if (links.length >= LIMITS.links) return;
-      links.push({ label, url: "", note: "", icon: ic });
+      links.push({ id: newId(), label, url: "", note: "", icon: ic });
       store.profileChanged();
       draw();
     };
     const index = (t: HTMLElement): number => Number(t.closest<HTMLElement>("[data-i]")?.dataset.i);
 
     const offs = [
-      bindFields(el, path => path.endsWith(".icon"), draw),
+      bindFields(el, path => path.endsWith(".icon") || path.endsWith(".group"), draw),
       delegate(el, "click", "[data-add]", () => add("", "auto")),
       delegate(el, "click", "[data-preset]", (_e, t) => {
         const preset = LINK_PRESETS[Number(t.dataset.preset)];

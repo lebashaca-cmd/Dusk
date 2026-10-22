@@ -8,16 +8,18 @@ const BACKGROUNDS: readonly Choice[] = [
   { value: "solid", label: "Solid" }, { value: "gradient", label: "Gradient" }, { value: "aurora", label: "Aurora" },
   { value: "particles", label: "Particles" }, { value: "grid", label: "Grid" }, { value: "dots", label: "Dots" },
   { value: "lines", label: "Lines" }, { value: "spotlight", label: "Spotlight" },
+  { value: "waves", label: "Waves" }, { value: "bokeh", label: "Bokeh" }, { value: "beams", label: "Beams" }, { value: "topo", label: "Contours" },
   { value: "mesh", label: "Mesh", vip: true }, { value: "stars", label: "Stars", vip: true }, { value: "rain", label: "Rain", vip: true },
   { value: "grain", label: "Grain", vip: true }, { value: "image", label: "Picture", vip: true },
 ];
-const MOVING: readonly BgType[] = ["aurora", "mesh", "stars", "rain"];
+const MOVING: readonly BgType[] = ["aurora", "mesh", "stars", "rain", "waves", "bokeh", "beams"];
 
 const cap = (s: string): string => s[0]!.toUpperCase() + s.slice(1);
 
 export const stylePane: Pane = {
   id: "style",
   label: "Style",
+  hint: "Colours, backgrounds, the card and the type.",
   mount(el) {
     const vip = store.me!.vip;
     const draw = (): void => {

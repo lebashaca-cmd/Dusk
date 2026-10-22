@@ -7,6 +7,9 @@ export const RAIL_ICONS: Record<string, string> = {
   music: '<path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>',
   discord: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.5A8 8 0 1 1 21 12Z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/>',
   page: '<rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><path d="M17.2 13.5v7.5M13.5 17.2H21"/>',
+  groups: '<path d="M3 7h18M3 12h11M3 17h14"/><circle cx="18.5" cy="12" r="2.5"/>',
+  insights: '<path d="M3 21h18M6.5 21v-7M12 21V5M17.5 21v-10"/>',
+  share: '<circle cx="6" cy="12" r="2.5"/><circle cx="17" cy="6" r="2.5"/><circle cx="17" cy="18" r="2.5"/><path d="M8.2 10.8l6.6-3.6M8.2 13.2l6.6 3.6"/>',
 };
 
 export const railIcon = (id: string): string =>

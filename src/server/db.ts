@@ -23,6 +23,10 @@ export interface UserRecord {
   avatarMime: string | null;
   avatarVersion: number;
   views: number;
+  /** Views per day, keyed by YYYY-MM-DD. Only the last 90 days are kept. */
+  viewsByDay?: Record<string, number>;
+  /** How many times each link was opened, keyed by the link's id. */
+  clicks?: Record<string, number>;
   createdAt: number;
   /** Discord's own @handle, as opposed to the display name above. Older accounts may not have it. */
   discordHandle?: string;
@@ -106,6 +110,8 @@ class Database {
         ...u,
         roles: u.roles ?? [],
         rolesAt: u.rolesAt ?? 0,
+        viewsByDay: u.viewsByDay ?? {},
+        clicks: u.clicks ?? {},
         profile: normalizeProfile(u.profile, u.discordName),
       }])),
       usernames: raw.usernames ?? {},
@@ -183,6 +189,28 @@ class Database {
     delete this.data.usernames[user.username];
     user.username = username;
     this.data.usernames[username] = user.id;
+    this.save();
+  }
+
+  /* analytics */
+
+  /** Count one view: in total, and for today. */
+  recordView(user: UserRecord): void {
+    user.views += 1;
+    const days = user.viewsByDay ?? (user.viewsByDay = {});
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    days[today] = (days[today] ?? 0) + 1;
+    // Keep the last 90 days only, so the file does not grow forever.
+    const keys = Object.keys(days).sort();
+    for (const old of keys.slice(0, Math.max(0, keys.length - 90))) delete days[old];
+    this.save();
+  }
+
+  /** Count one open of a link. */
+  recordClick(user: UserRecord, linkId: string): void {
+    const clicks = user.clicks ?? (user.clicks = {});
+    clicks[linkId] = (clicks[linkId] ?? 0) + 1;
     this.save();
   }
 
