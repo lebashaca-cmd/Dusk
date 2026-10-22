@@ -99,9 +99,10 @@ export function makeSortable(list: HTMLElement, onEnd: () => void): () => void {
  * board can be any size and the card can go anywhere inside it.
  *
  * `scale` says how much smaller the board looks than it is, because a board that is scaled
- * down to fit the screen still measures its pieces in board pixels.
+ * down to fit the screen still measures its pieces in board pixels. `onChange` runs while
+ * the card is being dragged, so whatever is inside it can keep up.
  */
-export function makeMover(card: HTMLElement, board: HTMLElement, onEnd: () => void, scale: () => number = () => 1): () => void {
+export function makeMover(card: HTMLElement, board: HTMLElement, onEnd: () => void, scale: () => number = () => 1, onChange: () => void = () => {}): () => void {
   const handle = card.querySelector<HTMLElement>("[data-move-handle]") ?? card;
   let pointer = -1;
   let startX = 0;
@@ -131,6 +132,7 @@ export function makeMover(card: HTMLElement, board: HTMLElement, onEnd: () => vo
     card.style.left = `${x}px`;
     card.style.top = `${y}px`;
     card.classList.add("dragging");
+    onChange();
   };
 
   const up = (e: PointerEvent): void => {
@@ -157,9 +159,10 @@ export function makeMover(card: HTMLElement, board: HTMLElement, onEnd: () => vo
  * Drag the corner of a card to make it bigger or smaller.
  *
  * `scale` says how much smaller the card looks than it is, because a board that is scaled
- * down to fit the screen still measures its pieces in board pixels.
+ * down to fit the screen still measures its pieces in board pixels. `onChange` runs while
+ * the card is being resized, so whatever is inside it can keep up.
  */
-export function makeResizer(card: HTMLElement, onEnd: () => void, scale: () => number = () => 1): () => void {
+export function makeResizer(card: HTMLElement, onEnd: () => void, scale: () => number = () => 1, onChange: () => void = () => {}): () => void {
   const grip = card.querySelector<HTMLElement>("[data-resize-handle]");
   if (!grip) return () => {};
   let pointer = -1;
@@ -186,6 +189,7 @@ export function makeResizer(card: HTMLElement, onEnd: () => void, scale: () => n
     const least = GRID * 6;
     card.style.width = `${Math.max(least, snap(w + (e.clientX - startX) / k))}px`;
     card.style.height = `${Math.max(least, snap(h + (e.clientY - startY) / k))}px`;
+    onChange();
   };
 
   const up = (e: PointerEvent): void => {

@@ -142,6 +142,15 @@ export interface EffectSettings {
   entrance: Entrance;
 }
 
+/** How a piece is lined up inside its own box. */
+export type BoxAlign = "center" | "left";
+
+/** How a piece is filled in. */
+export type BoxFill = "soft" | "solid" | "outline" | "glass" | "none";
+
+/** How the content of a piece is fitted into it. */
+export type BoxFit = "scale" | "fixed";
+
 /** One piece of the page, and where it sits on the free-form board. */
 export interface BoardBox {
   /** Which piece this is, e.g. "profile" or "links". */
@@ -152,6 +161,16 @@ export interface BoardBox {
   /** How big it is. */
   w: number;
   h: number;
+  /** How the piece is lined up inside its box. */
+  align?: BoxAlign;
+  /** How the piece is filled in. */
+  fill?: BoxFill;
+  /** How the content is fitted: scaled to the piece, or left at its own size. */
+  fit?: BoxFit;
+  /** The room inside the piece, in pixels. */
+  pad?: number;
+  /** The roundness of the piece's corners, in pixels. */
+  radius?: number;
 }
 
 export interface PageSettings {

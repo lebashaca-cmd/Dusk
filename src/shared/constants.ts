@@ -1,6 +1,6 @@
 import {
   LYRIC_PROVIDERS, PAGE_LAYOUTS, VIP_BG_TYPES,
-  type BgType, type BoardBox, type FontKey, type IconName, type LyricProvider, type PageSettings, type PresenceStatus, type Profile, type ProfileColors, type ThemeName,
+  type BgType, type BoardBox, type BoxAlign, type BoxFill, type BoxFit, type FontKey, type IconName, type LyricProvider, type PageSettings, type PresenceStatus, type Profile, type ProfileColors, type ThemeName,
 } from "./types";
 
 export const LIMITS = {
@@ -86,6 +86,15 @@ export const PAGE_WIDGETS = [
 ] as const satisfies ReadonlyArray<{ id: string; label: string; w: number; h: number }>;
 
 export type PageWidgetId = (typeof PAGE_WIDGETS)[number]["id"];
+
+/** The ways a piece can be filled in. */
+export const BOX_FILLS: readonly BoxFill[] = ["soft", "solid", "outline", "glass", "none"];
+
+/** The ways a piece can be lined up inside its box. */
+export const BOX_ALIGNS: readonly BoxAlign[] = ["center", "left"];
+
+/** The ways the content of a piece can be fitted into it. */
+export const BOX_FITS: readonly BoxFit[] = ["scale", "fixed"];
 
 /** The size of the board, in pixels. The page is scaled to fit the screen. */
 export const BOARD_W = 1200;
@@ -206,7 +215,14 @@ export function normalizeBoard(board: unknown): BoardBox[] {
     if (typeof box.id !== "string" || !known.has(box.id)) continue;
     if (![box.x, box.y, box.w, box.h].every(n => typeof n === "number" && Number.isFinite(n))) continue;
     if (out.some(o => o.id === box.id)) continue;
-    out.push({ id: box.id, x: box.x!, y: box.y!, w: Math.max(60, box.w!), h: Math.max(40, box.h!) });
+    const piece: BoardBox = { id: box.id, x: box.x!, y: box.y!, w: Math.max(60, box.w!), h: Math.max(40, box.h!) };
+    // The look of a piece is kept only when it is one of the choices.
+    if (box.align === "center" || box.align === "left") piece.align = box.align;
+    if (box.fill && BOX_FILLS.includes(box.fill)) piece.fill = box.fill;
+    if (box.fit && BOX_FITS.includes(box.fit)) piece.fit = box.fit;
+    if (typeof box.pad === "number" && Number.isFinite(box.pad)) piece.pad = Math.min(60, Math.max(0, Math.round(box.pad)));
+    if (typeof box.radius === "number" && Number.isFinite(box.radius)) piece.radius = Math.min(80, Math.max(0, Math.round(box.radius)));
+    out.push(piece);
     if (out.length >= PAGE_WIDGETS.length) break;
   }
   return out;

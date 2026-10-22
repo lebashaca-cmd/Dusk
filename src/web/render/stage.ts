@@ -8,7 +8,7 @@ import { copyText } from "../ui/toast";
 import { delegate } from "../util/dom";
 import { GridField, ParticleField } from "./background";
 import { bioLines, cardHTML } from "./card";
-import { fitFree, freeHTML } from "./free";
+import { fitBoxes, fitFree, freeHTML } from "./free";
 import { IslandPanel } from "./island";
 import { LyricPanel, panelSignature } from "./lyricpanel";
 import { nowCardHTML, tickNowCard } from "./nowcard";
@@ -104,8 +104,12 @@ export class Stage {
     this.cleanups.push(onLyricsLoaded(() => this.renderSlot()));
     this.tickTimer = window.setInterval(() => this.tick(), 250);
     // The free-form board is scaled to the space it has, so it is fitted again on every resize.
+    // The pieces are fitted as well, because they are measured against the space they are in.
     if (typeof ResizeObserver !== "undefined") {
-      this.resize = new ResizeObserver(() => fitFree(this.el));
+      this.resize = new ResizeObserver(() => {
+        fitFree(this.el);
+        fitBoxes(this.mount);
+      });
       this.resize.observe(this.el);
     }
 
@@ -210,12 +214,14 @@ export class Stage {
 
     // The regular page has one slot. The free-form page can have one for the music and one
     // for Discord, so the two can sit apart.
+    let changed = false;
     for (const slot of this.mount.querySelectorAll<HTMLElement>(".pslot")) {
       const kind = slot.dataset.slot ?? "main";
       const markup = this.slotHTML(kind, d);
       if (markup === slot.dataset.markup) continue;
       slot.dataset.markup = markup;
       slot.innerHTML = markup;
+      changed = true;
       // Cards slide in when a new kind of card shows up (a song starts, Discord answers), not on every small change.
       const kinds = [...this.nowPlaying.keys()].join(",") + (p.discord.enabled && p.discord.showCard && d ? ",presence" : "");
       if (kinds !== slot.dataset.kinds) {
@@ -227,6 +233,8 @@ export class Stage {
         this.slotTimer = window.setTimeout(() => slot.classList.remove("anim"), 900);
       }
     }
+    // The content of a piece is drawn at its own size, so it is scaled to fit the piece.
+    if (changed) fitBoxes(this.mount);
     this.updateDot();
     this.renderPanel();
     this.tick();

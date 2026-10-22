@@ -1,6 +1,6 @@
-import { BOARD_H, BOARD_W, defaultBoard, PAGE_WIDGETS } from "../../../shared/constants";
-import type { BoardBox, RenderModel } from "../../../shared/types";
-import { boardScale, widgetHTML } from "../../render/free";
+import { BOARD_H, BOARD_W, BOX_ALIGNS, BOX_FILLS, BOX_FITS, defaultBoard, PAGE_WIDGETS } from "../../../shared/constants";
+import type { BoardBox, BoxAlign, BoxFill, BoxFit, RenderModel } from "../../../shared/types";
+import { applyBoxLook, boardScale, boxInner, fitBox, fitBoxes, widgetHTML } from "../../render/free";
 import { applyTheme } from "../../render/theme";
 import { store } from "../../state";
 import { GRID, makeMover, makeResizer } from "../../ui/drag";
@@ -13,6 +13,14 @@ const GRIP = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><c
 
 /** The name of a piece, for the label on it. */
 const labelOf = (id: string): string => PAGE_WIDGETS.find(w => w.id === id)?.label ?? id;
+
+/** The names the options use. */
+const ALIGN_LABELS: Record<BoxAlign, string> = { center: "Centre", left: "Left" };
+const FILL_LABELS: Record<BoxFill, string> = { soft: "Soft", solid: "Solid", outline: "Outline", glass: "Glass", none: "None" };
+const FIT_LABELS: Record<BoxFit, string> = { scale: "Scale to fit", fixed: "Keep its size" };
+
+/** The room inside a piece, when the owner has not said otherwise. */
+const DEFAULT_PAD = 16;
 
 /** Where a new piece can go without landing on top of another one. */
 function findSpot(w: number, h: number, list: readonly BoardBox[]): { x: number; y: number } {
@@ -48,6 +56,7 @@ export const pageboardPane: Pane = {
         <button class="btn-ghost" type="button" data-pb-reset>Put it back</button>
       </div>
       <p class="note pboard-note" data-pb-note></p>
+      <div class="pboard-opts" data-pb-opts hidden></div>
       <div class="pboard-scale" data-pb-scale>
         <div class="pboard-canvas stage is-free" id="pb-canvas"></div>
       </div>
@@ -58,7 +67,11 @@ export const pageboardPane: Pane = {
     const zoom = must<HTMLElement>("[data-pb-zoom]", el);
     const chips = must<HTMLElement>(".pboard-chips", el);
     const note = must<HTMLElement>("[data-pb-note]", el);
+    const opts = must<HTMLElement>("[data-pb-opts]", el);
     const cleanups: Array<() => void> = [];
+
+    /** The piece whose options are open, if any. */
+    let selected: string | null = null;
 
     /**
      * How big the board is drawn.
@@ -87,6 +100,16 @@ export const pageboardPane: Pane = {
       return p.page.board;
     };
 
+    /** The piece whose options are open, if it is still on the board. */
+    const picked = (): BoardBox | undefined => {
+      const list = boxes();
+      return selected ? list.find(b => b.id === selected) : undefined;
+    };
+
+    /** The piece on the board, as it is drawn here. */
+    const cardOf = (id: string): HTMLElement | null =>
+      canvas.querySelector<HTMLElement>(`.fbox[data-widget="${id}"]`);
+
     /** Put one piece on the board. */
     const place = (box: BoardBox, model: RenderModel | null): void => {
       const card = document.createElement("div");
@@ -98,20 +121,26 @@ export const pageboardPane: Pane = {
       card.style.top = `${box.y}px`;
       card.style.width = `${box.w}px`;
       card.style.height = `${box.h}px`;
+      applyBoxLook(card, box);
+      if (box.id === selected) card.classList.add("sel");
       const body = model ? widgetHTML(box.id, model) : "";
-      card.innerHTML = `${body}<span class="pbgrip" data-move-handle aria-hidden="true">${GRIP}</span><span class="pbtag">${esc(labelOf(box.id))}</span><span class="wresize" data-resize-handle aria-hidden="true"></span>`;
+      card.innerHTML = `${boxInner(body)}<span class="pbgrip" data-move-handle aria-hidden="true">${GRIP}</span><span class="pbtag">${esc(labelOf(box.id))}</span><span class="wresize" data-resize-handle aria-hidden="true"></span>`;
       canvas.append(card);
+
+      // The content is fitted to the piece, so it has to be fitted again whenever the
+      // piece is made bigger or smaller.
+      const refit = (): void => fitBox(card);
 
       cleanups.push(makeMover(card, canvas, () => {
         box.x = card.offsetLeft;
         box.y = card.offsetTop;
         store.profileChanged();
-      }, () => scale));
+      }, () => scale, refit));
       cleanups.push(makeResizer(card, () => {
         box.w = Math.max(60, card.offsetWidth);
         box.h = Math.max(40, card.offsetHeight);
         store.profileChanged();
-      }, () => scale));
+      }, () => scale, refit));
 
       // The arrow keys move a piece too, so this is not mouse-only.
       card.addEventListener("keydown", e => {
@@ -142,8 +171,59 @@ export const pageboardPane: Pane = {
     /** A word about whether this board is the one being shown. */
     const drawNote = (): void => {
       note.innerHTML = store.profile.page.layout === "experimental"
-        ? "This is the board your visitors see. Drag a piece to move it, and pull the corner to make it bigger. It is drawn smaller here so the whole board fits; visitors see it scaled to their screen."
+        ? "This is the board your visitors see. Drag a piece to move it, pull the corner to make it bigger, and click it to change how it looks. It is drawn smaller here so the whole board fits; visitors see it scaled to their screen."
         : `Your page is set to <b>Regular</b>, so this board is not shown yet. <button class="btn-ghost" type="button" data-pb-experimental>Use the experimental layout</button>`;
+    };
+
+    /** The options of the piece that is picked. */
+    const drawOpts = (): void => {
+      const box = picked();
+      if (!box) {
+        opts.hidden = true;
+        opts.innerHTML = "";
+        return;
+      }
+      const p = store.profile;
+      // A piece with no setting of its own follows the page.
+      const align = box.align ?? (p.card.align === "left" ? "left" : "center");
+      const fill = box.fill ?? (p.card.style as BoxFill);
+      const fit = box.fit ?? "scale";
+      const pad = box.pad ?? DEFAULT_PAD;
+      const radius = box.radius ?? p.card.radius;
+      const seg = (name: string, value: string, label: string): string =>
+        `<button type="button" class="seg-btn" data-pb-${name}="${esc(value)}" aria-pressed="${value === (name === "align" ? align : name === "fill" ? fill : fit)}">${esc(label)}</button>`;
+
+      opts.hidden = false;
+      opts.innerHTML = `<div class="pboard-opts-in">
+        <div class="pboard-opts-head">
+          <span class="pboard-opts-name">${esc(labelOf(box.id))}</span>
+          <button class="btn-ghost" type="button" data-pb-match>Match the page</button>
+          <button class="btn-ghost" type="button" data-pb-close>Done</button>
+        </div>
+        <div class="pboard-opts-grid">
+          <div class="pboard-opt">
+            <span>Alignment</span>
+            <div class="seg" role="group" aria-label="Alignment">${BOX_ALIGNS.map(a => seg("align", a, ALIGN_LABELS[a])).join("")}</div>
+          </div>
+          <div class="pboard-opt">
+            <span>Fill</span>
+            <div class="seg" role="group" aria-label="Fill">${BOX_FILLS.map(f => seg("fill", f, FILL_LABELS[f])).join("")}</div>
+          </div>
+          <div class="pboard-opt">
+            <span>Content</span>
+            <div class="seg" role="group" aria-label="Content">${BOX_FITS.map(f => seg("fit", f, FIT_LABELS[f])).join("")}</div>
+          </div>
+          <label class="pboard-opt">
+            <span>Inside space <em data-pb-pad-val>${pad}px</em></span>
+            <input type="range" data-pb-pad min="0" max="48" step="1" value="${pad}">
+          </label>
+          <label class="pboard-opt">
+            <span>Corners <em data-pb-radius-val>${radius}px</em></span>
+            <input type="range" data-pb-radius min="0" max="48" step="1" value="${radius}">
+          </label>
+        </div>
+        <p class="note">The content of a piece is drawn to fit it, so a piece that is made bigger gets bigger content. A piece that is too small for its content keeps it readable and lets it scroll inside.</p>
+      </div>`;
     };
 
     /** Draw everything. */
@@ -155,6 +235,9 @@ export const pageboardPane: Pane = {
       for (const box of boxes()) place(box, model);
       drawChips();
       drawNote();
+      drawOpts();
+      // The content of every piece is drawn to fit the piece it is in.
+      fitBoxes(canvas);
       fit();
     };
     draw();
@@ -162,7 +245,10 @@ export const pageboardPane: Pane = {
     // The board is scaled to fit the pane, so it is fitted again when the pane changes.
     let resize: ResizeObserver | null = null;
     if (typeof ResizeObserver !== "undefined") {
-      resize = new ResizeObserver(() => fit());
+      resize = new ResizeObserver(() => {
+        fit();
+        fitBoxes(canvas);
+      });
       resize.observe(el);
     }
 
@@ -174,6 +260,15 @@ export const pageboardPane: Pane = {
     };
     const off = store.subscribe(redraw);
 
+    /** Change a piece and show it at once, without waiting for the page to be drawn again. */
+    const change = (box: BoardBox, patch: Partial<BoardBox>): void => {
+      Object.assign(box, patch);
+      const card = cardOf(box.id);
+      if (!card) return;
+      applyBoxLook(card, box);
+      fitBox(card);
+    };
+
     const offs = [
       delegate(el, "click", "[data-pb-piece]", (_e, t) => {
         const id = t.dataset.pbPiece ?? "";
@@ -182,6 +277,7 @@ export const pageboardPane: Pane = {
         if (i >= 0) {
           if (list.length <= 1) { toast("Keep at least one piece on your page."); return; }
           list.splice(i, 1);
+          if (selected === id) selected = null;
         } else {
           const piece = PAGE_WIDGETS.find(w => w.id === id);
           if (!piece) return;
@@ -201,6 +297,85 @@ export const pageboardPane: Pane = {
         store.profileChanged();
         draw();
       }),
+
+      // Clicking a piece opens its options.
+      delegate(el, "click", ".pboard-canvas .fbox", (e, t) => {
+        // The pieces are only a picture here, so a link in one must not be followed.
+        e.preventDefault();
+        const id = t.dataset.widget ?? "";
+        if (!id) return;
+        selected = selected === id ? null : id;
+        for (const card of canvas.querySelectorAll<HTMLElement>(".fbox")) {
+          card.classList.toggle("sel", card.dataset.widget === selected);
+        }
+        drawOpts();
+      }),
+      delegate(el, "click", "[data-pb-close]", () => {
+        selected = null;
+        for (const card of canvas.querySelectorAll<HTMLElement>(".fbox")) card.classList.remove("sel");
+        drawOpts();
+      }),
+      // The piece goes back to the look of the page.
+      delegate(el, "click", "[data-pb-match]", () => {
+        const box = picked();
+        if (!box) return;
+        delete box.align;
+        delete box.fill;
+        delete box.fit;
+        delete box.pad;
+        delete box.radius;
+        const card = cardOf(box.id);
+        if (card) {
+          applyBoxLook(card, box);
+          fitBox(card);
+        }
+        store.profileChanged();
+        draw();
+      }),
+      delegate(el, "click", "[data-pb-align]", (_e, t) => {
+        const box = picked();
+        const value = t.dataset.pbAlign;
+        if (!box || !value || !BOX_ALIGNS.includes(value as BoxAlign)) return;
+        change(box, { align: value as BoxAlign });
+        store.profileChanged();
+        draw();
+      }),
+      delegate(el, "click", "[data-pb-fill]", (_e, t) => {
+        const box = picked();
+        const value = t.dataset.pbFill;
+        if (!box || !value || !BOX_FILLS.includes(value as BoxFill)) return;
+        change(box, { fill: value as BoxFill });
+        store.profileChanged();
+        draw();
+      }),
+      delegate(el, "click", "[data-pb-fit]", (_e, t) => {
+        const box = picked();
+        const value = t.dataset.pbFit;
+        if (!box || !value || !BOX_FITS.includes(value as BoxFit)) return;
+        change(box, { fit: value as BoxFit });
+        store.profileChanged();
+        draw();
+      }),
+
+      // The sliders show the change at once, and are saved when the drag ends.
+      delegate(el, "input", "[data-pb-pad]", (_e, t) => {
+        const box = picked();
+        const input = t as HTMLInputElement;
+        if (!box) return;
+        change(box, { pad: Number(input.value) });
+        const readout = opts.querySelector<HTMLElement>("[data-pb-pad-val]");
+        if (readout) readout.textContent = `${input.value}px`;
+      }),
+      delegate(el, "change", "[data-pb-pad]", () => store.profileChanged()),
+      delegate(el, "input", "[data-pb-radius]", (_e, t) => {
+        const box = picked();
+        const input = t as HTMLInputElement;
+        if (!box) return;
+        change(box, { radius: Number(input.value) });
+        const readout = opts.querySelector<HTMLElement>("[data-pb-radius-val]");
+        if (readout) readout.textContent = `${input.value}px`;
+      }),
+      delegate(el, "change", "[data-pb-radius]", () => store.profileChanged()),
     ];
 
     return () => {
