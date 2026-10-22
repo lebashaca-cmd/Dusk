@@ -32,7 +32,7 @@ function linkHTML(l: LinkItem, p: Profile, n: number): string {
  * The links, split into the groups the person made. Links with no group come first,
  * then each group in the order they set it.
  */
-function linksHTML(p: Profile): string {
+export function linksHTML(p: Profile): string {
   const shown = p.links.filter(l => l.label.trim() || l.url.trim());
   if (!shown.length) return "";
   const groups = p.groups.filter(g => g.label.trim());
@@ -50,10 +50,10 @@ function linksHTML(p: Profile): string {
 }
 
 /**
- * The profile card. The slot in the middle (.pslot) is left empty here: the Discord card and the
- * music cards are filled in separately because they change while the page is open.
+ * The top of the card: the picture, the name, the tags, the place and the bio.
+ * The free-form page puts this in a box of its own.
  */
-export function cardHTML(m: RenderModel): string {
+export function headHTML(m: RenderModel): string {
   const p = m.profile;
   const lines = bioLines(p.bio);
   const cycles = p.typewriter && lines.length > 1;
@@ -70,15 +70,32 @@ export function cardHTML(m: RenderModel): string {
   const bioBlock = lines.length ? `<p class="pbio${cycles ? " type" : ""}"><span class="bio-text">${bio}</span></p>` : "";
   // Centered: the usual stack. Left: the bio sits beside the picture, under the name.
   const beside = p.card.align === "left";
-  const head = beside
+  return beside
     ? `<div class="phead">${avatar}<div class="phead-text">${nameBlock}${bioBlock}</div></div>${tags ? `<div class="tags">${tags}</div>` : ""}${location}`
     : `${avatar}${nameBlock}${tags ? `<div class="tags">${tags}</div>` : ""}${location}${bioBlock}`;
+}
 
+/** The view counter. */
+export function viewsHTML(m: RenderModel): string {
+  return m.profile.page.views ? `<div class="views">${icon("eye")}<span>${formatCount(m.views)}</span></div>` : "";
+}
+
+/** The button that copies the address of the page. */
+export function shareHTML(m: RenderModel): string {
+  return m.profile.page.share ? `<button class="share" type="button" data-share aria-label="Copy profile link">${icon("share")}</button>` : "";
+}
+
+/**
+ * The profile card. The slot in the middle (.pslot) is left empty here: the Discord card and the
+ * music cards are filled in separately because they change while the page is open.
+ */
+export function cardHTML(m: RenderModel): string {
+  const p = m.profile;
   return `<article class="pcard">
-    ${p.page.share ? `<button class="share" type="button" data-share aria-label="Copy profile link">${icon("share")}</button>` : ""}
-    ${head}
+    ${shareHTML(m)}
+    ${headHTML(m)}
     <div class="pslot"></div>
     ${linksHTML(p)}
-    ${p.page.views ? `<div class="views">${icon("eye")}<span>${formatCount(m.views)}</span></div>` : ""}
+    ${viewsHTML(m)}
   </article>`;
 }

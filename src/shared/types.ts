@@ -62,6 +62,14 @@ export type Entrance = (typeof ENTRANCES)[number];
 export const LYRIC_STYLES = ["panel", "island"] as const;
 export type LyricStyle = (typeof LYRIC_STYLES)[number];
 
+/** How the public page is put together: the usual column, or the free-form board. */
+export const PAGE_LAYOUTS = ["regular", "experimental"] as const;
+export type PageLayout = (typeof PAGE_LAYOUTS)[number];
+
+/** Where the lyrics come from. */
+export const LYRIC_PROVIDERS = ["lrclib", "polaris", "polarisMono", "genius"] as const;
+export type LyricProvider = (typeof LYRIC_PROVIDERS)[number];
+
 /** Backgrounds only VIP members can pick. */
 export const VIP_BG_TYPES: readonly BgType[] = ["mesh", "stars", "rain", "grain", "image"];
 
@@ -134,11 +142,29 @@ export interface EffectSettings {
   entrance: Entrance;
 }
 
+/** One piece of the page, and where it sits on the free-form board. */
+export interface BoardBox {
+  /** Which piece this is, e.g. "profile" or "links". */
+  id: string;
+  /** Where it sits, in pixels from the top left of the board. */
+  x: number;
+  y: number;
+  /** How big it is. */
+  w: number;
+  h: number;
+}
+
 export interface PageSettings {
   views: boolean;
   share: boolean;
   enter: boolean;
   enterText: string;
+  /** Regular is the usual column. Experimental is the free-form board. */
+  layout: PageLayout;
+  /** Where the pieces sit on the free-form board. */
+  board: BoardBox[];
+  /** Which service the lyrics are looked up in. */
+  lyricsProvider: LyricProvider;
 }
 
 export interface MusicSettings {
@@ -232,6 +258,8 @@ export interface Lyrics {
   status: LyricsStatus;
   lines: LyricLine[];
   plain: string;
+  /** Which service these lyrics came from. */
+  source?: LyricProvider;
 }
 
 export type CoverSource = "embedded" | "itunes" | "upload" | "none";
@@ -283,6 +311,18 @@ export interface MeResponse {
   guildEnabled: boolean;
   /** VIP members can use the Dynamic Island, the premium backgrounds and picture backgrounds. */
   vip: boolean;
+  /** Which lyrics services this server can use, and whether each one is set up. */
+  lyricsProviders: LyricProviderInfo[];
+}
+
+/** One lyrics service, and whether this server has it working. */
+export interface LyricProviderInfo {
+  id: LyricProvider;
+  name: string;
+  /** True when the service can answer right now. */
+  ready: boolean;
+  /** What is missing, when it is not ready. */
+  note: string;
 }
 
 /** Everything needed to draw a profile. Used for public pages and for the owner's own preview. */

@@ -1,6 +1,6 @@
 import {
-  VIP_BG_TYPES,
-  type BgType, type FontKey, type IconName, type PresenceStatus, type Profile, type ProfileColors, type ThemeName,
+  LYRIC_PROVIDERS, PAGE_LAYOUTS, VIP_BG_TYPES,
+  type BgType, type BoardBox, type FontKey, type IconName, type LyricProvider, type PageSettings, type PresenceStatus, type Profile, type ProfileColors, type ThemeName,
 } from "./types";
 
 export const LIMITS = {
@@ -20,6 +20,10 @@ export function newId(): string {
 }
 
 export const USERNAME_RE = /^[a-z0-9._-]{3,20}$/;
+
+/** The first of `list` that matches `value`, or nothing. */
+export const oneOf = <T extends string>(list: readonly T[], value: unknown): T | undefined =>
+  (list as readonly string[]).includes(String(value)) ? (value as T) : undefined;
 
 /** Paths the app uses itself, plus a few names nobody should be able to claim. */
 export const RESERVED_USERNAMES: readonly string[] = [
@@ -70,6 +74,42 @@ export const LINK_PRESETS: ReadonlyArray<{ label: string; icon: IconName }> = [
   { label: "Shop", icon: "bag" }, { label: "Blog", icon: "pen" },
 ];
 
+/* ---------- the free-form page ---------- */
+
+/** The pieces of the page that can be placed on the board, and how big they start. */
+export const PAGE_WIDGETS = [
+  { id: "profile", label: "Profile", w: 420, h: 300 },
+  { id: "links", label: "Links", w: 420, h: 420 },
+  { id: "music", label: "Music", w: 330, h: 200 },
+  { id: "discord", label: "Discord", w: 330, h: 200 },
+  { id: "views", label: "Views", w: 200, h: 70 },
+] as const satisfies ReadonlyArray<{ id: string; label: string; w: number; h: number }>;
+
+export type PageWidgetId = (typeof PAGE_WIDGETS)[number]["id"];
+
+/** The size of the board, in pixels. The page is scaled to fit the screen. */
+export const BOARD_W = 1200;
+export const BOARD_H = 1000;
+
+/** A tidy page to start from, so switching to the experimental layout shows something. */
+export function defaultBoard(): BoardBox[] {
+  return [
+    { id: "profile", x: 390, y: 40, w: 420, h: 300 },
+    { id: "links", x: 390, y: 360, w: 420, h: 560 },
+    { id: "music", x: 40, y: 60, w: 330, h: 200 },
+    { id: "discord", x: 830, y: 60, w: 330, h: 200 },
+    { id: "views", x: 500, y: 930, w: 200, h: 60 },
+  ];
+}
+
+/** The names the settings use for the lyrics services. */
+export const LYRIC_PROVIDER_NAMES: Record<LyricProvider, string> = {
+  lrclib: "LRCLIB",
+  polaris: "Polaris",
+  polarisMono: "Polaris Mono",
+  genius: "Genius",
+};
+
 /** A new account starts with a clean page: nothing but the person's Discord name. */
 export function defaultProfile(name: string): Profile {
   return {
@@ -108,7 +148,7 @@ export function defaultProfile(name: string): Profile {
     nameGlow: false,
     nameGradient: false,
     effects: { tilt: true, cursorGlow: false, entrance: "rise" },
-    page: { views: true, share: true, enter: true, enterText: "tap to enter" },
+    page: { views: true, share: true, enter: true, enterText: "tap to enter", layout: "regular", board: [], lyricsProvider: "lrclib" },
     music: { enabled: true, autoplay: true, loop: true, showProgress: true, showLyrics: true, lyricsOpen: false, lyricsStyle: "panel", volume: 0.7 },
     discord: { enabled: true, showCard: true, showActivity: true, showSpotify: true, showProgress: true, showLyrics: true, lyricsOpen: false, lyricsStyle: "panel" },
   };
@@ -132,6 +172,7 @@ export function normalizeProfile(saved: Partial<Profile> | undefined, name: stri
       group: l && typeof l.group === "string" && known.has(l.group) ? l.group : undefined,
     }))
     : [];
+  const page: Partial<PageSettings> = s.page ?? {};
   return {
     ...d,
     ...s,
@@ -142,10 +183,33 @@ export function normalizeProfile(saved: Partial<Profile> | undefined, name: stri
     colors: { ...d.colors, ...s.colors },
     card: { ...d.card, ...s.card },
     effects: { ...d.effects, ...s.effects },
-    page: { ...d.page, ...s.page },
+    page: {
+      ...d.page,
+      ...page,
+      layout: oneOf(PAGE_LAYOUTS, page.layout) ?? d.page.layout,
+      lyricsProvider: oneOf(LYRIC_PROVIDERS, page.lyricsProvider) ?? d.page.lyricsProvider,
+      board: normalizeBoard(page.board),
+    },
     music: { ...d.music, ...s.music },
     discord: { ...d.discord, ...s.discord },
   };
+}
+
+/** Keep only the boxes that make sense: a known piece, and numbers that are numbers. */
+export function normalizeBoard(board: unknown): BoardBox[] {
+  if (!Array.isArray(board)) return [];
+  const known = new Set<string>(PAGE_WIDGETS.map(w => w.id));
+  const out: BoardBox[] = [];
+  for (const b of board) {
+    if (!b || typeof b !== "object") continue;
+    const box = b as Partial<BoardBox>;
+    if (typeof box.id !== "string" || !known.has(box.id)) continue;
+    if (![box.x, box.y, box.w, box.h].every(n => typeof n === "number" && Number.isFinite(n))) continue;
+    if (out.some(o => o.id === box.id)) continue;
+    out.push({ id: box.id, x: box.x!, y: box.y!, w: Math.max(60, box.w!), h: Math.max(40, box.h!) });
+    if (out.length >= PAGE_WIDGETS.length) break;
+  }
+  return out;
 }
 
 /** The parts of a profile that make up its look. A template is a copy of these, never anyone's links, bio or music. */

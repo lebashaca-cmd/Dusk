@@ -1,6 +1,6 @@
 import { PRESENCE_COLORS } from "../../shared/constants";
 import type { LyricStyle, RenderModel } from "../../shared/types";
-import { lanyard } from "../media/lanyard";
+import { lanyard, type PresenceData } from "../media/lanyard";
 import { onLyricsLoaded } from "../media/lyrics";
 import { spotifyNowPlaying, uploadNowPlaying, type NowPlaying } from "../media/nowplaying";
 import { player } from "../media/player";
@@ -8,6 +8,7 @@ import { copyText } from "../ui/toast";
 import { delegate } from "../util/dom";
 import { GridField, ParticleField } from "./background";
 import { bioLines, cardHTML } from "./card";
+import { fitFree, freeHTML } from "./free";
 import { IslandPanel } from "./island";
 import { LyricPanel, panelSignature } from "./lyricpanel";
 import { nowCardHTML, tickNowCard } from "./nowcard";
@@ -55,6 +56,7 @@ export class Stage {
   private nowPlaying = new Map<Source, NowPlaying>();
   private tickTimer = 0;
   private cardKey = "";
+  private resize: ResizeObserver | null = null;
   private tilt = { x: 0, y: 0 };
   private tiltTo = { x: 0, y: 0 };
   private tiltRaf = 0;
@@ -101,6 +103,11 @@ export class Stage {
     this.cleanups.push(player.subscribe(() => this.renderSlot()));
     this.cleanups.push(onLyricsLoaded(() => this.renderSlot()));
     this.tickTimer = window.setInterval(() => this.tick(), 250);
+    // The free-form board is scaled to the space it has, so it is fitted again on every resize.
+    if (typeof ResizeObserver !== "undefined") {
+      this.resize = new ResizeObserver(() => fitFree(this.el));
+      this.resize.observe(this.el);
+    }
 
     this.update(model);
   }
@@ -114,11 +121,16 @@ export class Stage {
     player.setQueue(p.music.enabled ? model.tracks : [], { loop: p.music.loop, volume: p.music.volume });
     lanyard.ensure(p.discord.enabled ? model.discordId : null);
 
+    // Regular is the usual column. Experimental is the free-form board.
+    const free = p.page.layout === "experimental";
+    this.el.classList.toggle("is-free", free);
+
     this.stopTyping();
-    this.mount.innerHTML = cardHTML(model);
+    this.mount.innerHTML = free ? freeHTML(model, p.page.board) : cardHTML(model);
     this.cardKey = "";
     this.updateDot();
     this.renderSlot();
+    fitFree(this.el);
     if (p.typewriter) this.stopTyping = startTypewriter(this.mount.querySelector<HTMLElement>(".bio-text"), bioLines(p.bio));
 
     if (p.effects.entrance !== this.entrance) {
@@ -127,7 +139,8 @@ export class Stage {
       void this.mount.offsetWidth;
       this.mount.style.animation = p.effects.entrance === "none" ? "" : `ent-${p.effects.entrance} 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards`;
     }
-    if (!p.effects.tilt) { this.tiltTo.x = this.tiltTo.y = 0; this.startTilt(); }
+    // The tilt and the light under the pointer belong to the single card, not to a board.
+    if (!p.effects.tilt || free) { this.tiltTo.x = this.tiltTo.y = 0; this.startTilt(); }
   }
 
   /** Start the uploaded music. Browsers need this to follow a tap. */
@@ -146,6 +159,8 @@ export class Stage {
     cancelAnimationFrame(this.tiltRaf);
     this.grid.destroy();
     this.island?.destroy();
+    this.resize?.disconnect();
+    this.resize = null;
     this.cleanups.forEach(fn => fn());
     player.setQueue([], { loop: false, volume: this.model.profile.music.volume });
     lanyard.ensure(null);
@@ -167,13 +182,11 @@ export class Stage {
     // While Spotify is playing, the uploaded songs (and their lyrics) step aside.
     const up = p.music.enabled && !sp ? uploadNowPlaying() : null;
     if (up) out.set("upload", up);
-    if (sp) out.set("spotify", spotifyNowPlaying(sp));
+    if (sp) out.set("spotify", spotifyNowPlaying(sp, p.page.lyricsProvider));
     return out;
   }
 
   private renderSlot(): void {
-    const slot = this.mount.querySelector<HTMLElement>(".pslot");
-    if (!slot) return;
     const p = this.model.profile;
     const d = lanyard.data;
     this.nowPlaying = this.collect();
@@ -195,20 +208,18 @@ export class Stage {
       else if (this.nowPlaying.has("spotify") && p.discord.lyricsOpen) this.openLyrics = "spotify";
     }
 
-    const parts: string[] = [];
-    if (p.discord.enabled && p.discord.showCard && d) parts.push(presenceCardHTML(d, p.discord.showActivity));
-    for (const [source, np] of this.nowPlaying) {
-      const s = source === "upload" ? { showProgress: p.music.showProgress, showLyrics: p.music.showLyrics } : { showProgress: p.discord.showProgress, showLyrics: p.discord.showLyrics };
-      parts.push(nowCardHTML(np, s));
-    }
-    const markup = parts.join("");
-    if (markup !== this.cardKey) {
-      this.cardKey = markup;
+    // The regular page has one slot. The free-form page can have one for the music and one
+    // for Discord, so the two can sit apart.
+    for (const slot of this.mount.querySelectorAll<HTMLElement>(".pslot")) {
+      const kind = slot.dataset.slot ?? "main";
+      const markup = this.slotHTML(kind, d);
+      if (markup === slot.dataset.markup) continue;
+      slot.dataset.markup = markup;
       slot.innerHTML = markup;
       // Cards slide in when a new kind of card shows up (a song starts, Discord answers), not on every small change.
       const kinds = [...this.nowPlaying.keys()].join(",") + (p.discord.enabled && p.discord.showCard && d ? ",presence" : "");
-      if (kinds !== this.slotKey) {
-        this.slotKey = kinds;
+      if (kinds !== slot.dataset.kinds) {
+        slot.dataset.kinds = kinds;
         slot.classList.remove("anim");
         void slot.offsetWidth;
         slot.classList.add("anim");
@@ -219,6 +230,28 @@ export class Stage {
     this.updateDot();
     this.renderPanel();
     this.tick();
+  }
+
+  /** What goes in one slot: the Discord card, the music card, or both. */
+  private slotHTML(kind: string, d: PresenceData | null): string {
+    const p = this.model.profile;
+    const parts: string[] = [];
+    const presence = p.discord.enabled && p.discord.showCard && d ? presenceCardHTML(d, p.discord.showActivity) : "";
+    if (kind === "music") {
+      const up = this.nowPlaying.get("upload");
+      if (up) parts.push(nowCardHTML(up, { showProgress: p.music.showProgress, showLyrics: p.music.showLyrics }));
+    } else if (kind === "discord") {
+      if (presence) parts.push(presence);
+      const sp = this.nowPlaying.get("spotify");
+      if (sp) parts.push(nowCardHTML(sp, { showProgress: p.discord.showProgress, showLyrics: p.discord.showLyrics }));
+    } else {
+      if (presence) parts.push(presence);
+      for (const [source, np] of this.nowPlaying) {
+        const s = source === "upload" ? { showProgress: p.music.showProgress, showLyrics: p.music.showLyrics } : { showProgress: p.discord.showProgress, showLyrics: p.discord.showLyrics };
+        parts.push(nowCardHTML(np, s));
+      }
+    }
+    return parts.join("");
   }
 
   /** The dot under the picture follows the live Discord status. It stays hidden until Lanyard has answered. */
@@ -249,8 +282,13 @@ export class Stage {
       if (!this.panel || this.panel.signature !== signature) {
         this.panel?.el.remove();
         this.panel = new LyricPanel(panelNp, signature, () => this.toggleLyrics(this.openLyrics));
-        this.wrap.append(this.panel.el);
       }
+      // On the free-form page the panel floats over the board; on the usual page it
+      // sits beside the card.
+      const free = p.page.layout === "experimental";
+      this.panel.el.classList.toggle("on-free", free);
+      const host = free ? this.el : this.wrap;
+      if (this.panel.el.parentElement !== host) host.append(this.panel.el);
     }
 
     // The island: always there while a song is on, and opens to show its lyrics.

@@ -27,7 +27,7 @@ export function demoModel(): RenderModel {
   ];
   profile.music = { ...profile.music, enabled: false };
   profile.discord = { ...profile.discord, enabled: false };
-  profile.page = { views: true, share: true, enter: false, enterText: "" };
+  profile.page = { ...profile.page, views: true, share: true, enter: false, enterText: "" };
   return {
     username: "nova",
     profile,

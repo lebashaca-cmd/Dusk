@@ -1,9 +1,20 @@
+import { defaultBoard, LYRIC_PROVIDER_NAMES } from "../../../shared/constants";
+import type { LyricProvider } from "../../../shared/types";
 import { api, ApiError } from "../../api";
 import { navigate } from "../../router";
 import { store } from "../../state";
 import { toast } from "../../ui/toast";
-import { esc } from "../../util/dom";
-import { bindFields, group, textField, toggle, type Pane } from "./fields";
+import { esc, must } from "../../util/dom";
+import { bindFields, choiceGrid, group, selectField, textField, toggle, type Choice, type Pane } from "./fields";
+
+/** The two ways a page can be put together. */
+const LAYOUT_CHOICES: readonly Choice[] = [
+  { value: "regular", label: "Regular", pv: "layout-regular" },
+  { value: "experimental", label: "Experimental", pv: "layout-experimental" },
+];
+
+/** The order the lyrics services are offered in. */
+const PROVIDER_ORDER: readonly LyricProvider[] = ["lrclib", "polarisMono", "polaris", "genius"];
 
 /** Pages you own (owners and devs can have several) and the delete button. */
 function pagesHTML(): string {
@@ -34,19 +45,54 @@ function pagesHTML(): string {
   return list + del;
 }
 
+/** The settings that decide what a visitor gets: the shape of the page, and where the words come from. */
+function settingsHTML(): string {
+  const p = store.profile;
+  const infos = store.me?.lyricsProviders ?? [];
+  const chosen = infos.find(i => i.id === p.page.lyricsProvider);
+  const options = PROVIDER_ORDER.map(id => {
+    const known = infos.find(i => i.id === id);
+    const name = known?.name ?? LYRIC_PROVIDER_NAMES[id];
+    return [id, known && !known.ready ? `${name} · not set up` : name] as const;
+  });
+
+  // The little pictures use the page's own colours, like the ones in the Look section.
+  const swatch = `--bg:${p.colors.bg};--bg2:${p.colors.bg2};--ac:${p.colors.accent};--tx:${p.colors.text}`;
+
+  return group("Page",
+    toggle("page.enter", "Show an enter screen first", p.page.enter) +
+    textField("page.enterText", "Enter screen text", p.page.enterText, { max: 30 }) +
+    `<p class="note">Browsers only start music after a tap, so the enter screen is what lets your song play right away.</p>` +
+    toggle("page.views", "Show the view counter", p.page.views) +
+    toggle("page.share", "Show a share button", p.page.share)) +
+  group("Layout",
+    choiceGrid("page.layout", "How your page is put together", p.page.layout, LAYOUT_CHOICES, false, { cols: 2, style: swatch }) +
+    `<p class="note">${p.page.layout === "experimental"
+      ? "Your page is the free-form board. Open <b>Page board</b> in the rail to move the pieces around."
+      : "Your page is the usual column: your picture and name, then your links, then your music."}</p>`) +
+  group("Lyrics",
+    selectField("page.lyricsProvider", "Where the words come from", p.page.lyricsProvider, options) +
+    `<p class="note">${esc(chosen?.note ?? "")}</p>`);
+}
+
 export const extrasPane: Pane = {
   id: "page",
   label: "Page",
   hint: "How the page itself behaves when people open it.",
   mount(el) {
-    const p = store.profile;
-    el.innerHTML = group("Page",
-      toggle("page.enter", "Show an enter screen first", p.page.enter) +
-      textField("page.enterText", "Enter screen text", p.page.enterText, { max: 30 }) +
-      `<p class="note">Browsers only start music after a tap, so the enter screen is what lets your song play right away.</p>` +
-      toggle("page.views", "Show the view counter", p.page.views) +
-      toggle("page.share", "Show a share button", p.page.share)) + pagesHTML();
-    const unbind = bindFields(el);
+    el.innerHTML = `<div id="page-settings"></div>${pagesHTML()}`;
+    const settings = must<HTMLElement>("#page-settings", el);
+    const drawSettings = (): void => { settings.innerHTML = settingsHTML(); };
+    drawSettings();
+
+    const after = (path: string): boolean => {
+      // The experimental layout needs a board to start from, so it is filled in the first time.
+      if (path === "page.layout" && store.profile.page.layout === "experimental" && !store.profile.page.board.length) {
+        store.profile.page.board = defaultBoard();
+      }
+      return path === "page.layout" || path === "page.lyricsProvider";
+    };
+    const unbind = bindFields(el, after, drawSettings);
 
     const reload = async (): Promise<void> => { window.location.assign("/dashboard"); };
     const fail = (e: unknown): void => toast(e instanceof ApiError ? e.message : "Something went wrong. Try again.");

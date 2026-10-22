@@ -47,10 +47,10 @@ export function parseLrc(text: string): LyricLine[] {
 function toLyrics(rec: LrclibRecord): Lyrics {
   if (rec.syncedLyrics) {
     const lines = parseLrc(rec.syncedLyrics);
-    if (lines.length) return { status: "synced", lines, plain: rec.plainLyrics ?? "" };
+    if (lines.length) return { status: "synced", lines, plain: rec.plainLyrics ?? "", source: "lrclib" };
   }
-  if (rec.plainLyrics?.trim()) return { status: "plain", lines: [], plain: rec.plainLyrics };
-  if (rec.instrumental) return { status: "instrumental", lines: [], plain: "" };
+  if (rec.plainLyrics?.trim()) return { status: "plain", lines: [], plain: rec.plainLyrics, source: "lrclib" };
+  if (rec.instrumental) return { status: "instrumental", lines: [], plain: "", source: "lrclib" };
   return NO_LYRICS;
 }
 

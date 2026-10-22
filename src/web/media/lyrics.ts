@@ -1,4 +1,4 @@
-import type { LyricLine, Lyrics } from "../../shared/types";
+import type { LyricLine, LyricProvider, Lyrics } from "../../shared/types";
 import { api } from "../api";
 import type { SpotifyActivity } from "./lanyard";
 
@@ -37,14 +37,14 @@ export function onLyricsLoaded(fn: () => void): () => void {
 }
 
 /** Lyrics for a Spotify song, or null while they are still loading. */
-export function lyricsForSpotify(sp: SpotifyActivity): Lyrics | null {
-  const key = `${sp.artist}|${sp.title}`.toLowerCase();
+export function lyricsForSpotify(sp: SpotifyActivity, provider: LyricProvider = "lrclib"): Lyrics | null {
+  const key = `${provider}|${sp.artist}|${sp.title}`.toLowerCase();
   const hit = cache.get(key);
   if (hit === "loading") return null;
   if (hit) return hit;
   cache.set(key, "loading");
   api
-    .lyrics({ title: sp.title, artist: sp.artist.split(",")[0]?.trim() ?? sp.artist, album: sp.album, duration: (sp.end - sp.start) / 1000 })
+    .lyrics({ title: sp.title, artist: sp.artist.split(",")[0]?.trim() ?? sp.artist, album: sp.album, duration: (sp.end - sp.start) / 1000 }, provider)
     .catch(() => NO_LYRICS)
     .then(l => { cache.set(key, l); listeners.forEach(fn => fn()); });
   return null;

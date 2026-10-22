@@ -2,7 +2,7 @@ import { z } from "zod";
 import { LIMITS, newId } from "../shared/constants";
 import {
   ALIGNS, AVATAR_KINDS, AVATAR_SHAPES, BG_TYPES, BORDER_COLORS, CARD_STYLES, NAME_CASES, ENTRANCES, FONT_KEYS, ICON_NAMES, ICON_COLORS, LINK_HOVERS,
-  LINK_LAYOUTS, LYRIC_STYLES, TAG_STYLES, THEME_KEYS,
+  LINK_LAYOUTS, LYRIC_PROVIDERS, LYRIC_STYLES, PAGE_LAYOUTS, TAG_STYLES, THEME_KEYS,
   type Profile,
 } from "../shared/types";
 import { safeUrl } from "../shared/url";
@@ -77,7 +77,21 @@ const profileSchema = z.object({
   nameGlow: z.boolean(),
   nameGradient: z.boolean(),
   effects: z.object({ tilt: z.boolean(), cursorGlow: z.boolean(), entrance: z.enum(ENTRANCES) }),
-  page: z.object({ views: z.boolean(), share: z.boolean(), enter: z.boolean(), enterText: text(24) }),
+  page: z.object({
+    views: z.boolean(),
+    share: z.boolean(),
+    enter: z.boolean(),
+    enterText: text(24),
+    layout: z.enum(PAGE_LAYOUTS),
+    lyricsProvider: z.enum(LYRIC_PROVIDERS),
+    board: z.array(z.object({
+      id: z.string().max(24),
+      x: z.number().min(-2000).max(6000),
+      y: z.number().min(-2000).max(6000),
+      w: z.number().min(60).max(3000),
+      h: z.number().min(40).max(3000),
+    })).max(12),
+  }),
   music: z.object({
     enabled: z.boolean(),
     autoplay: z.boolean(),

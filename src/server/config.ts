@@ -50,6 +50,22 @@ export const guildConfigured = Boolean(config.discord.guildId && config.discord.
 export const discordConfigured = Boolean(config.discord.clientId && config.discord.clientSecret);
 
 /**
+ * Where lyrics come from.
+ *
+ * LRCLIB and Genius work out of the box. Polaris is a self-hosted lyrics service: point
+ * POLARIS_LYRICS_URL at it and it answers with LRC or plain text. The URL may hold
+ * {title}, {artist}, {album} and {duration}, which are filled in with the song.
+ */
+export const lyrics = {
+  /** A Genius access token. Optional: the public search works without one. */
+  geniusToken: env.GENIUS_TOKEN ?? "",
+  /** The Polaris service. */
+  polarisUrl: env.POLARIS_LYRICS_URL ?? "",
+  /** A second Polaris service that only ever gives plain lyrics. Falls back to the one above. */
+  polarisMonoUrl: env.POLARIS_MONO_LYRICS_URL ?? "",
+} as const;
+
+/**
  * VIP members get the Dynamic Island, the premium backgrounds and picture backgrounds.
  * Owners and devs are always VIP. Everyone else needs their Discord ID in DUSK_VIP_IDS,
  * or a role in the Discord server whose name is in DUSK_VIP_ROLES.

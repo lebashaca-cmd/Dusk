@@ -1,5 +1,5 @@
 import type { Lyrics, Track } from "../../../shared/types";
-import { LIMITS } from "../../../shared/constants";
+import { LIMITS, LYRIC_PROVIDER_NAMES } from "../../../shared/constants";
 import { api } from "../../api";
 import { store } from "../../state";
 import { icon } from "../../ui/icons";
@@ -16,9 +16,11 @@ const mb = (bytes: number): string => `${Math.round(bytes / 1024 / 1024)} MB`;
 function trackHTML(t: Track, i: number, count: number, editing: boolean): string {
   const cover = t.coverUrl ? `<img class="track-cover" src="${esc(t.coverUrl)}" alt="">` : `<span class="track-cover">${icon("music")}</span>`;
   const cs = t.lyrics.status;
+  // The service the words came from, when it is known.
+  const source = t.lyrics.source ? ` · ${LYRIC_PROVIDER_NAMES[t.lyrics.source]}` : "";
   return `<div class="track-item" data-id="${esc(t.id)}">
     ${cover}
-    <div class="track-meta"><b>${esc(t.title)}</b><span>${esc(t.artist)} · ${fmtTime(t.duration * 1000)}</span><span class="chip-s ${cs}">${LYRIC_CHIP[cs]}</span></div>
+    <div class="track-meta"><b>${esc(t.title)}</b><span>${esc(t.artist)} · ${fmtTime(t.duration * 1000)}</span><span class="chip-s ${cs}">${LYRIC_CHIP[cs]}${source}</span></div>
     <div class="track-tools">
       <button class="icon-btn" type="button" data-edit aria-label="Edit song" aria-expanded="${editing}">${icon("edit")}</button>
       <button class="icon-btn" type="button" data-move="-1" aria-label="Move up"${i === 0 ? " disabled" : ""}>${icon("up")}</button>
@@ -49,6 +51,8 @@ export const musicPane: Pane = {
     let uploading = false;
     let message: { text: string; kind: "" | "err" | "ok" } = { text: "", kind: "" };
     const tracks = (): Track[] => store.me!.tracks;
+    /** The lyrics service the owner picked in the settings. */
+    const service = (): string => LYRIC_PROVIDER_NAMES[store.profile.page.lyricsProvider];
 
     const draw = (): void => {
       const p = store.profile;
@@ -64,7 +68,7 @@ export const musicPane: Pane = {
               <label class="fld">Artist<input type="text" class="inp" id="artist" maxlength="120" autocomplete="off"></label>
             </div>
             <button class="btn-primary" type="submit"${list.length >= LIMITS.tracks ? " disabled" : ""}>${uploading ? "Uploading and finding lyrics…" : "Add song"}</button>
-            <p class="form-msg ${message.kind}" role="status">${esc(message.text) || (list.length >= LIMITS.tracks ? `You can add up to ${LIMITS.tracks} songs.` : "Lyrics come from LRCLIB. The cover comes from the MP3, or from an iTunes search if it has none.")}</p>
+            <p class="form-msg ${message.kind}" role="status">${esc(message.text) || (list.length >= LIMITS.tracks ? `You can add up to ${LIMITS.tracks} songs.` : `Lyrics come from ${service()}. The cover comes from the MP3, or from an iTunes search if it has none.`)}</p>
           </form>`),
         group(`Your songs${list.length ? ` (${list.length})` : ""}`,
           list.length ? `<div class="track-list">${list.map((t, i) => trackHTML(t, i, list.length, editing === t.id)).join("")}</div>` : `<p class="note">No songs yet. Songs play on your page in this order.</p>`),
@@ -124,7 +128,7 @@ export const musicPane: Pane = {
           store.setMe({ ...me, tracks: [...me.tracks, track] });
           file = null;
           uploading = false;
-          say(track.lyrics.status === "synced" ? "Added with synced lyrics." : track.lyrics.status === "none" ? "Added. LRCLIB had no lyrics for this one. Try editing the name or artist." : "Added.", "ok");
+          say(track.lyrics.status === "synced" ? "Added with synced lyrics." : track.lyrics.status === "none" ? `Added. ${service()} had no lyrics for this one. Try editing the name or artist.` : "Added.", "ok");
         } catch (err) {
           uploading = false;
           say(err instanceof Error ? err.message : "Upload failed.", "err");

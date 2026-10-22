@@ -406,6 +406,12 @@
 .choice .pv-lyr-island { background: #0a0a0a; }
 .choice .pv-lyr-island::before { content: ""; position: absolute; left: 50%; top: 7px; translate: -50% 0; width: 54%; height: 12px; border-radius: 999px; background: #fff; }
 
+/* The two ways a page can be put together. */
+.choice .pv-layout-regular { background: linear-gradient(160deg, var(--bg), var(--bg2)); }
+.choice .pv-layout-regular::after { content: ""; position: absolute; left: 28%; top: 10%; width: 44%; height: 80%; border-radius: 6px; background: color-mix(in srgb, var(--tx) 26%, transparent); }
+.choice .pv-layout-experimental { background: linear-gradient(160deg, var(--bg), var(--bg2)); }
+.choice .pv-layout-experimental::after { content: ""; position: absolute; left: 10%; top: 16%; width: 30%; height: 34%; border-radius: 5px; background: color-mix(in srgb, var(--tx) 24%, transparent); box-shadow: 34px 30px 0 0 color-mix(in srgb, var(--ac) 60%, transparent), 62px -8px 0 0 color-mix(in srgb, var(--tx) 16%, transparent); }
+
 /* ---------- link groups ---------- */
 
 .members { display: flex; flex-wrap: wrap; gap: 7px; }

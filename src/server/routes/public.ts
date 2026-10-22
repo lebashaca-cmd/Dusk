@@ -1,7 +1,7 @@
 import path from "node:path";
 import { Router } from "express";
 import { checkUsernameFormat, cleanUsername, USERNAME_HELP } from "../../shared/url";
-import type { SiteConfig, SiteStats, UsernameCheck } from "../../shared/types";
+import { LYRIC_PROVIDERS, type LyricProvider, type SiteConfig, type SiteStats, type UsernameCheck } from "../../shared/types";
 import { ensureLocal } from "../storage";
 import { db, userDir } from "../db";
 import { HttpError, asyncHandler } from "../http";
@@ -9,7 +9,7 @@ import { toPublic } from "../mappers";
 import { rateLimit } from "../rateLimit";
 import { parseCookies } from "../session";
 import { checkIn, onlineCount } from "../services/online";
-import { findLyricsCached } from "../services/lrclib";
+import { findLyricsForCached } from "../services/lyrics";
 import { config, guildConfigured } from "../config";
 
 /** JSON endpoints anyone can call: public profiles, username checks, lyrics lookups. */
@@ -103,7 +103,10 @@ publicRouter.get("/lyrics", rateLimit(60_000, 40), asyncHandler(async (req, res)
   if (!title) throw new HttpError(400, "Send a song title.");
   const album = String(req.query.album ?? "").slice(0, 150);
   const duration = Number(req.query.duration);
-  const lyrics = await findLyricsCached({ title, artist, album, duration: Number.isFinite(duration) && duration > 0 ? duration : undefined });
+  // The page asks for the service its owner picked, when it says which one.
+  const wanted = String(req.query.provider ?? "").slice(0, 20);
+  const provider = LYRIC_PROVIDERS.includes(wanted as LyricProvider) ? (wanted as LyricProvider) : "lrclib";
+  const lyrics = await findLyricsForCached(provider, { title, artist, album, duration: Number.isFinite(duration) && duration > 0 ? duration : undefined });
   res.json(lyrics);
 }));
 

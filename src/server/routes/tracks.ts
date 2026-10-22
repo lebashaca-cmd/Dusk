@@ -13,7 +13,8 @@ import { dropFile, pushFile } from "../storage";
 import { audioUpload, imageUpload } from "../uploads";
 import { imageMime, looksLikeMp3, readAudio } from "../services/audio";
 import { extForMime, findItunesCover, type CoverImage } from "../services/cover";
-import { findLyrics, NO_LYRICS } from "../services/lrclib";
+import { findLyricsFor } from "../services/lyrics";
+import { NO_LYRICS } from "../services/lrclib";
 import { cleanText } from "../validation";
 
 export const tracksRouter = Router();
@@ -78,7 +79,7 @@ tracksRouter.post("/", rateLimit(60_000, 20), audioUpload.single("file"), asyncH
 
   // Lyrics and cover are independent, so look both up at once. Either can fail without losing the song.
   const [lyrics, itunes] = await Promise.all([
-    findLyrics({ title, artist, album: record.album, duration: info.duration }).catch(() => NO_LYRICS),
+    findLyricsFor(user.profile.page.lyricsProvider, { title, artist, album: record.album, duration: info.duration }).catch(() => NO_LYRICS),
     info.embeddedCover ? Promise.resolve(null) : findItunesCover(title, artist).catch(() => null),
   ]);
   record.lyrics = lyrics;
@@ -91,6 +92,7 @@ tracksRouter.post("/", rateLimit(60_000, 20), audioUpload.single("file"), asyncH
 
 /** Change the name or artist, then look the lyrics (and a missing cover) up again. */
 tracksRouter.post("/:id/lookup", rateLimit(60_000, 30), asyncHandler(async (req, res) => {
+  const user = currentUser(req);
   const track = ownTrack(req);
   const body = req.body as { title?: unknown; artist?: unknown };
   const title = cleanText(body.title, 120) || track.title;
@@ -99,10 +101,10 @@ tracksRouter.post("/:id/lookup", rateLimit(60_000, 30), asyncHandler(async (req,
   track.artist = artist;
 
   const [lyrics, itunes] = await Promise.all([
-    findLyrics({ title, artist, album: track.album, duration: track.duration }).catch(() => null),
+    findLyricsFor(user.profile.page.lyricsProvider, { title, artist, album: track.album, duration: track.duration }).catch(() => null),
     track.coverSource === "none" || track.coverSource === "itunes" ? findItunesCover(title, artist).catch(() => null) : Promise.resolve(null),
   ]);
-  if (lyrics) track.lyrics = lyrics;
+  if (lyrics && lyrics.status !== "none") track.lyrics = lyrics;
   if (itunes) await saveCover(track, itunes, "itunes");
   track.updatedAt = Date.now();
   db.save();

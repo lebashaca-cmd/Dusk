@@ -1,4 +1,4 @@
-import type { Lyrics } from "../../shared/types";
+import type { LyricProvider, Lyrics } from "../../shared/types";
 import { clamp } from "../util/format";
 import type { SpotifyActivity } from "./lanyard";
 import { lyricsForSpotify } from "./lyrics";
@@ -52,7 +52,7 @@ export function uploadNowPlaying(): NowPlaying | null {
   };
 }
 
-export function spotifyNowPlaying(sp: SpotifyActivity): NowPlaying {
+export function spotifyNowPlaying(sp: SpotifyActivity, provider: LyricProvider = "lrclib"): NowPlaying {
   const duration = Math.max(1000, sp.end - sp.start);
   return {
     source: "spotify",
@@ -64,7 +64,7 @@ export function spotifyNowPlaying(sp: SpotifyActivity): NowPlaying {
     durationMs: duration,
     positionMs: () => clamp(Date.now() - sp.start, 0, duration),
     isPlaying: () => true,
-    lyrics: () => lyricsForSpotify(sp),
+    lyrics: () => lyricsForSpotify(sp, provider),
     controls: null,
   };
 }

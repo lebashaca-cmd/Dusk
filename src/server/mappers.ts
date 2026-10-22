@@ -5,6 +5,7 @@ import { db, ownerOf } from "./db";
 import { limitProfile } from "../shared/constants";
 import { canHaveManyPages, isVip } from "./pages";
 import { discordAvatarUrl } from "./services/discord";
+import { providerInfo } from "./services/lyrics";
 
 export function toTrack(t: TrackRecord): Track {
   return {
@@ -43,6 +44,7 @@ export function toMe(u: UserRecord): MeResponse {
     roles: u.roles,
     guildEnabled: guildConfigured,
     vip: isVip(u),
+    lyricsProviders: providerInfo(),
   };
 }
 

@@ -1,0 +1,119 @@
+/* The free-form page: the pieces of the page sit on a board, and the board is scaled to fit. */
+
+.is-free .mount { max-width: none; width: 100%; flex: 1 1 auto; }
+.free-scale { position: relative; margin: 0 auto; }
+.free { position: relative; width: var(--bw); height: var(--bh); transform-origin: top left; }
+
+/* One piece of the page. Its place and size come from the owner's board. */
+.fbox {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--w);
+  height: var(--h);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 22px;
+  overflow: auto;
+  border-radius: var(--p-radius);
+  text-align: center;
+  color: var(--p-text);
+  font-family: var(--p-font, var(--font));
+  background: color-mix(in srgb, var(--p-text) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--p-text) 12%, transparent);
+}
+.is-free[data-card="solid"] .fbox { background: var(--p-bg2); border-color: color-mix(in srgb, var(--p-text) 10%, transparent); box-shadow: 0 20px 50px rgb(0 0 0 / calc(var(--p-shadow, 50) * 0.007)); }
+.is-free[data-card="outline"] .fbox { background: transparent; border-color: color-mix(in srgb, var(--p-text) 28%, transparent); }
+.is-free[data-card="none"] .fbox { background: transparent; border-color: transparent; padding-inline: 6px; }
+.is-free[data-card="glass"] .fbox { backdrop-filter: blur(var(--p-blur)); -webkit-backdrop-filter: blur(var(--p-blur)); }
+.is-free[data-align="left"] .fbox { align-items: flex-start; text-align: left; }
+.is-free[data-align="left"] .tags { justify-content: flex-start; }
+.is-free[data-align="left"] .views { justify-content: flex-start; }
+.is-free[data-glow="on"] .fbox::before { content: ""; position: absolute; inset: 0; z-index: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 0.25s; background: radial-gradient(280px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--p-accent) 26%, transparent), transparent 70%); }
+.is-free[data-glow="on"] .mount.lit .fbox::before { opacity: 1; }
+
+.fhead { display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%; }
+.is-free[data-align="left"] .fhead { align-items: flex-start; }
+.fbox .plinks-wrap { width: 100%; }
+.fbox .pslot { width: 100%; }
+
+/* A piece with nothing in it yet says so, rather than sitting there empty. */
+.fbox .pslot:empty { display: flex; }
+.fbox .pslot:empty::after { content: ""; font-size: 12px; color: var(--p-dim); opacity: 0.55; text-align: center; }
+.fbox[data-widget="music"] .pslot:empty::after { content: "No song playing"; }
+.fbox[data-widget="discord"] .pslot:empty::after { content: "Discord is not connected"; }
+
+/* On a small screen the pieces stack in a column, because a board scaled to a third is unreadable. */
+.is-free.is-stacked .free { width: 100%; height: auto; display: flex; flex-direction: column; gap: 16px; }
+.is-free.is-stacked .fbox { position: static; width: 100%; height: auto; min-height: 120px; }
+.is-free.is-stacked .fbox[data-widget="views"] { min-height: 0; }
+/* The bar at the top of a public page floats over the page, so the first piece starts below it. */
+.public .stage.is-free.is-stacked .scroll { padding-top: 76px; }
+
+/* The lyrics panel floats over the board instead of sitting beside it. */
+.lyr-panel.on-free { position: absolute; right: 16px; bottom: 16px; z-index: 30; width: min(320px, 42%); height: min(420px, 60%); max-width: none; min-width: 0; flex: none; }
+@media (max-width: 600px) { .lyr-panel.on-free { right: 10px; bottom: 10px; width: min(280px, 70%); height: min(320px, 50%); } }
+
+/* ---------- the editor for this board ---------- */
+
+.pboard-wrap { display: flex; flex-direction: column; gap: 14px; min-height: 100%; }
+.pboard-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 18px 22px 0; flex: none; }
+.pboard-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.pboard-chips .chip.on { border-color: var(--line-2); color: var(--ink); background: var(--glass-2); }
+.pboard-bar .btn-ghost { margin-left: auto; }
+.pboard-note { margin: 0 22px; }
+
+.pboard-canvas {
+  position: relative;
+  width: 1200px;
+  height: 1000px;
+  margin: 0 22px 40px;
+  border: 1px dashed var(--line);
+  border-radius: 20px;
+  overflow: hidden;
+  flex: none;
+}
+.pboard-canvas .fbox { cursor: grab; }
+.pboard-canvas .fbox.dragging { cursor: grabbing; z-index: 5; }
+
+/* The grips that move a piece, and the name on it. They only show while the pointer is near. */
+.pbgrip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  color: var(--faint);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 2;
+}
+.pbgrip svg { width: 15px; height: 15px; }
+.pbtag {
+  position: absolute;
+  left: 30px;
+  top: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--p-dim);
+  background: color-mix(in srgb, var(--p-bg) 78%, transparent);
+  padding: 3px 8px;
+  border-radius: 999px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  z-index: 2;
+}
+.pboard-canvas .fbox:hover .pbgrip, .pboard-canvas .fbox:hover .pbtag, .pboard-canvas .fbox:focus-visible .pbgrip, .pboard-canvas .fbox:focus-visible .pbtag { opacity: 1; }
+.pboard-canvas .wresize { opacity: 0; transition: opacity 0.2s; z-index: 2; }
+.pboard-canvas .fbox:hover .wresize { opacity: 0.55; }
