@@ -87,6 +87,17 @@ export async function dropFile(userId: string, name: string): Promise<void> {
 
 const inflight = new Map<string, Promise<boolean>>();
 
+/**
+ * Is the file there?
+ *
+ * With the bucket on, the file is fetched from it when it is asked for, so it counts as
+ * there. Without it, the file has to be on the disk already.
+ */
+export function filePresent(userId: string, name: string): boolean {
+  if (remoteEnabled) return true;
+  return fs.existsSync(localPath(userId, name));
+}
+
 /** Make sure a file is on local disk, fetching it from the bucket if the host's disk was wiped. False when it does not exist. */
 export function ensureLocal(userId: string, name: string): Promise<boolean> {
   const file = localPath(userId, name);

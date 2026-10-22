@@ -18,9 +18,11 @@ function trackHTML(t: Track, i: number, count: number, editing: boolean): string
   const cs = t.lyrics.status;
   // The service the words came from, when it is known.
   const source = t.lyrics.source ? ` · ${LYRIC_PROVIDER_NAMES[t.lyrics.source]}` : "";
+  // A song whose file is not on the server cannot play, so it is said so here too.
+  const gone = !t.available ? `<span class="chip-s none">File missing</span>` : "";
   return `<div class="track-item" data-id="${esc(t.id)}">
     ${cover}
-    <div class="track-meta"><b>${esc(t.title)}</b><span>${esc(t.artist)} · ${fmtTime(t.duration * 1000)}</span><span class="chip-s ${cs}">${LYRIC_CHIP[cs]}${source}</span></div>
+    <div class="track-meta"><b>${esc(t.title)}</b><span>${esc(t.artist)} · ${fmtTime(t.duration * 1000)}</span><span class="chip-s ${cs}">${LYRIC_CHIP[cs]}${source}</span>${gone}</div>
     <div class="track-tools">
       <button class="icon-btn" type="button" data-edit aria-label="Edit song" aria-expanded="${editing}">${icon("edit")}</button>
       <button class="icon-btn" type="button" data-move="-1" aria-label="Move up"${i === 0 ? " disabled" : ""}>${icon("up")}</button>

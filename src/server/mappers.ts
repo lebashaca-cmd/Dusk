@@ -6,6 +6,7 @@ import { limitProfile } from "../shared/constants";
 import { canHaveManyPages, isVip } from "./pages";
 import { discordAvatarUrl } from "./services/discord";
 import { providerInfo } from "./services/lyrics";
+import { filePresent } from "./storage";
 
 export function toTrack(t: TrackRecord): Track {
   return {
@@ -18,6 +19,7 @@ export function toTrack(t: TrackRecord): Track {
     coverUrl: t.coverFile ? `/media/track/${t.id}/cover?v=${t.updatedAt}` : null,
     coverSource: t.coverSource,
     lyrics: t.lyrics,
+    available: filePresent(t.userId, t.audioFile),
   };
 }
 

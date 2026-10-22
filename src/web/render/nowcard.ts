@@ -21,10 +21,12 @@ export function nowCardHTML(np: NowPlaying, o: NowCardOptions): string {
     : `<span class="np-art">${icon("music")}</span>`;
   const label = np.source === "spotify" ? "Listening on Spotify" : "Now playing";
   const c = np.controls;
+  // When the song cannot play, the card says so rather than showing a button that does nothing.
+  const bad = np.failure();
   const side = c
     ? `<div class="np-ctrls">
         ${c.multiple ? `<button class="np-btn" type="button" data-act="prev" aria-label="Previous song">${icon("prevFill")}</button>` : ""}
-        <button class="np-btn main" type="button" data-act="toggle" aria-label="Play or pause">${icon("playFill", "i-play")}${icon("pauseFill", "i-pause")}</button>
+        <button class="np-btn main" type="button" data-act="toggle" aria-label="Play or pause"${bad ? " disabled" : ""}>${icon("playFill", "i-play")}${icon("pauseFill", "i-pause")}</button>
         ${c.multiple ? `<button class="np-btn" type="button" data-act="next" aria-label="Next song">${icon("nextFill")}</button>` : ""}
       </div>`
     : `<div class="eq" aria-hidden="true"><i></i><i></i><i></i></div>`;
@@ -36,8 +38,9 @@ export function nowCardHTML(np: NowPlaying, o: NowCardOptions): string {
       <div class="np-info"><span class="np-label"><i></i>${label}</span>${title}<span class="np-artist">${esc(np.artist)}</span></div>
       ${side}
     </div>
+    ${bad ? `<p class="np-bad">${esc(bad)}</p>` : ""}
     ${np.source === "spotify" && np.link ? `<a class="np-open" href="${esc(np.link)}" target="_blank" rel="noopener noreferrer">${icon("spotify")}<span>Go to Spotify</span></a>` : ""}
-    ${o.showProgress ? `<div class="np-prog"><span data-cur>0:00</span><div class="np-hit"${c ? " data-seek" : ""}><div class="np-bar"><div class="np-fill"></div></div></div><span>${fmtTime(np.durationMs)}</span></div>` : ""}
+    ${o.showProgress ? `<div class="np-prog"><span data-cur>0:00</span><div class="np-hit"${c && !bad ? " data-seek" : ""}><div class="np-bar"><div class="np-fill"></div></div></div><span>${fmtTime(np.durationMs)}</span></div>` : ""}
     ${o.showLyrics ? `<button class="np-lyr" type="button" data-lyr aria-label="Open lyrics"><span class="np-lyr-now"></span><span class="np-lyr-next"></span>${icon("expand", "np-exp")}</button>` : ""}
   </div>`;
 }

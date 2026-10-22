@@ -275,6 +275,8 @@ export interface Track {
   coverUrl: string | null;
   coverSource: CoverSource;
   lyrics: Lyrics;
+  /** False when the song's file is not on the server, so it cannot be played. */
+  available: boolean;
 }
 
 /* ---------- API payloads ---------- */

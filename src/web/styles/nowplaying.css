@@ -38,6 +38,11 @@
 .np-btn.main .ic { width: 16px; height: 16px; }
 .np-btn .i-pause, .np-card.is-playing .np-btn .i-play { display: none; }
 .np-card.is-playing .np-btn .i-pause { display: block; }
+.np-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+.np-btn[disabled]:hover { background: color-mix(in srgb, var(--p-text) 8%, transparent); transform: none; }
+.np-btn.main[disabled]:hover { background: var(--p-text); transform: none; }
+/* The card says why a song cannot play, instead of leaving a button that does nothing. */
+.np-bad { margin: 0; font-size: 0.76rem; line-height: 1.4; color: var(--p-dim); border-left: 2px solid color-mix(in srgb, var(--p-text) 40%, transparent); padding-left: 8px; }
 .np-prog { display: flex; align-items: center; gap: 10px; font-size: 0.72rem; color: var(--p-dim); font-variant-numeric: tabular-nums; }
 .np-bar { flex: 1; height: 3px; border-radius: 3px; background: color-mix(in srgb, var(--p-text) 16%, transparent); overflow: hidden; position: relative; }
 .np-bar[data-seek] { cursor: pointer; }

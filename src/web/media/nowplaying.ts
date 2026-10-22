@@ -19,6 +19,8 @@ export interface NowPlaying {
   isPlaying(): boolean;
   /** Null while lyrics are still being fetched. */
   lyrics(): Lyrics | null;
+  /** Why the song cannot be played, or null when it can. */
+  failure(): string | null;
   controls: null | {
     toggle(): void;
     prev(): void;
@@ -42,6 +44,8 @@ export function uploadNowPlaying(): NowPlaying | null {
     positionMs: () => player.positionMs(),
     isPlaying: () => player.playing,
     lyrics: () => track.lyrics,
+    // A song whose file is gone cannot play, and the page has to say so.
+    failure: () => (track.available ? player.error : "This song can't be played. Its file is missing."),
     controls: {
       toggle: () => player.toggle(),
       prev: () => player.prev(),
@@ -65,6 +69,7 @@ export function spotifyNowPlaying(sp: SpotifyActivity, provider: LyricProvider =
     positionMs: () => clamp(Date.now() - sp.start, 0, duration),
     isPlaying: () => true,
     lyrics: () => lyricsForSpotify(sp, provider),
+    failure: () => null,
     controls: null,
   };
 }

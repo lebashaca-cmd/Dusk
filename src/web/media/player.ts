@@ -13,12 +13,20 @@ class Player {
   private index = 0;
   private loop = true;
   private loadedId: string | null = null;
+  private failure = "";
   private listeners = new Set<Listener>();
 
   constructor() {
     this.audio.preload = "metadata";
     this.audio.addEventListener("ended", () => this.onEnded());
-    for (const ev of ["play", "pause", "error"] as const) this.audio.addEventListener(ev, () => this.emit());
+    for (const ev of ["play", "pause"] as const) this.audio.addEventListener(ev, () => this.emit());
+    // The file may be gone, or the server may say no. Either way the page has to say so.
+    this.audio.addEventListener("error", () => {
+      // A load that was cut short (the next song started) is not a broken song.
+      if (this.audio.error?.code === 1) return;
+      this.fail("This song can't be played. Its file is missing.");
+    });
+    this.audio.addEventListener("loadedmetadata", () => this.clearFailure());
   }
 
   subscribe(fn: Listener): () => void {
@@ -28,6 +36,23 @@ class Player {
 
   private emit(): void {
     this.listeners.forEach(fn => fn());
+  }
+
+  /** Why the song cannot be played, or nothing when it can. */
+  get error(): string {
+    return this.failure;
+  }
+
+  private fail(message: string): void {
+    if (this.failure === message) return;
+    this.failure = message;
+    this.emit();
+  }
+
+  private clearFailure(): void {
+    if (!this.failure) return;
+    this.failure = "";
+    this.emit();
   }
 
   get current(): Track | null {
@@ -75,16 +100,26 @@ class Player {
     if (this.loadedId !== track.id) {
       this.audio.src = track.audioUrl;
       this.loadedId = track.id;
+      this.failure = "";
     }
-    if (autoplay) void this.audio.play().catch(() => { /* blocked until the person taps */ });
+    if (autoplay) this.start();
     this.emit();
+  }
+
+  /** Play, and say so when the browser will not or cannot. */
+  private start(): void {
+    void this.audio.play().catch((e: unknown) => {
+      const name = e instanceof Error ? e.name : "";
+      // The browser wanting a tap first is normal. Anything else means the song cannot play.
+      if (name === "NotSupportedError" || name === "AbortError") this.fail("This song can't be played. Its file is missing.");
+    });
   }
 
   /** Start playing. Browsers only allow this after a tap or click. */
   play(): void {
     if (!this.current) return;
     if (!this.loadedId) this.load(false);
-    void this.audio.play().catch(() => { /* blocked until the person taps */ });
+    this.start();
   }
 
   pause(): void {
