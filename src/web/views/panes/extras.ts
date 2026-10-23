@@ -7,10 +7,10 @@ import { toast } from "../../ui/toast";
 import { esc, must } from "../../util/dom";
 import { bindFields, choiceGrid, group, selectField, textField, toggle, type Choice, type Pane } from "./fields";
 
-/** The two ways a page can be put together. */
+/** The two ways a page can be put together. The free-form one is for VIP members. */
 const LAYOUT_CHOICES: readonly Choice[] = [
   { value: "regular", label: "Regular", pv: "layout-regular" },
-  { value: "experimental", label: "Experimental", pv: "layout-experimental" },
+  { value: "experimental", label: "Experimental", pv: "layout-experimental", vip: true },
 ];
 
 /** The order the lyrics services are offered in. */
@@ -48,6 +48,7 @@ function pagesHTML(): string {
 /** The settings that decide what a visitor gets: the shape of the page, and where the words come from. */
 function settingsHTML(): string {
   const p = store.profile;
+  const vip = store.me?.vip ?? false;
   const infos = store.me?.lyricsProviders ?? [];
   const chosen = infos.find(i => i.id === p.page.lyricsProvider);
   const options = PROVIDER_ORDER.map(id => {
@@ -66,10 +67,10 @@ function settingsHTML(): string {
     toggle("page.views", "Show the view counter", p.page.views) +
     toggle("page.share", "Show a share button", p.page.share)) +
   group("Layout",
-    choiceGrid("page.layout", "How your page is put together", p.page.layout, LAYOUT_CHOICES, false, { cols: 2, style: swatch }) +
+    choiceGrid("page.layout", "How your page is put together", p.page.layout, LAYOUT_CHOICES, vip, { cols: 2, style: swatch }) +
     `<p class="note">${p.page.layout === "experimental"
       ? "Your page is the free-form board. Open <b>Page board</b> in the rail to move the pieces around."
-      : "Your page is the usual column: your picture and name, then your links, then your music."}</p>`) +
+      : "Your page is the usual column: your picture and name, then your links, then your music. The free-form board is for VIP members."}</p>`) +
   group("Lyrics",
     selectField("page.lyricsProvider", "Where the words come from", p.page.lyricsProvider, options) +
     `<p class="note">${esc(chosen?.note ?? "")}</p>`);

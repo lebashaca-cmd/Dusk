@@ -8,6 +8,7 @@ export const insightsPane: Pane = {
   id: "insights",
   label: "Insights",
   hint: "How many people have looked at your page, and which links they open.",
+  vip: true,
   mount(el) {
     el.innerHTML = `<p class="note">Loading…</p>`;
     let dead = false;

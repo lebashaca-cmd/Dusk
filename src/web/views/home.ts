@@ -1,5 +1,5 @@
 import { LIMITS, THEMES } from "../../shared/constants";
-import { THEME_KEYS } from "../../shared/types";
+import { THEME_KEYS, type ThemeName } from "../../shared/types";
 import { USERNAME_HELP, checkUsernameFormat, cleanUsername } from "../../shared/url";
 import { api } from "../api";
 import { demoModel } from "../render/demo";
@@ -36,38 +36,115 @@ const FAQ: ReadonlyArray<{ q: string; a: string }> = [
   { q: "Can I have more than one page?", a: `Yes. Owners and developers can make up to ${"several"} pages on one account, each with its own links, songs and style.` },
 ];
 
-function sectionsHTML(loggedIn: boolean): string {
-  const themes = THEME_KEYS.map(k => {
+/** The strip that runs along the top of the page. */
+const TICKER: readonly string[] = [
+  "one link for everything you",
+  "discord status, live",
+  "synced lyrics",
+  "seventeen backgrounds",
+  "your own music",
+  "real link logos",
+  "no adverts, ever",
+];
+
+/** The sections of the page, in order. The index on the left points at them. */
+const SECTIONS: ReadonlyArray<{ id: string; num: string; label: string }> = [
+  { id: "features", num: "01", label: "What it does" },
+  { id: "how", num: "02", label: "How it works" },
+  { id: "themes", num: "03", label: "Themes" },
+  { id: "faq", num: "04", label: "Questions" },
+];
+
+/** The picture of a theme: its own colours, with the accent in the corner. */
+function themePreview(key: ThemeName, big: boolean): string {
+  const t = THEMES[key];
+  if (!t) return "";
+  return `<i class="tp${big ? " tp-big" : ""}" style="--a:${t.colors.accent};background:linear-gradient(135deg,${t.colors.bg},${t.colors.bg2})"></i>`;
+}
+
+/** The list of themes, used by the drop-down. */
+function themeOptions(current: ThemeName): string {
+  return THEME_KEYS.map(k => {
     const t = THEMES[k];
-    return `<div class="theme-chip"><i style="background:linear-gradient(135deg,${t.colors.bg},${t.colors.bg2});--ac:${t.colors.accent}"></i><span>${esc(t.name)}</span></div>`;
+    const on = k === current;
+    return `<button class="tp-opt${on ? " on" : ""}" type="button" data-theme="${esc(k)}" aria-pressed="${String(on)}">${themePreview(k, false)}<span>${esc(t.name)}</span></button>`;
   }).join("");
-  return `<section class="band" id="features" aria-labelledby="h-features">
-      <p class="eyebrow">what's on it</p>
-      <h2 id="h-features">Everything on one page</h2>
-      <p class="band-sub">One link to give people. It holds your links, your status, your music and your look, and it all updates while it is open.</p>
-      <div class="feature-grid">${FEATURES.map(f => `<article class="feature"><span class="fi">${icon(f.icon)}</span><h3>${esc(f.title)}</h3><p>${esc(f.text)}</p></article>`).join("")}</div>
-    </section>
-    <section class="band" id="how" aria-labelledby="h-how">
-      <p class="eyebrow">three steps</p>
-      <h2 id="h-how">How it works</h2>
-      <ol class="steps">${STEPS.map((s, i) => `<li><b>${String(i + 1).padStart(2, "0")}</b><h3>${esc(s.title)}</h3><p>${esc(s.text)}</p></li>`).join("")}</ol>
-    </section>
-    <section class="band" id="themes" aria-labelledby="h-themes">
-      <p class="eyebrow">start somewhere</p>
-      <h2 id="h-themes">Twelve themes to begin with</h2>
-      <p class="band-sub">Then change any colour, font or background yourself. Seventeen backgrounds, and every choice is yours, saved as you make it.</p>
-      <div class="theme-row">${themes}</div>
-    </section>
-    <section class="band narrow" id="faq" aria-labelledby="h-faq">
-      <p class="eyebrow">questions</p>
-      <h2 id="h-faq">The short answers</h2>
-      ${FAQ.map(f => `<details class="faq"><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p></details>`).join("")}
-    </section>
-    <section class="band cta">
-      <h2>Ready when you are</h2>
-      <p class="band-sub">It takes about a minute, and the page is yours the whole time.</p>
-      ${loggedIn ? `<a class="btn-primary" href="/dashboard" data-link>Open dashboard</a>` : `<button class="btn-primary" type="button" id="to-top">Claim your name</button>`}
-    </section>`;
+}
+
+/** The main body of the page: the index on the left, the sections on the right. */
+function sectionsHTML(loggedIn: boolean): string {
+  const current: ThemeName = "dusk";
+  return `<div class="deck">
+    <nav class="index" aria-label="Sections">
+      <p class="index-head">index</p>
+      ${SECTIONS.map(s => `<a class="index-row" href="#${s.id}" data-index="${s.id}"><span class="index-num">${s.num}</span><span class="index-label">${esc(s.label)}</span><i class="index-mark" aria-hidden="true"></i></a>`).join("")}
+      <div class="index-foot"><span class="live-dot"></span><span data-stat="online">—</span> online now</div>
+    </nav>
+    <div class="deck-body">
+      <section class="deck-sec" id="features" aria-labelledby="h-features">
+        <p class="eyebrow"><span>01</span> what is on it</p>
+        <h2 id="h-features">Everything on one page</h2>
+        <p class="deck-sub">One link to give people. It holds your links, your status, your music and your look, and it all updates while it is open.</p>
+        <div class="dd dd-list" data-dd>
+          <button class="dd-head" type="button" data-dd-head aria-expanded="true">
+            <span class="dd-title">Open a thing</span>
+            <span class="dd-count">${FEATURES.length}</span>
+            <i class="dd-caret" aria-hidden="true"></i>
+          </button>
+          <div class="dd-menu" data-dd-menu>
+            ${FEATURES.map((f, i) => `<div class="dd-row${i === 0 ? " open" : ""}">
+              <button class="dd-row-head" type="button" data-dd-row aria-expanded="${i === 0 ? "true" : "false"}">
+                <span class="fi">${icon(f.icon)}</span>
+                <span class="dd-row-title">${esc(f.title)}</span>
+                <i class="dd-caret" aria-hidden="true"></i>
+              </button>
+              <div class="dd-row-body"${i === 0 ? "" : " hidden"}><p>${esc(f.text)}</p></div>
+            </div>`).join("")}
+          </div>
+        </div>
+      </section>
+
+      <section class="deck-sec" id="how" aria-labelledby="h-how">
+        <p class="eyebrow"><span>02</span> three steps</p>
+        <h2 id="h-how">How it works</h2>
+        <ol class="track">${STEPS.map((s, i) => `<li class="track-step">
+          <span class="track-node">${String(i + 1).padStart(2, "0")}</span>
+          <h3>${esc(s.title)}</h3>
+          <p>${esc(s.text)}</p>
+        </li>`).join("")}</ol>
+      </section>
+
+      <section class="deck-sec" id="themes" aria-labelledby="h-themes">
+        <p class="eyebrow"><span>03</span> start somewhere</p>
+        <h2 id="h-themes">Twelve themes to begin with</h2>
+        <p class="deck-sub">Then change any colour, font or background yourself. Seventeen backgrounds, and every choice is yours, saved as you make it.</p>
+        <div class="dd dd-pick" data-dd>
+          <button class="dd-head dd-head-big" type="button" data-dd-head aria-expanded="false">
+            ${themePreview(current, true)}
+            <span class="dd-title">${esc(THEMES[current]?.name ?? "Dusk")}</span>
+            <i class="dd-caret" aria-hidden="true"></i>
+          </button>
+          <div class="dd-menu dd-menu-grid" data-dd-menu hidden>
+            ${themeOptions(current)}
+          </div>
+        </div>
+      </section>
+
+      <section class="deck-sec" id="faq" aria-labelledby="h-faq">
+        <p class="eyebrow"><span>04</span> questions</p>
+        <h2 id="h-faq">The short answers</h2>
+        <div class="faq-list">${FAQ.map(f => `<details class="faq"><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p></details>`).join("")}</div>
+      </section>
+
+      <section class="cta-band">
+        <div class="cta-in">
+          <h2>Ready when you are</h2>
+          <p class="deck-sub">It takes about a minute, and the page is yours the whole time.</p>
+          ${loggedIn ? `<a class="btn-primary" href="/dashboard" data-link>Open dashboard</a>` : `<button class="btn-primary" type="button" id="to-top">Claim your name</button>`}
+        </div>
+      </section>
+    </div>
+  </div>`;
 }
 
 const LOGIN_MESSAGES: Record<string, string> = {
@@ -93,32 +170,129 @@ export function mountHome(root: HTMLElement): () => void {
       </form>
       <p class="hint" id="hint" role="status" aria-live="polite">${esc(notice) || "Pick a name, then continue with Discord."}</p>`;
 
+  const ticker = TICKER.map(t => `<span>${esc(t)}</span>`).join("");
+
   root.innerHTML = `<div class="home">
     ${SKY}
     ${siteNav({ loggedIn: !!me })}
+    <div class="ticker" aria-hidden="true"><div class="ticker-run">${ticker}${ticker}</div></div>
     <main>
-      <section class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">a page for everything you</p>
-          <h1 class="wordmark">dusk</h1>
-          <p class="lede">One page for your links, your Discord status and your music — with lyrics that follow the song, and a look you actually chose.</p>
-          ${action}
-          <ul class="hero-points">
-            <li>${icon("discord")}Discord login</li>
-            <li>${icon("gamepad")}Live presence</li>
-            <li>${icon("music")}Synced lyrics</li>
-            <li>${icon("chart")}Page insights</li>
-          </ul>
+      <section class="masthead">
+        <div class="mast-grid">
+          <div class="mast-copy">
+            <p class="sig"><span class="sig-dot"></span>signal // dusk</p>
+            <h1 class="wordmark glitch" data-text="dusk">dusk</h1>
+            <p class="lede">One page for your links, your Discord status and your music — with lyrics that follow the song, and a look you actually chose.</p>
+            ${action}
+            <ul class="hero-points">
+              <li>${icon("discord")}Discord login</li>
+              <li>${icon("gamepad")}Live presence</li>
+              <li>${icon("music")}Synced lyrics</li>
+              <li>${icon("chart")}Page insights</li>
+            </ul>
+          </div>
+          <aside class="demo" aria-label="Preview">
+            <div class="device" id="device"></div>
+            <p class="cap">${me ? `This is your page. <a href="/dashboard" data-link>Edit it in the dashboard</a>` : "This is a page. Yours will look like this, only yours."}</p>
+          </aside>
         </div>
-        <aside class="demo" aria-label="Preview">
-          <div class="device" id="device"></div>
-          <p class="cap">${me ? `This is your page. <a href="/dashboard" data-link>Edit it in the dashboard</a>` : "This is a page. Yours will look like this, only yours."}</p>
-        </aside>
+        <div class="tape" aria-hidden="true">
+          <span class="tape-cell">01</span><span class="tape-cell">link</span><span class="tape-cell">02</span><span class="tape-cell">status</span>
+          <span class="tape-cell">03</span><span class="tape-cell">music</span><span class="tape-cell">04</span><span class="tape-cell">look</span>
+        </div>
       </section>
       ${sectionsHTML(!!me)}
     </main>
     ${siteFooter()}
   </div>`;
+
+  /* The drop-downs: each one opens and closes, and only one of them is open at a time. */
+  const drops = Array.from(root.querySelectorAll<HTMLElement>("[data-dd]"));
+  const closeDrop = (d: HTMLElement): void => {
+    const head = d.querySelector<HTMLElement>("[data-dd-head]");
+    const menu = d.querySelector<HTMLElement>("[data-dd-menu]");
+    if (head) head.setAttribute("aria-expanded", "false");
+    if (menu) menu.hidden = true;
+  };
+  const openDrop = (d: HTMLElement): void => {
+    const head = d.querySelector<HTMLElement>("[data-dd-head]");
+    const menu = d.querySelector<HTMLElement>("[data-dd-menu]");
+    if (head) head.setAttribute("aria-expanded", "true");
+    if (menu) menu.hidden = false;
+  };
+  root.addEventListener("click", e => {
+    const t = e.target instanceof Element ? e.target : null;
+    if (!t) return;
+    // The head of a drop-down opens it, or closes it if it is already open.
+    const head = t.closest<HTMLElement>("[data-dd-head]");
+    if (head) {
+      const d = head.closest<HTMLElement>("[data-dd]");
+      if (!d) return;
+      const isOpen = head.getAttribute("aria-expanded") === "true";
+      if (isOpen) closeDrop(d); else { for (const other of drops) closeDrop(other); openDrop(d); }
+      return;
+    }
+    // A row inside the list opens that one row, and closes the others.
+    const row = t.closest<HTMLElement>("[data-dd-row]");
+    if (row) {
+      const wasOpen = row.getAttribute("aria-expanded") === "true";
+      for (const other of root.querySelectorAll<HTMLElement>("[data-dd-row]")) {
+        other.setAttribute("aria-expanded", "false");
+        other.classList.remove("open");
+        const body = other.nextElementSibling;
+        if (body instanceof HTMLElement) body.hidden = true;
+      }
+      if (!wasOpen) {
+        row.setAttribute("aria-expanded", "true");
+        row.classList.add("open");
+        const body = row.nextElementSibling;
+        if (body instanceof HTMLElement) body.hidden = false;
+      }
+      return;
+    }
+    // Picking a theme shows it in the big picture.
+    const theme = t.closest<HTMLElement>("[data-theme]");
+    if (theme) {
+      const key = theme.dataset.theme ?? "";
+      const d = theme.closest<HTMLElement>("[data-dd]");
+      const big = d?.querySelector<HTMLElement>(".tp-big");
+      const t2 = THEME_KEYS.find(k => k === key) ? THEMES[key as ThemeName] : undefined;
+      if (big && t2) {
+        big.style.background = `linear-gradient(135deg,${t2.colors.bg},${t2.colors.bg2})`;
+        big.style.setProperty("--a", t2.colors.accent);
+      }
+      const label = d?.querySelector<HTMLElement>(".dd-head-big .dd-title");
+      if (label && t2) label.textContent = t2.name;
+      for (const other of root.querySelectorAll<HTMLElement>("[data-theme]")) {
+        other.classList.toggle("on", other === theme);
+        other.setAttribute("aria-pressed", String(other === theme));
+      }
+      if (d) closeDrop(d);
+    }
+  });
+
+  // A press of Escape closes whatever is open.
+  const onKey = (e: KeyboardEvent): void => {
+    if (e.key !== "Escape") return;
+    for (const d of drops) closeDrop(d);
+  };
+  document.addEventListener("keydown", onKey);
+
+  /* The index on the left follows the page down, and marks where you are. */
+  const rows = Array.from(root.querySelectorAll<HTMLElement>("[data-index]"));
+  let spy: IntersectionObserver | null = null;
+  if ("IntersectionObserver" in window && rows.length) {
+    spy = new IntersectionObserver(entries => {
+      for (const en of entries) {
+        if (!en.isIntersecting) continue;
+        for (const r of rows) r.classList.toggle("on", r.dataset.index === en.target.id);
+      }
+    }, { rootMargin: "-20% 0px -60% 0px", threshold: 0 });
+    for (const r of rows) {
+      const sec = root.querySelector<HTMLElement>(`#${r.dataset.index ?? ""}`);
+      if (sec) spy.observe(sec);
+    }
+  }
 
   // Sections fade up as they scroll into view.
   const reveal = "IntersectionObserver" in window
@@ -126,7 +300,7 @@ export function mountHome(root: HTMLElement): () => void {
       if (en.isIntersecting) { en.target.classList.add("in"); reveal?.unobserve(en.target); }
     }), { threshold: 0.12 })
     : null;
-  root.querySelectorAll<HTMLElement>(".band h2, .band .band-sub, .feature, .steps li, .theme-chip, .faq, .cta > *, .stats > div").forEach(el => {
+  root.querySelectorAll<HTMLElement>(".deck-sec h2, .deck-sub, .dd, .track-step, .faq, .cta-in > *, .mast-copy > *, .demo, .tape").forEach(el => {
     el.setAttribute("data-reveal", "");
     const sibling = el.parentElement ? Array.from(el.parentElement.children).indexOf(el) : 0;
     el.style.setProperty("--d", `${Math.min(sibling, 6) * 60}ms`);
@@ -161,7 +335,7 @@ export function mountHome(root: HTMLElement): () => void {
   statsTimer = window.setInterval(loadStats, 20_000);
   const stopStats = (): void => { alive = false; window.clearInterval(statsTimer); };
 
-  if (me) return () => { reveal?.disconnect(); stopStats(); stage?.destroy(); };
+  if (me) return () => { reveal?.disconnect(); spy?.disconnect(); stopStats(); stage?.destroy(); document.removeEventListener("keydown", onKey); };
   root.querySelector("#to-top")?.addEventListener("click", () => {
     window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
     window.setTimeout(() => root.querySelector<HTMLInputElement>("#name")?.focus(), 350);
@@ -218,5 +392,5 @@ export function mountHome(root: HTMLElement): () => void {
   }).catch(() => { /* the page works without it */ });
 
   if (notice) history.replaceState(null, "", location.pathname);
-  return () => { window.clearTimeout(timer); reveal?.disconnect(); stopStats(); stage?.destroy(); };
+  return () => { window.clearTimeout(timer); reveal?.disconnect(); spy?.disconnect(); stopStats(); stage?.destroy(); document.removeEventListener("keydown", onKey); };
 }

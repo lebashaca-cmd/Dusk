@@ -82,6 +82,7 @@ export const boardPane: Pane = {
   label: "Experimental",
   hint: "A board of your own. Drag the cards around, resize them, and make it yours.",
   wide: true,
+  vip: true,
   mount(el) {
     el.innerHTML = `<div class="board-wrap">
       <div class="board-bar">

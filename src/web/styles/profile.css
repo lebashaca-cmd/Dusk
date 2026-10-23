@@ -142,13 +142,14 @@
 .fx-dim { display: block; background: #000; opacity: var(--p-dim-o, 0); }
 .stage[data-bg="image"] .fx-img { display: block; background: var(--p-bgimg, none) center / cover no-repeat; filter: blur(var(--p-bgblur, 0)); transform: scale(1.08); }
 .stage[data-bg="dots"], .stage[data-bg="lines"], .stage[data-bg="spotlight"], .stage[data-bg="mesh"], .stage[data-bg="stars"], .stage[data-bg="rain"], .stage[data-bg="grain"],
-.stage[data-bg="waves"], .stage[data-bg="bokeh"], .stage[data-bg="beams"], .stage[data-bg="topo"] {
+.stage[data-bg="waves"], .stage[data-bg="bokeh"], .stage[data-bg="beams"], .stage[data-bg="topo"], .stage[data-bg="glitch"] {
   background: linear-gradient(var(--p-angle, 160deg), var(--p-bg), var(--p-bg2));
 }
 .stage[data-bg="dots"], .stage[data-bg="lines"] { background: var(--p-bg); }
 .stage[data-bg="dots"] .fx-bg, .stage[data-bg="lines"] .fx-bg, .stage[data-bg="spotlight"] .fx-bg, .stage[data-bg="mesh"] .fx-bg,
 .stage[data-bg="stars"] .fx-bg, .stage[data-bg="rain"] .fx-bg, .stage[data-bg="grain"] .fx-bg,
-.stage[data-bg="waves"] .fx-bg, .stage[data-bg="bokeh"] .fx-bg, .stage[data-bg="beams"] .fx-bg, .stage[data-bg="topo"] .fx-bg { display: block; }
+.stage[data-bg="waves"] .fx-bg, .stage[data-bg="bokeh"] .fx-bg, .stage[data-bg="beams"] .fx-bg, .stage[data-bg="topo"] .fx-bg,
+.stage[data-bg="glitch"] .fx-bg { display: block; }
 .stage[data-bg="dots"] .fx-bg { background-image: radial-gradient(color-mix(in srgb, var(--p-text) 24%, transparent) 1.2px, transparent 1.5px); background-size: 22px 22px; }
 .stage[data-bg="lines"] .fx-bg { background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--p-text) 8%, transparent) 0 1px, transparent 1px 15px); }
 .stage[data-bg="spotlight"] .fx-bg { background: radial-gradient(ellipse 70% 55% at 50% 0%, color-mix(in srgb, var(--p-accent) 38%, transparent), transparent 70%), radial-gradient(ellipse 60% 40% at 50% 115%, color-mix(in srgb, var(--p-accent) 16%, transparent), transparent 70%); }
@@ -211,4 +212,35 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .fx-bg, .fx-bg::before, .fx-bg::after { animation: none !important; }
+}
+
+/* The glitched background: scan lines, and bands of colour that slip out of place. */
+.stage[data-bg="glitch"] .fx-bg { overflow: hidden; }
+.stage[data-bg="glitch"] .fx-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 3px);
+  opacity: 0.9;
+}
+.stage[data-bg="glitch"] .fx-bg::after {
+  content: "";
+  position: absolute;
+  inset: -10%;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 42px, color-mix(in srgb, var(--p-accent) 34%, transparent) 42px 45px, transparent 45px 96px),
+    repeating-linear-gradient(0deg, transparent 0 30px, rgba(255, 45, 85, 0.3) 30px 33px, transparent 33px 132px),
+    repeating-linear-gradient(0deg, transparent 0 56px, rgba(0, 229, 255, 0.28) 56px 59px, transparent 59px 174px);
+  mix-blend-mode: screen;
+  opacity: 0.6;
+  animation: glitch-shift calc(3.4s / var(--p-speed, 1)) steps(1) infinite;
+}
+@keyframes glitch-shift {
+  0% { transform: translate3d(0, 0, 0); }
+  18% { transform: translate3d(-1.5%, 1%, 0); }
+  36% { transform: translate3d(2.5%, -1.5%, 0); }
+  54% { transform: translate3d(-1%, 2%, 0); }
+  72% { transform: translate3d(1.5%, 1%, 0); }
+  86% { transform: translate3d(-2%, -1%, 0); }
+  100% { transform: translate3d(0, 0, 0); }
 }

@@ -17,10 +17,17 @@ export const snap = (n: number): number => Math.round(n / GRID) * GRID;
  *
  * Only an element marked `data-sort-handle` starts a drag, so the items themselves keep
  * working as buttons. The items are marked `data-sort-item`.
+ *
+ * The list may hold groups: a container marked `data-sort-list` holds a run of items, and
+ * an item only moves inside the group it is already in.
  */
 export function makeSortable(list: HTMLElement, onEnd: () => void): () => void {
   let dragged: HTMLElement | null = null;
   let pointer = -1;
+
+  /** The group an element sits in, if it is in one. */
+  const groupOf = (el: Element | null): HTMLElement | null =>
+    el?.closest<HTMLElement>("[data-sort-list]") ?? null;
 
   const down = (e: PointerEvent): void => {
     if (e.button !== 0 || dragged) return;
@@ -28,7 +35,8 @@ export function makeSortable(list: HTMLElement, onEnd: () => void): () => void {
     const handle = start?.closest<HTMLElement>("[data-sort-handle]");
     if (!handle) return;
     const item = handle.closest<HTMLElement>("[data-sort-item]");
-    if (!item || item.parentElement !== list) return;
+    const home = groupOf(item?.parentElement ?? null);
+    if (!item || !home || !list.contains(home)) return;
     // A control inside the handle is not a handle. The item itself may be a button —
     // that is how a rail of buttons is dragged at all.
     const control = start?.closest("button");
@@ -49,10 +57,12 @@ export function makeSortable(list: HTMLElement, onEnd: () => void): () => void {
     const under = document.elementFromPoint(e.clientX, e.clientY);
     item.style.pointerEvents = "";
     const over = under instanceof Element ? under.closest<HTMLElement>("[data-sort-item]") : null;
-    if (!over || over === item || over.parentElement !== list) return;
+    const home = groupOf(item.parentElement);
+    // An item stays in its own group, so a section of the rail keeps its sections.
+    if (!over || over === item || !home || groupOf(over.parentElement) !== home) return;
     const r = over.getBoundingClientRect();
     const after = e.clientY > r.top + r.height / 2;
-    list.insertBefore(item, after ? over.nextSibling : over);
+    home.insertBefore(item, after ? over.nextSibling : over);
   };
 
   const up = (e: PointerEvent): void => {
@@ -70,12 +80,13 @@ export function makeSortable(list: HTMLElement, onEnd: () => void): () => void {
     if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
     const start = e.target instanceof Element ? e.target : null;
     const item = start?.closest<HTMLElement>("[data-sort-item]");
-    if (!item || item.parentElement !== list) return;
+    const home = groupOf(item?.parentElement ?? null);
+    if (!item || !home) return;
     const other = e.key === "ArrowUp" ? item.previousElementSibling : item.nextElementSibling;
     if (!other) return;
     e.preventDefault();
-    if (e.key === "ArrowUp") list.insertBefore(item, other);
-    else list.insertBefore(other, item);
+    if (e.key === "ArrowUp") home.insertBefore(item, other);
+    else home.insertBefore(other, item);
     item.focus();
     onEnd();
   };

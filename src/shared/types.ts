@@ -18,7 +18,7 @@ export type PresenceStatus = (typeof PRESENCE_STATUSES)[number];
 export const BG_TYPES = [
   "solid", "gradient", "aurora", "particles", "grid", "dots", "lines", "spotlight",
   "mesh", "stars", "rain", "grain", "image",
-  "waves", "bokeh", "beams", "topo",
+  "waves", "bokeh", "beams", "topo", "glitch",
 ] as const;
 export type BgType = (typeof BG_TYPES)[number];
 
@@ -71,7 +71,7 @@ export const LYRIC_PROVIDERS = ["lrclib", "polaris", "polarisMono", "genius"] as
 export type LyricProvider = (typeof LYRIC_PROVIDERS)[number];
 
 /** Backgrounds only VIP members can pick. */
-export const VIP_BG_TYPES: readonly BgType[] = ["mesh", "stars", "rain", "grain", "image"];
+export const VIP_BG_TYPES: readonly BgType[] = ["mesh", "stars", "rain", "grain", "image", "glitch"];
 
 export const THEME_KEYS = [
   "dusk", "midnight", "frost", "neon", "sunset", "ocean", "forest", "rose", "slate", "ember", "lilac", "moss",

@@ -6,6 +6,7 @@ import { store, type SaveState } from "../state";
 import { MARK_SVG } from "../ui/chrome";
 import { makeSortable } from "../ui/drag";
 import { mountPalette, type Command } from "../ui/palette";
+import { toast } from "../ui/toast";
 import { esc, must } from "../util/dom";
 import { railIcon } from "./icons";
 import { boardPane } from "./panes/board";
@@ -53,21 +54,57 @@ export function mountDashboard(root: HTMLElement): () => void {
 
   let active = PANES[0]!;
   // The pane can be named in the address (#groups), which makes a link to one part of the editor.
-  const fromHash = (): Pane | undefined => PANES.find(p => p.id === location.hash.slice(1));
+  // A section that is for VIP members is not opened for a regular member, whichever way it
+  // is asked for.
+  const fromHash = (): Pane | undefined => {
+    const pane = PANES.find(p => p.id === location.hash.slice(1));
+    return pane && pane.vip && !me.vip ? undefined : pane;
+  };
   try { active = PANES.find(p => p.id === sessionStorage.getItem("dusk.tab")) ?? active; } catch { /* storage unavailable */ }
+  if (active.vip && !me.vip) active = PANES[0]!;
   active = fromHash() ?? active;
 
   // How the editor is arranged: the order of the rail, the board, and the preview's side.
   const lay = loadLayout(me.user.username, DEFAULT_NAV);
 
-  const navHTML = (): string => lay.nav
-    .map(id => PANES.find(p => p.id === id))
-    .filter((p): p is Pane => Boolean(p))
-    .map(p => `<button class="tab" type="button" role="tab" data-tab="${p.id}" data-sort-item data-sec="${esc(SECTION_OF[p.id] ?? "")}" aria-selected="${p === active}">
-        <span class="tab-grip" data-sort-handle aria-hidden="true">${GRIP}</span>
-        <span class="tab-ic">${railIcon(p.id)}</span>
-        <span class="tab-text"><span class="tab-label">${esc(p.label)}</span><span class="tab-sec">${esc(SECTION_OF[p.id] ?? "")}</span></span></button>`)
-    .join("");
+  // The sections of the rail that are open. The one holding the open section starts open.
+  const openSecs = new Set<string>([SECTION_OF[active.id] ?? ""]);
+
+  /** Is this section open? */
+  const isOpen = (label: string): boolean => openSecs.has(label);
+
+  /**
+   * The rail: the sections, each one a drop-down that holds its sections.
+   *
+   * A section that is not open is not shown at all, so the rail is a short list of names
+   * rather than twelve rows. A section that is for VIP members is locked, so a regular
+   * member can see that it exists.
+   */
+  const navHTML = (): string => SECTIONS.map(sec => {
+    const ids = lay.nav.filter(id => sec.ids.includes(id));
+    if (!ids.length) return "";
+    const rows = ids
+      .map(id => PANES.find(p => p.id === id))
+      .filter((p): p is Pane => Boolean(p))
+      .map(p => {
+        const locked = Boolean(p.vip) && !me.vip;
+        return `<button class="tab${locked ? " locked" : ""}" type="button" role="tab" data-tab="${p.id}" data-sort-item aria-selected="${p.id === active.id}"${locked ? ' aria-disabled="true"' : ""}>
+          <span class="tab-grip" data-sort-handle aria-hidden="true">${GRIP}</span>
+          <span class="tab-ic">${railIcon(p.id)}</span>
+          <span class="tab-text"><span class="tab-label">${esc(p.label)}</span></span>
+          ${locked ? '<b class="vip-mini">VIP</b>' : ""}
+        </button>`;
+      }).join("");
+    const open = isOpen(sec.label);
+    return `<div class="nav-sec" data-sec="${esc(sec.label)}">
+      <button class="nav-sec-h" type="button" data-sec-head aria-expanded="${open}" aria-controls="sec-${esc(sec.label).replace(/\W+/g, "-").toLowerCase()}">
+        <span class="nav-sec-name">${esc(sec.label)}</span>
+        <span class="nav-sec-count">${ids.length}</span>
+        <i class="nav-sec-caret" aria-hidden="true"></i>
+      </button>
+      <div class="nav-sec-list" id="sec-${esc(sec.label).replace(/\W+/g, "-").toLowerCase()}" data-sort-list${open ? "" : " hidden"}>${rows}</div>
+    </div>`;
+  }).join("");
 
   root.innerHTML = `<div class="dash" data-pane="edit" data-wide="false">
     <header class="dash-top">
@@ -89,7 +126,7 @@ export function mountDashboard(root: HTMLElement): () => void {
     </header>
     <div class="dash-body" id="dash-body" data-side="${lay.previewSide}">
       <nav class="dash-nav" aria-label="Editor sections">
-        <div class="nav-list" id="nav-list" role="tablist" aria-orientation="vertical">${navHTML()}</div>
+        <div class="nav-list" id="nav-list" role="tablist" aria-orientation="vertical" data-sort-list>${navHTML()}</div>
         <button class="nav-reset" type="button" id="nav-reset" title="Put the sections back in order">Reset the order</button>
       </nav>
       <aside class="side">
@@ -124,10 +161,31 @@ export function mountDashboard(root: HTMLElement): () => void {
   const stage = new Stage(store.model!);
   frame.append(stage.el);
 
+  /** Show the sections that are open, and hide the ones that are not. */
+  const syncSecs = (): void => {
+    for (const sec of navList.querySelectorAll<HTMLElement>(".nav-sec")) {
+      const open = isOpen(sec.dataset.sec ?? "");
+      const list = sec.querySelector<HTMLElement>(".nav-sec-list");
+      if (list) list.hidden = !open;
+      sec.querySelector<HTMLElement>("[data-sec-head]")?.setAttribute("aria-expanded", String(open));
+    }
+  };
+
   let unmountPane: () => void = () => {};
   const openPane = (pane: Pane): void => {
+    // A section that is for VIP members is not opened for a regular member.
+    if (pane.vip && !me.vip) {
+      toast("This one is for VIP members.");
+      return;
+    }
     unmountPane();
     active = pane;
+    // The section holding it opens, so the rail shows where you are.
+    const label = SECTION_OF[pane.id];
+    if (label) {
+      openSecs.add(label);
+      syncSecs();
+    }
     try { sessionStorage.setItem("dusk.tab", pane.id); } catch { /* storage unavailable */ }
     if (fromHash() !== pane) history.replaceState(null, "", `#${pane.id}`);
     root.querySelectorAll<HTMLElement>("[data-tab]").forEach(t => t.setAttribute("aria-selected", String(t.dataset.tab === pane.id)));
@@ -159,6 +217,7 @@ export function mountDashboard(root: HTMLElement): () => void {
     saveLayout();
   };
   const offSort = makeSortable(navList, readNav);
+
   must("#nav-reset", root).addEventListener("click", () => {
     resetNav(DEFAULT_NAV);
     navList.innerHTML = navHTML();
@@ -210,7 +269,13 @@ export function mountDashboard(root: HTMLElement): () => void {
 
   /* The command palette: every section, plus a few things you can do. */
   const commands = (): Command[] => [
-    ...PANES.map(p => ({ id: p.id, label: p.label, hint: "Section", group: "Jump to", run: () => openPane(p) })),
+    ...PANES.map(p => ({
+      id: p.id,
+      label: p.label,
+      hint: p.vip && !me.vip ? "VIP only" : "Section",
+      group: "Jump to",
+      run: () => openPane(p),
+    })),
     { id: "dev-desktop", label: "Preview on a desktop", group: "Preview", run: () => setDevice("desktop") },
     { id: "dev-mobile", label: "Preview on a phone", group: "Preview", run: () => setDevice("mobile") },
     { id: "side-left", label: "Move the preview to the left", group: "Preview", run: () => { body.dataset.side = "left"; lay.previewSide = "left"; saveLayout(); } },
@@ -244,8 +309,28 @@ export function mountDashboard(root: HTMLElement): () => void {
   const click = (e: Event): void => {
     const t = e.target instanceof Element ? e.target : null;
     if (t?.closest(".tab-grip")) return;
+    // A section of the rail opens and closes.
+    const head = t?.closest<HTMLElement>("[data-sec-head]");
+    if (head) {
+      const sec = head.closest<HTMLElement>(".nav-sec");
+      const list = sec?.querySelector<HTMLElement>(".nav-sec-list");
+      if (!list) return;
+      const open = list.hidden;
+      list.hidden = !open;
+      head.setAttribute("aria-expanded", String(open));
+      const label = sec?.dataset.sec ?? "";
+      if (open) openSecs.add(label); else openSecs.delete(label);
+      return;
+    }
     const tab = t?.closest<HTMLElement>("[data-tab]");
-    if (tab) { const p = PANES.find(x => x.id === tab.dataset.tab); if (p && p !== active) openPane(p); return; }
+    if (tab) {
+      const p = PANES.find(x => x.id === tab.dataset.tab);
+      if (!p) return;
+      // A section that is for VIP members says so rather than opening.
+      if (p.vip && !me.vip) { toast("This one is for VIP members."); return; }
+      if (p !== active) openPane(p);
+      return;
+    }
     const dev = t?.closest<HTMLElement>("[data-dev]");
     if (dev) { setDevice(dev.dataset.dev ?? "desktop"); return; }
     const pn = t?.closest<HTMLElement>("[data-pane-btn]");

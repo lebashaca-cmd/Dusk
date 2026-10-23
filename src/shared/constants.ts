@@ -251,17 +251,21 @@ export const isVipBg = (b: BgType): boolean => VIP_BG_TYPES.includes(b);
 
 /**
  * What a person may keep on their page. Regular members lose the VIP-only choices (Dynamic Island,
- * premium and picture backgrounds); everything else stays as they set it. VIP members are untouched.
+ * premium, picture and glitch backgrounds, and the free-form board); everything else stays as they
+ * set it. VIP members are untouched.
  */
 export function limitProfile(p: Profile, vip: boolean): Profile {
   if (vip) return p;
   const needs = isVipBg(p.bgType) || p.bgImage || p.music.lyricsStyle === "island" || p.discord.lyricsStyle === "island";
-  if (!needs) return p;
+  // The free-form board is a VIP thing too, so a regular member's page is the usual column.
+  const board = p.page.layout !== "regular" || p.page.board.length > 0;
+  if (!needs && !board) return p;
   return {
     ...p,
     bgType: isVipBg(p.bgType) ? "gradient" : p.bgType,
     bgImage: "",
     music: { ...p.music, lyricsStyle: "panel" },
     discord: { ...p.discord, lyricsStyle: "panel" },
+    page: { ...p.page, layout: "regular", board: [] },
   };
 }

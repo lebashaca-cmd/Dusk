@@ -376,7 +376,7 @@
 }
 .choice:hover { color: var(--ink); border-color: var(--line-2); }
 .choice[aria-pressed="true"] { border-color: var(--accent); color: var(--ink); background: var(--glass-2); box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12); }
-.choice .pv { display: block; height: 42px; border-radius: 9px; position: relative; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1); background: var(--bg, #000); transition: filter 0.2s; }
+.pv { display: block; height: 42px; border-radius: 9px; position: relative; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1); background: var(--bg, #000); transition: filter 0.2s; }
 .choice.locked .pv, .choice.locked > span { filter: blur(4px); opacity: 0.7; }
 .choice.locked { cursor: not-allowed; }
 .choice.locked .vip-tag { font-size: 10px; padding: 3px 9px; }
@@ -384,33 +384,33 @@
 @keyframes nudge { 25% { translate: -4px 0; } 75% { translate: 4px 0; } }
 
 /* Little pictures of each background. They use the page's own colors. */
-.choice .pv-solid { background: var(--bg); }
-.choice .pv-gradient { background: linear-gradient(160deg, var(--bg), var(--bg2)); }
-.choice .pv-aurora { background: radial-gradient(circle at 20% 30%, var(--ac), transparent 55%), radial-gradient(circle at 80% 70%, var(--bg2), transparent 60%), var(--bg); }
-.choice .pv-particles { background: radial-gradient(var(--ac) 1px, transparent 1.5px) 0 0 / 9px 11px, var(--bg); }
-.choice .pv-grid { background: linear-gradient(var(--tx) 1px, transparent 1px) 0 0 / 10px 10px, linear-gradient(90deg, var(--tx) 1px, transparent 1px) 0 0 / 10px 10px, var(--bg); opacity: 0.9; }
-.choice .pv-dots { background: radial-gradient(var(--tx) 1.2px, transparent 1.6px) 0 0 / 8px 8px, var(--bg); }
-.choice .pv-lines { background: repeating-linear-gradient(135deg, var(--tx) 0 1px, transparent 1px 7px), var(--bg); }
-.choice .pv-spotlight { background: radial-gradient(ellipse 70% 70% at 50% 0%, var(--ac), transparent 75%), linear-gradient(var(--bg), var(--bg2)); }
-.choice .pv-mesh { background: radial-gradient(circle at 15% 25%, var(--ac), transparent 50%), radial-gradient(circle at 85% 35%, var(--bg2), transparent 55%), radial-gradient(circle at 60% 95%, var(--ac), transparent 50%), var(--bg); }
-.choice .pv-stars { background: radial-gradient(1px 1px at 8px 9px, var(--tx), transparent), radial-gradient(1.5px 1.5px at 30px 28px, var(--tx), transparent), radial-gradient(1px 1px at 52px 12px, var(--ac), transparent) 0 0 / 60px 44px, linear-gradient(var(--bg), var(--bg2)); }
-.choice .pv-rain { background: repeating-linear-gradient(100deg, transparent 0 6px, var(--ac) 6px 7px), linear-gradient(var(--bg), var(--bg2)); }
-.choice .pv-grain { background: radial-gradient(var(--tx) 0.5px, transparent 0.8px) 0 0 / 3px 3px, linear-gradient(var(--bg), var(--bg2)); }
-.choice .pv-waves { background: repeating-radial-gradient(ellipse 120% 60% at 50% 130%, transparent 0 10px, var(--tx) 10px 11px), linear-gradient(var(--bg), var(--bg2)); }
-.choice .pv-bokeh { background: radial-gradient(circle at 24% 28%, var(--ac) 0 16%, transparent 18%), radial-gradient(circle at 70% 60%, var(--tx) 0 12%, transparent 14%), var(--bg); }
-.choice .pv-beams { background: conic-gradient(from 190deg at 50% -20%, transparent 0 10deg, var(--ac) 14deg, transparent 24deg, var(--tx) 32deg, transparent 44deg), linear-gradient(var(--bg), var(--bg2)); }
-.choice .pv-topo { background: repeating-radial-gradient(circle at 30% 40%, transparent 0 6px, var(--tx) 6px 7px), linear-gradient(var(--bg), var(--bg2)); }
-.choice .pv-image { background: linear-gradient(135deg, var(--bg2), var(--ac)); }
-.choice .pv-image::after { content: ""; position: absolute; left: 50%; bottom: 0; translate: -50% 0; width: 70%; height: 55%; background: var(--bg); clip-path: polygon(0 100%, 30% 25%, 50% 60%, 70% 10%, 100% 100%); opacity: 0.7; }
-.choice .pv-lyr-panel { background: linear-gradient(90deg, rgba(255, 255, 255, 0.14) 0 52%, transparent 52% 56%, rgba(255, 255, 255, 0.07) 56% 100%); }
-.choice .pv-lyr-island { background: #0a0a0a; }
-.choice .pv-lyr-island::before { content: ""; position: absolute; left: 50%; top: 7px; translate: -50% 0; width: 54%; height: 12px; border-radius: 999px; background: #fff; }
+.pv-solid { background: var(--bg); }
+.pv-gradient { background: linear-gradient(160deg, var(--bg), var(--bg2)); }
+.pv-aurora { background: radial-gradient(circle at 20% 30%, var(--ac), transparent 55%), radial-gradient(circle at 80% 70%, var(--bg2), transparent 60%), var(--bg); }
+.pv-particles { background: radial-gradient(var(--ac) 1px, transparent 1.5px) 0 0 / 9px 11px, var(--bg); }
+.pv-grid { background: linear-gradient(var(--tx) 1px, transparent 1px) 0 0 / 10px 10px, linear-gradient(90deg, var(--tx) 1px, transparent 1px) 0 0 / 10px 10px, var(--bg); opacity: 0.9; }
+.pv-dots { background: radial-gradient(var(--tx) 1.2px, transparent 1.6px) 0 0 / 8px 8px, var(--bg); }
+.pv-lines { background: repeating-linear-gradient(135deg, var(--tx) 0 1px, transparent 1px 7px), var(--bg); }
+.pv-spotlight { background: radial-gradient(ellipse 70% 70% at 50% 0%, var(--ac), transparent 75%), linear-gradient(var(--bg), var(--bg2)); }
+.pv-mesh { background: radial-gradient(circle at 15% 25%, var(--ac), transparent 50%), radial-gradient(circle at 85% 35%, var(--bg2), transparent 55%), radial-gradient(circle at 60% 95%, var(--ac), transparent 50%), var(--bg); }
+.pv-stars { background: radial-gradient(1px 1px at 8px 9px, var(--tx), transparent), radial-gradient(1.5px 1.5px at 30px 28px, var(--tx), transparent), radial-gradient(1px 1px at 52px 12px, var(--ac), transparent) 0 0 / 60px 44px, linear-gradient(var(--bg), var(--bg2)); }
+.pv-rain { background: repeating-linear-gradient(100deg, transparent 0 6px, var(--ac) 6px 7px), linear-gradient(var(--bg), var(--bg2)); }
+.pv-grain { background: radial-gradient(var(--tx) 0.5px, transparent 0.8px) 0 0 / 3px 3px, linear-gradient(var(--bg), var(--bg2)); }
+.pv-waves { background: repeating-radial-gradient(ellipse 120% 60% at 50% 130%, transparent 0 10px, var(--tx) 10px 11px), linear-gradient(var(--bg), var(--bg2)); }
+.pv-bokeh { background: radial-gradient(circle at 24% 28%, var(--ac) 0 16%, transparent 18%), radial-gradient(circle at 70% 60%, var(--tx) 0 12%, transparent 14%), var(--bg); }
+.pv-beams { background: conic-gradient(from 190deg at 50% -20%, transparent 0 10deg, var(--ac) 14deg, transparent 24deg, var(--tx) 32deg, transparent 44deg), linear-gradient(var(--bg), var(--bg2)); }
+.pv-topo { background: repeating-radial-gradient(circle at 30% 40%, transparent 0 6px, var(--tx) 6px 7px), linear-gradient(var(--bg), var(--bg2)); }
+.pv-image { background: linear-gradient(135deg, var(--bg2), var(--ac)); }
+.pv-image::after { content: ""; position: absolute; left: 50%; bottom: 0; translate: -50% 0; width: 70%; height: 55%; background: var(--bg); clip-path: polygon(0 100%, 30% 25%, 50% 60%, 70% 10%, 100% 100%); opacity: 0.7; }
+.pv-lyr-panel { background: linear-gradient(90deg, rgba(255, 255, 255, 0.14) 0 52%, transparent 52% 56%, rgba(255, 255, 255, 0.07) 56% 100%); }
+.pv-lyr-island { background: #0a0a0a; }
+.pv-lyr-island::before { content: ""; position: absolute; left: 50%; top: 7px; translate: -50% 0; width: 54%; height: 12px; border-radius: 999px; background: #fff; }
 
 /* The two ways a page can be put together. */
-.choice .pv-layout-regular { background: linear-gradient(160deg, var(--bg), var(--bg2)); }
-.choice .pv-layout-regular::after { content: ""; position: absolute; left: 28%; top: 10%; width: 44%; height: 80%; border-radius: 6px; background: color-mix(in srgb, var(--tx) 26%, transparent); }
-.choice .pv-layout-experimental { background: linear-gradient(160deg, var(--bg), var(--bg2)); }
-.choice .pv-layout-experimental::after { content: ""; position: absolute; left: 10%; top: 16%; width: 30%; height: 34%; border-radius: 5px; background: color-mix(in srgb, var(--tx) 24%, transparent); box-shadow: 34px 30px 0 0 color-mix(in srgb, var(--ac) 60%, transparent), 62px -8px 0 0 color-mix(in srgb, var(--tx) 16%, transparent); }
+.pv-layout-regular { background: linear-gradient(160deg, var(--bg), var(--bg2)); }
+.pv-layout-regular::after { content: ""; position: absolute; left: 28%; top: 10%; width: 44%; height: 80%; border-radius: 6px; background: color-mix(in srgb, var(--tx) 26%, transparent); }
+.pv-layout-experimental { background: linear-gradient(160deg, var(--bg), var(--bg2)); }
+.pv-layout-experimental::after { content: ""; position: absolute; left: 10%; top: 16%; width: 30%; height: 34%; border-radius: 5px; background: color-mix(in srgb, var(--tx) 24%, transparent); box-shadow: 34px 30px 0 0 color-mix(in srgb, var(--ac) 60%, transparent), 62px -8px 0 0 color-mix(in srgb, var(--tx) 16%, transparent); }
 
 /* ---------- link groups ---------- */
 
@@ -505,3 +505,170 @@
 .palette-item.on .pi-hint { color: var(--ink-2); }
 .palette-empty { padding: 16px 14px; color: var(--dim); font-size: 14px; }
 .palette-foot { display: flex; gap: 16px; margin: 0; padding: 10px 16px; border-top: 1px solid var(--line); color: var(--faint); font-size: 11px; }
+
+/* ---------- the rail, in sections ---------- */
+.nav-sec { display: flex; flex-direction: column; gap: 2px; }
+.nav-sec + .nav-sec { margin-top: 8px; }
+.nav-sec-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--faint);
+  font-family: var(--ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+}
+.nav-sec-h:hover { color: var(--ink-2); background: var(--glass); }
+.nav-sec-h:focus-visible { outline: none; color: var(--ink); }
+.nav-sec-name { flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-sec-count { flex: none; font-size: 10px; font-weight: 600; letter-spacing: 0; color: var(--faint); }
+.nav-sec-caret {
+  flex: none;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  transition: transform 0.2s;
+}
+.nav-sec-h[aria-expanded="true"] .nav-sec-caret { transform: rotate(180deg); }
+.nav-sec-list { display: flex; flex-direction: column; gap: 2px; }
+.nav-sec-list[hidden] { display: none; }
+
+/* A section that is for VIP members is dimmed and marked, so it can still be seen. */
+.tab.locked { color: var(--faint); }
+.tab.locked:hover { color: var(--dim); }
+.tab.locked .tab-ic { opacity: 0.5; }
+.tab.locked .vip-mini { margin-left: auto; }
+.tab.locked .tab-label { opacity: 0.8; }
+
+/* ---------- the drop-down pickers ---------- */
+.picker { position: relative; }
+.picker-btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--glass);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.picker-btn:hover { border-color: var(--line-2); background: var(--glass-2); }
+.picker-btn:focus-visible { outline: none; border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14); }
+.picker-btn[aria-expanded="true"] { border-color: var(--accent); }
+.picker-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker-caret {
+  flex: none;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid var(--dim);
+  transition: transform 0.2s;
+}
+.picker-btn[aria-expanded="true"] .picker-caret { transform: rotate(180deg); }
+.picker-menu {
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  max-height: 264px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  background: #17171a;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+}
+.picker-menu[hidden] { display: none; }
+.picker-opt {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.picker-opt:hover { background: var(--glass-2); color: var(--ink); }
+.picker-opt[aria-selected="true"] { color: var(--ink); background: var(--glass); box-shadow: inset 0 0 0 1px var(--line-2); }
+.picker-opt.locked { cursor: not-allowed; opacity: 0.55; }
+.picker-opt.locked:hover { background: none; color: var(--ink-2); }
+.picker-opt .vip-mini { margin-left: auto; }
+.picker-swatch {
+  display: block;
+  width: 30px;
+  height: 20px;
+  border-radius: 6px;
+  flex: none;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--bg, #000);
+}
+/* The little picture inside a drop-down. */
+.pv-sm { width: 32px; height: 20px; border-radius: 6px; flex: none; }
+.picker-opt .pv-sm { width: 26px; height: 17px; }
+
+/* The little VIP mark. */
+.vip-mini {
+  font-family: var(--ui);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #ffd479;
+  border: 1px solid rgba(255, 212, 121, 0.4);
+  border-radius: 999px;
+  padding: 1px 6px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.note.vip-hint { color: #ffd479; }
+.note.vip-hint[hidden] { display: none; }
+
+/* The picture of the glitched background. */
+.pv-glitch {
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.14) 0 1px, transparent 1px 3px),
+    linear-gradient(115deg, var(--ac) 0 22%, transparent 22% 34%, var(--bg2) 34% 52%, transparent 52% 60%, var(--ac) 60% 70%, transparent 70%),
+    var(--bg);
+}
+.pv-glitch::after {
+  content: "";
+  position: absolute;
+  left: -10%;
+  top: 30%;
+  width: 120%;
+  height: 26%;
+  background: var(--tx);
+  opacity: 0.16;
+  mix-blend-mode: overlay;
+}

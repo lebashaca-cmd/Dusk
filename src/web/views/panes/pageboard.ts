@@ -47,6 +47,7 @@ export const pageboardPane: Pane = {
   id: "pageboard",
   label: "Page board",
   hint: "Where the pieces of your page sit when it is in the experimental layout. This board is the one your visitors see.",
+  vip: true,
   wide: true,
   mount(el) {
     el.innerHTML = `<div class="pboard-wrap">
