@@ -50,12 +50,10 @@ export class Stage {
   private lyricsDecided = false;
   private spotifyOn = false;
   private introTimer = 0;
-  private slotKey = "";
   private slotTimer = 0;
   private entrance = "";
   private nowPlaying = new Map<Source, NowPlaying>();
   private tickTimer = 0;
-  private cardKey = "";
   private resize: ResizeObserver | null = null;
   private tilt = { x: 0, y: 0 };
   private tiltTo = { x: 0, y: 0 };
@@ -131,7 +129,6 @@ export class Stage {
 
     this.stopTyping();
     this.mount.innerHTML = free ? freeHTML(model, p.page.board) : cardHTML(model);
-    this.cardKey = "";
     this.updateDot();
     this.renderSlot();
     fitFree(this.el);

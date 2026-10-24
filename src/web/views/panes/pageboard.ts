@@ -57,9 +57,11 @@ export const pageboardPane: Pane = {
         <button class="btn-ghost" type="button" data-pb-reset>Put it back</button>
       </div>
       <p class="note pboard-note" data-pb-note></p>
-      <div class="pboard-opts" data-pb-opts hidden></div>
-      <div class="pboard-scale" data-pb-scale>
-        <div class="pboard-canvas stage is-free" id="pb-canvas"></div>
+      <div class="pboard-main" data-pb-main>
+        <div class="pboard-scale" data-pb-scale>
+          <div class="pboard-canvas stage is-free" id="pb-canvas"></div>
+        </div>
+        <aside class="pboard-opts" data-pb-opts aria-live="polite"></aside>
       </div>
     </div>`;
 
@@ -69,10 +71,14 @@ export const pageboardPane: Pane = {
     const chips = must<HTMLElement>(".pboard-chips", el);
     const note = must<HTMLElement>("[data-pb-note]", el);
     const opts = must<HTMLElement>("[data-pb-opts]", el);
+    const main = must<HTMLElement>("[data-pb-main]", el);
     const cleanups: Array<() => void> = [];
 
     /** The piece whose options are open, if any. */
     let selected: string | null = null;
+
+    /** When a drag or a resize last finished, so the click that ends it is not taken as a pick. */
+    let dragEnded = 0;
 
     /**
      * How big the board is drawn.
@@ -82,13 +88,21 @@ export const pageboardPane: Pane = {
      * their own screen.
      */
     let scale = 1;
+    /** The options sit beside the board when the pane is wide enough, and under it when it is not. */
+    const SIDE = 300;
+    const GAP = 20;
     const fit = (): void => {
       const pane = el.getBoundingClientRect();
-      const top = canvas.getBoundingClientRect().top - pane.top + el.scrollTop;
-      const spaceW = el.clientWidth - 44;
+      const top = main.getBoundingClientRect().top - pane.top + el.scrollTop;
+      const room = el.clientWidth - 44;
+      const beside = room >= 940;
+      main.classList.toggle("beside", beside);
+      // The room beside the board is always kept, so the board never changes size when a piece is picked.
+      const spaceW = beside ? room - SIDE - GAP : room;
       const spaceH = el.clientHeight - top - 20;
       scale = boardScale(spaceW, spaceH);
       canvas.style.transform = `scale(${scale})`;
+      canvas.style.setProperty("--inv", String(Math.min(2, 1 / scale)));
       scaleBox.style.width = `${Math.round(BOARD_W * scale)}px`;
       scaleBox.style.height = `${Math.round(BOARD_H * scale)}px`;
       zoom.textContent = `${Math.round(scale * 100)}%`;
@@ -133,15 +147,19 @@ export const pageboardPane: Pane = {
       const refit = (): void => fitBox(card);
 
       cleanups.push(makeMover(card, canvas, () => {
+        if (card.offsetLeft === box.x && card.offsetTop === box.y) return;
+        dragEnded = performance.now();
         box.x = card.offsetLeft;
         box.y = card.offsetTop;
         store.profileChanged();
       }, () => scale, refit));
       cleanups.push(makeResizer(card, () => {
+        if (card.offsetWidth === box.w && card.offsetHeight === box.h) return;
+        dragEnded = performance.now();
         box.w = Math.max(60, card.offsetWidth);
         box.h = Math.max(40, card.offsetHeight);
         store.profileChanged();
-      }, () => scale, refit));
+      }, () => scale, refit, () => ({ w: BOARD_W - card.offsetLeft, h: BOARD_H - card.offsetTop })));
 
       // The arrow keys move a piece too, so this is not mouse-only.
       card.addEventListener("keydown", e => {
@@ -150,8 +168,8 @@ export const pageboardPane: Pane = {
         const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
         if (!dx && !dy) return;
         e.preventDefault();
-        const x = Math.max(0, card.offsetLeft + dx);
-        const y = Math.max(0, card.offsetTop + dy);
+        const x = Math.max(0, Math.min(BOARD_W - card.offsetWidth, card.offsetLeft + dx));
+        const y = Math.max(0, Math.min(BOARD_H - card.offsetHeight, card.offsetTop + dy));
         card.style.left = `${x}px`;
         card.style.top = `${y}px`;
         box.x = x;
@@ -180,8 +198,7 @@ export const pageboardPane: Pane = {
     const drawOpts = (): void => {
       const box = picked();
       if (!box) {
-        opts.hidden = true;
-        opts.innerHTML = "";
+        opts.innerHTML = `<div class="pboard-opts-in pboard-opts-empty"><b>Pieces</b><p class="note">Click a piece on the board to change how it looks: alignment, fill, inside space and corners. Drag a piece by its grip to move it, and pull its corner to resize it.</p></div>`;
         return;
       }
       const p = store.profile;
@@ -194,7 +211,6 @@ export const pageboardPane: Pane = {
       const seg = (name: string, value: string, label: string): string =>
         `<button type="button" class="seg-btn" data-pb-${name}="${esc(value)}" aria-pressed="${value === (name === "align" ? align : name === "fill" ? fill : fit)}">${esc(label)}</button>`;
 
-      opts.hidden = false;
       opts.innerHTML = `<div class="pboard-opts-in">
         <div class="pboard-opts-head">
           <span class="pboard-opts-name">${esc(labelOf(box.id))}</span>
@@ -253,13 +269,32 @@ export const pageboardPane: Pane = {
       resize.observe(el);
     }
 
-    /* Redrawing waits for the current pointer work to finish, so a drag is never interrupted. */
+    /*
+     * Redrawing waits for the current pointer work to finish, so a drag is never interrupted.
+     * It also ignores the store telling us a save finished: that changes nothing on the board,
+     * and redrawing then would throw away a piece that is being dragged.
+     */
     let timer = 0;
+    let holding = false;
+    let late = false;
     const redraw = (): void => {
+      if (holding) { late = true; return; }
       window.clearTimeout(timer);
       timer = window.setTimeout(draw, 0);
     };
-    const off = store.subscribe(redraw);
+    const hold = (): void => { holding = true; };
+    const release = (): void => {
+      holding = false;
+      if (late) { late = false; redraw(); }
+    };
+    canvas.addEventListener("pointerdown", hold, true);
+    window.addEventListener("pointerup", release);
+    window.addEventListener("pointercancel", release);
+    let lastSave = store.saveState;
+    const off = store.subscribe(() => {
+      if (store.saveState !== lastSave) { lastSave = store.saveState; return; }
+      redraw();
+    });
 
     /** Change a piece and show it at once, without waiting for the page to be drawn again. */
     const change = (box: BoardBox, patch: Partial<BoardBox>): void => {
@@ -303,6 +338,7 @@ export const pageboardPane: Pane = {
       delegate(el, "click", ".pboard-canvas .fbox", (e, t) => {
         // The pieces are only a picture here, so a link in one must not be followed.
         e.preventDefault();
+        if (performance.now() - dragEnded < 300) return;
         const id = t.dataset.widget ?? "";
         if (!id) return;
         selected = selected === id ? null : id;
@@ -382,6 +418,9 @@ export const pageboardPane: Pane = {
     return () => {
       window.clearTimeout(timer);
       resize?.disconnect();
+      canvas.removeEventListener("pointerdown", hold, true);
+      window.removeEventListener("pointerup", release);
+      window.removeEventListener("pointercancel", release);
       off();
       offs.forEach(fn => fn());
       for (const fn of cleanups.splice(0)) fn();

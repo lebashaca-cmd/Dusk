@@ -21,7 +21,7 @@ export function metaTags(user: UserRecord, origin: string): string {
   const title = `${name} · dusk`;
   const description = summary(user);
   const url = `${origin}/${encodeURIComponent(user.username)}`;
-  const image = `${origin}/api/public/${encodeURIComponent(user.username)}/badge.svg`;
+  const image = `${origin}/api/public/${encodeURIComponent(user.username)}/card.png`;
   return [
     `<title>${attr(title)}</title>`,
     `<meta property="og:type" content="profile">`,
@@ -30,7 +30,9 @@ export function metaTags(user: UserRecord, origin: string): string {
     `<meta property="og:description" content="${attr(description)}">`,
     `<meta property="og:url" content="${attr(url)}">`,
     `<meta property="og:image" content="${attr(image)}">`,
-    `<meta name="twitter:card" content="summary">`,
+    `<meta property="og:image:width" content="1200">`,
+    `<meta property="og:image:height" content="630">`,
+    `<meta name="twitter:card" content="summary_large_image">`,
     `<meta name="twitter:title" content="${attr(title)}">`,
     `<meta name="twitter:description" content="${attr(description)}">`,
     `<meta name="twitter:image" content="${attr(image)}">`,

@@ -171,9 +171,10 @@ export function makeMover(card: HTMLElement, board: HTMLElement, onEnd: () => vo
  *
  * `scale` says how much smaller the card looks than it is, because a board that is scaled
  * down to fit the screen still measures its pieces in board pixels. `onChange` runs while
- * the card is being resized, so whatever is inside it can keep up.
+ * the card is being resized, so whatever is inside it can keep up. `limit` says how big it may get, so
+ * a card on a board of fixed size cannot be pulled past the edge.
  */
-export function makeResizer(card: HTMLElement, onEnd: () => void, scale: () => number = () => 1, onChange: () => void = () => {}): () => void {
+export function makeResizer(card: HTMLElement, onEnd: () => void, scale: () => number = () => 1, onChange: () => void = () => {}, limit: () => { w: number; h: number } = () => ({ w: Infinity, h: Infinity })): () => void {
   const grip = card.querySelector<HTMLElement>("[data-resize-handle]");
   if (!grip) return () => {};
   let pointer = -1;
@@ -198,8 +199,9 @@ export function makeResizer(card: HTMLElement, onEnd: () => void, scale: () => n
     if (e.pointerId !== pointer) return;
     const k = scale();
     const least = GRID * 6;
-    card.style.width = `${Math.max(least, snap(w + (e.clientX - startX) / k))}px`;
-    card.style.height = `${Math.max(least, snap(h + (e.clientY - startY) / k))}px`;
+    const max = limit();
+    card.style.width = `${Math.max(least, Math.min(max.w, snap(w + (e.clientX - startX) / k)))}px`;
+    card.style.height = `${Math.max(least, Math.min(max.h, snap(h + (e.clientY - startY) / k)))}px`;
     onChange();
   };
 

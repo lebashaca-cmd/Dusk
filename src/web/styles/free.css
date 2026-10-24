@@ -114,10 +114,15 @@
 .pboard-bar .btn-ghost { margin-left: 12px; }
 
 /* The board is scaled down to fit the pane, so all of it is in view at once. */
-.pboard-scale { position: relative; margin: 0 22px 40px; flex: none; }
+.pboard-main { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 20px; margin: 0 22px 40px; }
+.pboard-scale { position: relative; flex: none; }
 
-/* The options of the piece that is picked. */
-.pboard-opts { margin: 0 22px; }
+/* The options of the piece that is picked. Beside the board when there is room, so picking a piece never moves the board. */
+.pboard-opts { flex: 1 1 100%; min-width: 0; }
+.pboard-main.beside .pboard-opts { flex: 0 0 300px; width: 300px; position: sticky; top: 0; }
+.pboard-opts-empty b { font-size: 13px; color: var(--ink); }
+.pboard-opts-empty .note { margin: 0; }
+.pboard-opts-head { flex-wrap: wrap; }
 .pboard-opts-in {
   display: flex;
   flex-direction: column;
@@ -131,6 +136,7 @@
 .pboard-opts-name { font-size: 13px; font-weight: 600; color: var(--ink); }
 .pboard-opts-head .btn-ghost:last-child { margin-left: auto; }
 .pboard-opts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px 22px; }
+.pboard-main.beside .pboard-opts-grid { grid-template-columns: 1fr; }
 .pboard-opt { display: flex; flex-direction: column; gap: 7px; font-size: 12px; color: var(--dim); min-width: 0; }
 .pboard-opt > span { display: flex; align-items: center; gap: 8px; }
 .pboard-opt em { font-style: normal; color: var(--ink); font-variant-numeric: tabular-nums; margin-left: auto; }
@@ -171,8 +177,8 @@
   position: absolute;
   left: 0;
   top: 0;
-  width: 26px;
-  height: 26px;
+  width: calc(26px * var(--inv, 1));
+  height: calc(26px * var(--inv, 1));
   display: grid;
   place-items: center;
   color: var(--faint);
@@ -183,12 +189,12 @@
   transition: opacity 0.2s;
   z-index: 2;
 }
-.pbgrip svg { width: 15px; height: 15px; }
+.pbgrip svg { width: calc(15px * var(--inv, 1)); height: calc(15px * var(--inv, 1)); }
 .pbtag {
   position: absolute;
-  left: 30px;
-  top: 5px;
-  font-size: 11px;
+  left: calc(30px * var(--inv, 1));
+  top: calc(5px * var(--inv, 1));
+  font-size: calc(11px * var(--inv, 1));
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -202,5 +208,5 @@
   z-index: 2;
 }
 .pboard-canvas .fbox:hover .pbgrip, .pboard-canvas .fbox:hover .pbtag, .pboard-canvas .fbox:focus-visible .pbgrip, .pboard-canvas .fbox:focus-visible .pbtag { opacity: 1; }
-.pboard-canvas .wresize { opacity: 0; transition: opacity 0.2s; z-index: 2; }
+.pboard-canvas .wresize { width: calc(20px * var(--inv, 1)); height: calc(20px * var(--inv, 1)); opacity: 0; transition: opacity 0.2s; z-index: 2; }
 .pboard-canvas .fbox:hover .wresize { opacity: 0.55; }

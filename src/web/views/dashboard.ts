@@ -1,5 +1,5 @@
 import { api } from "../api";
-import { layout, loadLayout, resetNav, saveLayout } from "../layout";
+import { loadLayout, resetNav, saveLayout } from "../layout";
 import { Stage } from "../render/stage";
 import { navigate } from "../router";
 import { store, type SaveState } from "../state";

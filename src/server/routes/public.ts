@@ -1,3 +1,4 @@
+import { renderCard } from "../services/card";
 import path from "node:path";
 import { Router } from "express";
 import { checkUsernameFormat, cleanUsername, USERNAME_HELP } from "../../shared/url";
@@ -75,6 +76,13 @@ publicRouter.post("/public/:username/click", rateLimit(60_000, 120), (req, res) 
 
 const xml = (s: string): string =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+/** The picture link previews show (1200 by 630, PNG, because previews do not draw SVG). */
+publicRouter.get("/public/:username/card.png", (req, res) => {
+  const user = db.userByName(cleanUsername(String(req.params.username)));
+  if (!user) throw new HttpError(404, "No page lives at that username.");
+  res.type("image/png").set("Cache-Control", "public, max-age=300").send(renderCard(user));
+});
 
 /** A small picture of the page, for a README or a message. */
 publicRouter.get("/public/:username/badge.svg", (req, res) => {

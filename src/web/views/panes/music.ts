@@ -6,7 +6,7 @@ import { icon } from "../../ui/icons";
 import { toast } from "../../ui/toast";
 import { delegate, esc, must } from "../../util/dom";
 import { fmtTime } from "../../util/format";
-import { bindFields, choiceGrid, group, LYRIC_CHOICES, rangeField, selectField, toggle, type Pane } from "./fields";
+import { bindFields, choiceGrid, group, LYRIC_CHOICES, rangeField, toggle, type Pane } from "./fields";
 
 const LYRIC_CHIP: Record<Lyrics["status"], string> = {
   synced: "Synced lyrics", plain: "Lyrics, not synced", none: "No lyrics found", instrumental: "Instrumental",
