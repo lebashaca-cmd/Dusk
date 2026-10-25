@@ -1,6 +1,8 @@
 import { ALIGNS, BORDER_COLORS, CARD_STYLES, ENTRANCES, FONT_KEYS, NAME_CASES, THEME_KEYS, type BgType, type ThemeName } from "../../../shared/types";
 import { FONTS, THEMES } from "../../../shared/constants";
 import { store } from "../../state";
+import { chooseMedia } from "../../ui/media";
+import { delegate } from "../../util/dom";
 import { bindFields, bindPickers, colorField, group, pickerField, rangeField, selectField, textField, toggle, vipLock, type Pane, type PickerOption } from "./fields";
 
 /** The backgrounds a page can have. The VIP ones are for VIP members only. */
@@ -13,7 +15,7 @@ const BACKGROUNDS: readonly PickerOption[] = [
   { value: "grain", label: "Grain", vip: true }, { value: "glitch", label: "Glitch", vip: true }, { value: "image", label: "Picture", vip: true },
 ].map(b => ({ ...b, swatch: `<i class="pv pv-sm pv-${b.value}" aria-hidden="true"></i>` }));
 
-const MOVING: readonly BgType[] = ["aurora", "mesh", "stars", "rain", "waves", "bokeh", "beams", "glitch"];
+const MOVING: readonly BgType[] = ["aurora", "mesh", "stars", "rain", "waves", "bokeh", "beams", "glitch", "grain", "topo"];
 
 const cap = (s: string): string => s[0]!.toUpperCase() + s.slice(1);
 
@@ -45,10 +47,11 @@ export const stylePane: Pane = {
           (MOVING.includes(p.bgType) ? rangeField("bgSpeed", "Speed", p.bgSpeed, 0.2, 3, 0.1, "×") : "") +
           rangeField("bgDim", "Darken the background", p.bgDim, 0, 80, 5, "%")),
         vip || p.bgType === "image" ? group("Picture background",
-          vipLock(textField("bgImage", "Image address", p.bgImage, { max: 500, placeholder: "https://…/picture.jpg" }) +
+          vipLock(textField("bgImage", "Picture or video address", p.bgImage, { max: 500, placeholder: "https://…/picture.jpg or video.mp4" }) +
+            `<button class="btn-ghost" type="button" data-pick-bg style="justify-content:center">Or choose a file from your device</button>` +
             rangeField("bgBlur", "Blur the picture", p.bgBlur, 0, 30, 1, "px") +
-            `<p class="note">Paste a direct link to an image. Pick "Picture" above to show it.</p>`, vip)) : group("Picture background",
-          vipLock(textField("bgImage", "Image address", "", { placeholder: "https://…/picture.jpg" }) + rangeField("bgBlur", "Blur the picture", 0, 0, 30, 1, "px"), vip)),
+            `<p class="note">Paste a direct link to a picture or a video (MP4, WebM or OGG), or choose a file. A video plays silently on a loop. Pick "Picture" above to show it.</p>`, vip)) : group("Picture background",
+          vipLock(textField("bgImage", "Picture or video address", "", { placeholder: "https://…/picture.jpg or video.mp4" }) + `<button class="btn-ghost" type="button" disabled style="justify-content:center">Or choose a file from your device</button>` + rangeField("bgBlur", "Blur the picture", 0, 0, 30, 1, "px"), vip)),
         group("Card",
           `<div class="two">${selectField("card.style", "Card", p.card.style, CARD_STYLES.map(c => [c, cap(c)] as const))}${selectField("card.align", "Align", p.card.align, ALIGNS.map(a => [a, cap(a)] as const))}</div>` +
           rangeField("card.radius", "Roundness", p.card.radius, 0, 48, 1, "px") +
@@ -90,6 +93,14 @@ export const stylePane: Pane = {
     const offs = [
       bindFields(el, after, draw),
       bindPickers(el, after, draw),
+      delegate(el, "click", "[data-pick-bg]", async () => {
+        const r = await chooseMedia();
+        if (!r) return;
+        store.profile.bgImage = r.url;
+        store.profile.bgType = "image";
+        store.profileChanged();
+        draw();
+      }),
     ];
     return () => offs.forEach(fn => fn());
   },

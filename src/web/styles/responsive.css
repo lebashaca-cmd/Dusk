@@ -49,6 +49,6 @@
   .figures { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .fx-aurora i, .gate span, .pbio.type::after { animation: none; }
+  .gate span, .pbio.type::after { animation: none; }
   .mount, .plink { transition: none; }
 }

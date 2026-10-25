@@ -37,6 +37,25 @@ export async function readAudio(file: string): Promise<AudioInfo> {
   };
 }
 
+/** A picture or a video put on a page, judged by its first bytes. Returns the type and the file ending, or null. */
+export async function mediaType(file: string): Promise<{ mime: string; ext: string; video: boolean } | null> {
+  const handle = await fs.open(file, "r");
+  try {
+    const b = Buffer.alloc(16);
+    await handle.read(b, 0, 16, 0);
+    if (b[0] === 0xff && b[1] === 0xd8) return { mime: "image/jpeg", ext: "jpg", video: false };
+    if (b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return { mime: "image/png", ext: "png", video: false };
+    if (b.subarray(0, 4).toString("latin1") === "RIFF" && b.subarray(8, 12).toString("latin1") === "WEBP") return { mime: "image/webp", ext: "webp", video: false };
+    if (b.subarray(0, 4).toString("latin1") === "GIF8") return { mime: "image/gif", ext: "gif", video: false };
+    if (b.subarray(4, 8).toString("latin1") === "ftyp") return { mime: "video/mp4", ext: "mp4", video: true };
+    if (b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3) return { mime: "video/webm", ext: "webm", video: true };
+    if (b.subarray(0, 4).toString("latin1") === "OggS") return { mime: "video/ogg", ext: "ogg", video: true };
+    return null;
+  } finally {
+    await handle.close();
+  }
+}
+
 /** Image uploads: JPEG, PNG or WebP, judged by their first bytes and not by the file name. */
 export async function imageMime(file: string): Promise<string | null> {
   const handle = await fs.open(file, "r");

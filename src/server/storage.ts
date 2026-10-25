@@ -67,7 +67,7 @@ export async function ensureBucket(): Promise<void> {
 
 /* ---------- uploaded files: the local folder is a cache, the bucket is the truth ---------- */
 
-const MIME: Record<string, string> = { mp3: "audio/mpeg", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp" };
+const MIME: Record<string, string> = { mp3: "audio/mpeg", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", gif: "image/gif", mp4: "video/mp4", webm: "video/webm", ogg: "video/ogg" };
 const objectUrl = (userId: string, name: string): string => `${url}/storage/v1/object/${bucket}/${encodeURIComponent(userId)}/${encodeURIComponent(name)}`;
 const localPath = (userId: string, name: string): string => path.join(config.dataDir, "uploads", userId, name);
 

@@ -9,6 +9,7 @@ import { delegate } from "../util/dom";
 import { GridField, ParticleField } from "./background";
 import { bioLines, cardHTML } from "./card";
 import { kindOf } from "../../shared/constants";
+import { isVideoUrl } from "../../shared/url";
 import { applyBoxLook, boxInner, fitFree, freeHTML, railHTML } from "./free";
 import { IslandPanel } from "./island";
 import { LyricPanel, panelSignature } from "./lyricpanel";
@@ -65,7 +66,7 @@ export class Stage {
     this.model = model;
     const el = document.createElement("div");
     el.className = "stage";
-    el.innerHTML = `<div class="fx-img"></div><div class="fx-bg"></div><div class="fx-aurora"><i></i><i></i><i></i></div><canvas class="fx-canvas fx-particles"></canvas><canvas class="fx-canvas fx-grid"></canvas><div class="fx-dim"></div><div class="scroll"><div class="wrap"><div class="mount"></div></div></div>`;
+    el.innerHTML = `<div class="fx-img"></div><video class="fx-vid" muted loop playsinline preload="auto" aria-hidden="true"></video><div class="fx-bg"></div><div class="fx-aurora"><i></i><i></i><i></i></div><canvas class="fx-canvas fx-particles"></canvas><canvas class="fx-canvas fx-grid"></canvas><div class="fx-dim"></div><div class="scroll"><div class="wrap"><div class="mount"></div></div></div>`;
     this.el = el;
     // Entrance animations only run for the first moments, so edits in the dashboard never replay them.
     el.classList.add("is-intro");
@@ -73,7 +74,8 @@ export class Stage {
     this.mount = el.querySelector<HTMLElement>(".mount")!;
     this.wrap = el.querySelector<HTMLElement>(".wrap")!;
 
-    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Backgrounds are a choice the owner made on purpose, so they move whatever the system says about animations.
+    const reduce = false;
     this.field = new ParticleField(
       el.querySelector<HTMLCanvasElement>(".fx-particles")!,
       el,
@@ -199,6 +201,25 @@ export class Stage {
   private vel = 0;
   private glide = false;
 
+  /** A video as the background: it plays silently on a loop behind the page. */
+  private syncVideo(): void {
+    const video = this.el.querySelector<HTMLVideoElement>(".fx-vid");
+    if (!video) return;
+    const p = this.model.profile;
+    const src = p.bgType === "image" && isVideoUrl(p.bgImage) ? p.bgImage : "";
+    if (!src) {
+      if (video.getAttribute("src")) { video.pause(); video.removeAttribute("src"); video.load(); }
+      return;
+    }
+    if (video.getAttribute("src") !== src) {
+      video.setAttribute("src", src);
+      video.muted = true;
+      void video.play().catch(() => {});
+    } else if (video.paused) {
+      void video.play().catch(() => {});
+    }
+  }
+
   /** Scroll smoothly, down or up, slowing in and out. A button asked for it, so it always moves smoothly. */
   private smoothTo(scroller: HTMLElement, target: number): void {
     cancelAnimationFrame(this.scrollAnim);
@@ -298,6 +319,7 @@ export class Stage {
     const free = p.page.layout === "experimental";
     this.el.classList.toggle("is-free", free);
 
+    this.syncVideo();
     this.stopTyping();
     this.mount.innerHTML = free ? freeHTML(model, p.page.board) : cardHTML(model);
     this.updateDot();
@@ -562,6 +584,12 @@ export class Stage {
     this.field.pointer(e.clientX - r.left, e.clientY - r.top);
     this.grid.pointer(e.clientX - r.left, e.clientY - r.top);
     const p = this.model.profile;
+    // The spotlight background follows the pointer.
+    if (p.bgType === "spotlight") {
+      const fx = this.el.querySelector<HTMLElement>(".fx-bg");
+      fx?.style.setProperty("--sx", `${Math.max(0, Math.min(100, ((e.clientX - r.left) / Math.max(1, r.width)) * 100))}%`);
+      fx?.style.setProperty("--sy", `${Math.max(0, Math.min(100, ((e.clientY - r.top) / Math.max(1, r.height)) * 100))}%`);
+    }
     const m = this.restRect();
     if (p.effects.cursorGlow) {
       // The light lives inside the card, so it only shows while the pointer is over it.
@@ -599,6 +627,9 @@ export class Stage {
   private onLeave(): void {
     this.field.leave();
     this.grid.leave();
+    const fx = this.el.querySelector<HTMLElement>(".fx-bg");
+    fx?.style.removeProperty("--sx");
+    fx?.style.removeProperty("--sy");
     this.mount.classList.remove("lit");
     this.tiltTo.x = this.tiltTo.y = 0;
     this.startTilt();

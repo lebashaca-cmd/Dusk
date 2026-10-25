@@ -1,5 +1,6 @@
 import { BOARD_H, BOARD_W, defaultBoard, kindOf, knownPiece, PAGE_KINDS, PAGE_WIDGETS } from "../../shared/constants";
 import type { BoardBox, RenderModel } from "../../shared/types";
+import { isVideoUrl } from "../../shared/url";
 import { esc } from "../util/dom";
 import { headHTML, linksHTML, shareHTML, viewsHTML } from "./card";
 
@@ -21,7 +22,7 @@ export function widgetHTML(id: string, m: RenderModel, box?: BoardBox): string {
   switch (kindOf(id)) {
     case "rail": return railHTML(m.profile.page.board, box);
     case "text": return `<div class="ftext">${box?.label ? `<h3>${esc(box.label)}</h3>` : ""}${box?.text ? `<p>${esc(box.text).replace(/\n/g, "<br>")}</p>` : ""}${box?.label || box?.text ? "" : `<p class="ftext-empty">Write something</p>`}</div>`;
-    case "image": return box?.url ? `<img class="fimg" src="${esc(box.url)}" alt="${esc(box.label ?? "")}" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : `<div class="fimg-empty">Add an image address</div>`;
+    case "image": return box?.url && isVideoUrl(box.url) ? `<video class="fimg" src="${esc(box.url)}" aria-label="${esc(box.label ?? "")}" autoplay muted loop playsinline preload="metadata"></video>` : box?.url ? `<img class="fimg" src="${esc(box.url)}" alt="${esc(box.label ?? "")}" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : `<div class="fimg-empty">Add a picture or video address, or choose a file</div>`;
     case "divider": return `<hr class="fdiv">`;
     case "page": return `<div class="fpage-in">${pageTitle(box)}</div>`;
     case "jump": return `<span class="fjump" role="button" tabindex="0" data-dir="${jumpUp(m.profile.page.board, box) ? "up" : "down"}" data-jump="${esc(box?.target ?? "top")}"><span>${esc(box?.label || "Scroll down")}</span><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></span>`;

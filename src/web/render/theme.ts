@@ -1,5 +1,6 @@
 import { FONTS } from "../../shared/constants";
 import type { RenderModel } from "../../shared/types";
+import { isVideoUrl } from "../../shared/url";
 
 /**
  * Pass a person's design choices to the stylesheet. Colors, sizes and font go in as CSS variables;
@@ -30,7 +31,7 @@ export function applyTheme(host: HTMLElement, m: RenderModel, width?: number): v
   style.setProperty("--p-track", String(p.nameTracking));
   style.setProperty("--p-bio", String(p.bioScale / 100));
   // The address was checked on the server (http or https only). Escape what could break out of url("...").
-  style.setProperty("--p-bgimg", p.bgImage ? `url("${p.bgImage.replace(/["\\\n\r()]/g, ch => encodeURIComponent(ch))}")` : "none");
+  style.setProperty("--p-bgimg", p.bgImage && !isVideoUrl(p.bgImage) ? `url("${p.bgImage.replace(/["\\\n\r()]/g, ch => encodeURIComponent(ch))}")` : "none");
 
   const d = host.dataset;
   d.bg = p.bgType;

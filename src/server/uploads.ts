@@ -19,3 +19,4 @@ function diskUpload(maxBytes: number) {
 
 export const audioUpload = diskUpload(LIMITS.audioBytes);
 export const imageUpload = diskUpload(LIMITS.imageBytes);
+export const mediaUpload = diskUpload(LIMITS.mediaBytes);

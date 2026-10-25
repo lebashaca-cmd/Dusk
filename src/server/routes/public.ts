@@ -138,6 +138,16 @@ mediaRouter.get("/track/:id/cover", async (req, res, next) => {
   res.type(track.coverMime ?? "image/jpeg").sendFile(path.join(userDir(track.userId), track.coverFile), { maxAge: "7d" }, err => { if (err) next(err); });
 });
 
+/** A picture or video a person put on their page. Videos can be played from the middle, so ranges are allowed. */
+mediaRouter.get("/file/:userId/:name", async (req, res, next) => {
+  const userId = String(req.params.userId);
+  const name = String(req.params.name);
+  if (!/^[A-Za-z0-9_-]{1,40}$/.test(userId) || !/^m-[a-f0-9]{16}\.(jpg|png|webp|gif|mp4|webm|ogg)$/.test(name)) { res.sendStatus(404); return; }
+  try { if (!(await ensureLocal(userId, name))) { res.sendStatus(404); return; } } catch (e) { next(e); return; }
+  const types: Record<string, string> = { jpg: "image/jpeg", png: "image/png", webp: "image/webp", gif: "image/gif", mp4: "video/mp4", webm: "video/webm", ogg: "video/ogg" };
+  res.type(types[name.split(".")[1]!] ?? "application/octet-stream").sendFile(path.join(userDir(userId), name), { maxAge: "7d", acceptRanges: true }, err => { if (err) next(err); });
+});
+
 mediaRouter.get("/avatar/:userId", async (req, res, next) => {
   const user = db.user(String(req.params.userId));
   if (!user?.avatarFile) { res.sendStatus(404); return; }

@@ -138,8 +138,9 @@
 @keyframes ent-slide { from { opacity: 0; transform: translateX(-36px); } }
 
 /* ---- Background layers (behind everything, in this order) ---- */
-.fx-img, .fx-bg, .fx-dim { position: absolute; inset: 0; z-index: -1; pointer-events: none; display: none; }
+.fx-img, .fx-vid, .fx-bg, .fx-dim { position: absolute; inset: 0; z-index: -1; pointer-events: none; display: none; }
 .fx-dim { display: block; background: #000; opacity: var(--p-dim-o, 0); }
+.stage[data-bg="image"] .fx-vid[src] { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(var(--p-bgblur, 0)); transform: scale(1.08); }
 .stage[data-bg="image"] .fx-img { display: block; background: var(--p-bgimg, none) center / cover no-repeat; filter: blur(var(--p-bgblur, 0)); transform: scale(1.08); }
 .stage[data-bg="dots"], .stage[data-bg="lines"], .stage[data-bg="spotlight"], .stage[data-bg="mesh"], .stage[data-bg="stars"], .stage[data-bg="rain"], .stage[data-bg="grain"],
 .stage[data-bg="waves"], .stage[data-bg="bokeh"], .stage[data-bg="beams"], .stage[data-bg="topo"], .stage[data-bg="glitch"] {
@@ -152,7 +153,9 @@
 .stage[data-bg="glitch"] .fx-bg { display: block; }
 .stage[data-bg="dots"] .fx-bg { background-image: radial-gradient(color-mix(in srgb, var(--p-text) 24%, transparent) 1.2px, transparent 1.5px); background-size: 22px 22px; }
 .stage[data-bg="lines"] .fx-bg { background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--p-text) 8%, transparent) 0 1px, transparent 1px 15px); }
-.stage[data-bg="spotlight"] .fx-bg { background: radial-gradient(ellipse 70% 55% at 50% 0%, color-mix(in srgb, var(--p-accent) 38%, transparent), transparent 70%), radial-gradient(ellipse 60% 40% at 50% 115%, color-mix(in srgb, var(--p-accent) 16%, transparent), transparent 70%); }
+@property --sx { syntax: "<percentage>"; inherits: false; initial-value: 50%; }
+@property --sy { syntax: "<percentage>"; inherits: false; initial-value: 0%; }
+.stage[data-bg="spotlight"] .fx-bg { transition: --sx 0.7s cubic-bezier(0.22, 1, 0.36, 1), --sy 0.7s cubic-bezier(0.22, 1, 0.36, 1); background: radial-gradient(ellipse 70% 55% at var(--sx) var(--sy), color-mix(in srgb, var(--p-accent) 38%, transparent), transparent 70%), radial-gradient(ellipse 60% 40% at 50% 115%, color-mix(in srgb, var(--p-accent) 16%, transparent), transparent 70%); }
 .stage[data-bg="mesh"] .fx-bg { inset: -25%; background:
   radial-gradient(40% 40% at 20% 25%, color-mix(in srgb, var(--p-accent) 55%, transparent), transparent 70%),
   radial-gradient(38% 38% at 80% 30%, color-mix(in srgb, var(--p-bg2) 90%, var(--p-accent)), transparent 70%),
@@ -174,7 +177,9 @@
 .stage[data-bg="rain"] .fx-bg::after { background-image: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--p-text) 30%, transparent)); background-size: 1px 60px; animation: rain-b calc(0.6s / var(--p-speed, 1)) linear infinite; -webkit-mask: repeating-linear-gradient(90deg, #000 0 1px, transparent 1px 53px); mask: repeating-linear-gradient(90deg, #000 0 1px, transparent 1px 53px); }
 @keyframes rain-a { to { background-position: 0 90px; } }
 @keyframes rain-b { to { background-position: 0 60px; } }
-.stage[data-bg="grain"] .fx-bg { opacity: 0.32; mix-blend-mode: overlay; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+.stage[data-bg="grain"] .fx-bg { animation: grain-flick calc(0.8s / var(--p-speed, 1)) steps(1) infinite; opacity: 0.32; mix-blend-mode: overlay; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+
+@keyframes grain-flick { 0% { background-position: 0 0; } 17% { background-position: -40px 25px; } 34% { background-position: 60px -70px; } 51% { background-position: -90px -30px; } 68% { background-position: 30px 80px; } 84% { background-position: -20px 50px; } }
 
 /* New backgrounds. */
 .stage[data-bg="waves"] .fx-bg {
@@ -205,14 +210,14 @@
 }
 @keyframes beam-sway { to { transform: translateX(6%) rotate(2deg); } }
 .stage[data-bg="topo"] .fx-bg {
+  animation: topo-drift calc(30s / var(--p-speed, 1)) ease-in-out infinite alternate;
   background:
     repeating-radial-gradient(circle at 28% 38%, transparent 0 19px, color-mix(in srgb, var(--p-text) 10%, transparent) 19px 20px),
     repeating-radial-gradient(circle at 80% 74%, transparent 0 26px, color-mix(in srgb, var(--p-accent) 12%, transparent) 26px 27px),
     linear-gradient(var(--p-angle, 160deg), var(--p-bg), var(--p-bg2));
 }
-@media (prefers-reduced-motion: reduce) {
-  .fx-bg, .fx-bg::before, .fx-bg::after { animation: none !important; }
-}
+
+@keyframes topo-drift { to { transform: translate(-3%, 2%) scale(1.06); } }
 
 /* The glitched background: scan lines, and bands of colour that slip out of place. */
 .stage[data-bg="glitch"] .fx-bg { overflow: hidden; }

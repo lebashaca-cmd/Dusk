@@ -4,6 +4,7 @@ import { applyBoxLook, boardHeight, boardScale, boxInner, layerOf, pieceLabel, w
 import { applyTheme } from "../../render/theme";
 import { store } from "../../state";
 import { GRID, makeMover, makeResizer } from "../../ui/drag";
+import { chooseMedia } from "../../ui/media";
 import { toast } from "../../ui/toast";
 import { delegate, esc, must } from "../../util/dom";
 import type { Pane } from "./fields";
@@ -245,7 +246,7 @@ export const pageboardPane: Pane = {
         words = `${textIn("label", "Heading", box.label ?? "", "No heading")}
            <label class="pboard-opt"><span>Text</span><textarea class="pboard-text" data-pb-text maxlength="600" placeholder="Write something">${esc(box.text ?? "")}</textarea></label>${colorIn}`;
       } else if (kind === "image") {
-        words = `${textIn("url", "Image address", box.url ?? "", "https://…", 500)}${textIn("label", "Describe it (for screen readers)", box.label ?? "", "A short description")}
+        words = `${textIn("url", "Picture or video address", box.url ?? "", "https://…", 500)}<button class="btn-ghost" type="button" data-pb-pick style="justify-content:center">Or choose a file from your device</button>${textIn("label", "Describe it (for screen readers)", box.label ?? "", "A short description")}
            <div class="pboard-opt"><span>Fills the piece</span><div class="seg" role="group" aria-label="Fills the piece">${seg("look", "cover", "Cover", box.look !== "contain")}${seg("look", "contain", "Fit inside", box.look === "contain")}</div></div>`;
       } else if (kind === "divider") {
         words = `${slider("sz", "Thickness", box.size ?? 2, 1, 12, "px")}${colorIn}`;
@@ -523,6 +524,16 @@ export const pageboardPane: Pane = {
         commit();
       }),
 
+      delegate(el, "click", "[data-pb-pick]", async () => {
+        const box = picked();
+        if (!box) return;
+        const r = await chooseMedia();
+        if (!r) return;
+        box.url = r.url;
+        refresh(box);
+        commit();
+        drawOpts();
+      }),
       delegate(el, "click", "[data-pb-dock]", (_e, t) => {
         const box = picked();
         const v = t.dataset.pbDock;
@@ -566,7 +577,7 @@ export const pageboardPane: Pane = {
         const box = picked();
         if (!box) return;
         const v = (t as HTMLInputElement).value.trim();
-        if (/^https?:\/\/\S+$/i.test(v)) box.url = v; else delete box.url;
+        if (/^https?:\/\/\S+$/i.test(v) || /^\/media\/file\//.test(v)) box.url = v; else delete box.url;
         refresh(box);
       }),
       delegate(el, "change", "[data-pb-url]", (_e, t) => {

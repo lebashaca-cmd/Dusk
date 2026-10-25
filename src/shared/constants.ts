@@ -10,6 +10,9 @@ export const LIMITS = {
   bio: 600,
   audioBytes: 30 * 1024 * 1024,
   imageBytes: 3 * 1024 * 1024,
+  /** A picture or a short video put on a page (a background, an image piece). */
+  mediaBytes: 25 * 1024 * 1024,
+  mediaImageBytes: 8 * 1024 * 1024,
 } as const;
 
 /** A short random id for a link or a group. */
@@ -258,7 +261,7 @@ export function normalizeBoard(board: unknown): BoardBox[] {
     const z = nn(box.z, 0, 20); if (z !== undefined) piece.z = z;
     if (typeof box.label === "string") piece.label = box.label.slice(0, 60);
     if (typeof box.text === "string") piece.text = box.text.slice(0, 600);
-    if (typeof box.url === "string") { const u = box.url.trim().slice(0, 500); if (/^https?:\/\/\S+$/i.test(u)) piece.url = u; }
+    if (typeof box.url === "string") { const u = box.url.trim().slice(0, 500); if (/^https?:\/\/\S+$/i.test(u) || /^\/media\/file\/[A-Za-z0-9_-]{1,40}\/m-[a-f0-9]{16}\.(jpg|png|webp|gif|mp4|webm|ogg)$/.test(u)) piece.url = u; }
     if (box.dock === "here" || box.dock === "left" || box.dock === "right") piece.dock = box.dock;
     if (box.look === "bar" || box.look === "dot" || box.look === "cover" || box.look === "contain") piece.look = box.look;
     const size = nn(box.size, 1, 12); if (size !== undefined) piece.size = size;

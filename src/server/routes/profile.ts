@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { Router } from "express";
@@ -6,16 +7,16 @@ import { memberRoles } from "../services/guild";
 import { rateLimit } from "../rateLimit";
 import { checkUsernameFormat, cleanUsername, USERNAME_HELP } from "../../shared/url";
 import type { Insights } from "../../shared/types";
-import { db, ownerOf, userDir } from "../db";
+import { db, ownerOf, userDir, type UserRecord } from "../db";
 import { asyncHandler, currentUser, HttpError } from "../http";
 import { toMe } from "../mappers";
 import { endSession, requireAuth } from "../session";
 import { dropFile, pushFile } from "../storage";
-import { imageUpload } from "../uploads";
-import { imageMime } from "../services/audio";
+import { imageUpload, mediaUpload } from "../uploads";
+import { imageMime, mediaType } from "../services/audio";
 import { extForMime } from "../services/cover";
 import { parseProfile } from "../validation";
-import { limitProfile } from "../../shared/constants";
+import { LIMITS, limitProfile } from "../../shared/constants";
 import { isVip } from "../pages";
 
 export const profileRouter = Router();
@@ -82,6 +83,34 @@ profileRouter.post("/avatar", requireAuth, imageUpload.single("file"), asyncHand
   db.save();
   res.json(toMe(user));
 }));
+
+/** A picture or a short video for a page: a background, or an image piece. Returns the address to use. */
+profileRouter.post("/media", requireAuth, rateLimit(60_000, 20), mediaUpload.single("file"), asyncHandler(async (req, res) => {
+  const user = currentUser(req);
+  const file = req.file;
+  if (!file) throw new HttpError(400, "Choose a picture or a video.");
+  const kind = await mediaType(file.path);
+  if (!kind) { await fs.rm(file.path, { force: true }); throw new HttpError(400, "Use a JPEG, PNG, WebP or GIF picture, or an MP4, WebM or OGG video."); }
+  if (!kind.video && file.size > LIMITS.mediaImageBytes) { await fs.rm(file.path, { force: true }); throw new HttpError(400, `Pictures can be up to ${Math.round(LIMITS.mediaImageBytes / 1048576)} MB.`); }
+  const name = `m-${crypto.randomBytes(8).toString("hex")}.${kind.ext}`;
+  await fs.rename(file.path, path.join(userDir(user.id), name));
+  await pushFile(user.id, name);
+  await pruneMedia(user, name);
+  res.json({ url: `/media/file/${user.id}/${name}`, video: kind.video });
+}));
+
+/** Uploaded pictures and videos nothing on the page uses any more are removed, unless they are only minutes old. */
+async function pruneMedia(user: UserRecord, keep: string): Promise<void> {
+  const dir = userDir(user.id);
+  const used = JSON.stringify(user.profile);
+  for (const f of await fs.readdir(dir)) {
+    if (!/^m-[a-f0-9]{16}\.[a-z0-9]+$/.test(f) || f === keep || used.includes(f)) continue;
+    const age = Date.now() - (await fs.stat(path.join(dir, f))).mtimeMs;
+    if (age < 10 * 60_000) continue;
+    await fs.rm(path.join(dir, f), { force: true });
+    await dropFile(user.id, f);
+  }
+}
 
 profileRouter.delete("/avatar", requireAuth, asyncHandler(async (req, res) => {
   const user = currentUser(req);

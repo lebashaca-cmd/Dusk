@@ -71,6 +71,11 @@ export const api = {
     fd.append("file", blob, "avatar.jpg");
     return send<MeResponse>("POST", "/api/avatar", fd);
   },
+  uploadMedia: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file, file.name);
+    return send<{ url: string; video: boolean }>("POST", "/api/media", fd);
+  },
   removeAvatar: () => send<MeResponse>("DELETE", "/api/avatar"),
 
   addTrack: (file: File, title: string, artist: string) => {
