@@ -87,6 +87,27 @@ export const PAGE_WIDGETS = [
 
 export type PageWidgetId = (typeof PAGE_WIDGETS)[number]["id"];
 
+/**
+ * Pieces you can have more than one of. A "page" is a panel of the board (a second screen of the
+ * same page) and a "jump" is a button that scrolls to one. Each copy has an id like "page:2".
+ */
+export const PAGE_KINDS = [
+  { kind: "page", label: "Page", w: 1120, h: 700 },
+  { kind: "jump", label: "Button", w: 220, h: 56 },
+] as const satisfies ReadonlyArray<{ kind: string; label: string; w: number; h: number }>;
+
+/** The kind of piece an id is: "page:2" is a "page", "links" is "links". */
+export const kindOf = (id: string): string => id.split(":")[0] ?? id;
+
+/** Whether an id names a piece that exists: one of the usual pieces, or a copy of a page or a button. */
+export function knownPiece(id: string): boolean {
+  if (PAGE_WIDGETS.some(w => w.id === id)) return true;
+  return /^(page|jump):\d{1,3}$/.test(id);
+}
+
+/** The most pieces a board can hold. */
+export const MAX_PIECES = 24;
+
 /** The ways a piece can be filled in. */
 export const BOX_FILLS: readonly BoxFill[] = ["soft", "solid", "outline", "glass", "none"];
 
@@ -209,12 +230,11 @@ export function normalizeProfile(saved: Partial<Profile> | undefined, name: stri
 /** Keep only the boxes that make sense: a known piece, and numbers that are numbers. */
 export function normalizeBoard(board: unknown): BoardBox[] {
   if (!Array.isArray(board)) return [];
-  const known = new Set<string>(PAGE_WIDGETS.map(w => w.id));
   const out: BoardBox[] = [];
   for (const b of board) {
     if (!b || typeof b !== "object") continue;
     const box = b as Partial<BoardBox>;
-    if (typeof box.id !== "string" || !known.has(box.id)) continue;
+    if (typeof box.id !== "string" || !knownPiece(box.id)) continue;
     if (![box.x, box.y, box.w, box.h].every(n => typeof n === "number" && Number.isFinite(n))) continue;
     if (out.some(o => o.id === box.id)) continue;
     const piece: BoardBox = { id: box.id, x: box.x!, y: box.y!, w: Math.max(60, box.w!), h: Math.max(40, box.h!) };
@@ -225,8 +245,17 @@ export function normalizeBoard(board: unknown): BoardBox[] {
     if (box.fixedH === true) piece.fixedH = true;
     if (typeof box.pad === "number" && Number.isFinite(box.pad)) piece.pad = Math.min(60, Math.max(0, Math.round(box.pad)));
     if (typeof box.radius === "number" && Number.isFinite(box.radius)) piece.radius = Math.min(80, Math.max(0, Math.round(box.radius)));
+    const nn = (v: unknown, lo: number, hi: number): number | undefined =>
+      typeof v === "number" && Number.isFinite(v) ? Math.min(hi, Math.max(lo, Math.round(v))) : undefined;
+    const opacity = nn(box.opacity, 20, 100); if (opacity !== undefined) piece.opacity = opacity;
+    const blur = nn(box.blur, 0, 40); if (blur !== undefined) piece.blur = blur;
+    const borderW = nn(box.borderW, 0, 8); if (borderW !== undefined) piece.borderW = borderW;
+    const shadow = nn(box.shadow, 0, 100); if (shadow !== undefined) piece.shadow = shadow;
+    const z = nn(box.z, 0, 20); if (z !== undefined) piece.z = z;
+    if (typeof box.label === "string") piece.label = box.label.slice(0, 60);
+    if (typeof box.target === "string" && /^(top|page:\d{1,3})$/.test(box.target)) piece.target = box.target;
     out.push(piece);
-    if (out.length >= PAGE_WIDGETS.length) break;
+    if (out.length >= MAX_PIECES) break;
   }
   return out;
 }

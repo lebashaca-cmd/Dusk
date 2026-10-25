@@ -173,6 +173,20 @@ export interface BoardBox {
   pad?: number;
   /** The roundness of the piece's corners, in pixels. */
   radius?: number;
+  /** How see-through the piece is, 20 to 100. */
+  opacity?: number;
+  /** How much the page behind the piece is blurred, in pixels. */
+  blur?: number;
+  /** The width of the piece's border, in pixels. */
+  borderW?: number;
+  /** How strong the shadow under the piece is, 0 to 100. */
+  shadow?: number;
+  /** Which piece is in front: a higher layer is drawn over a lower one. */
+  z?: number;
+  /** The words on a page's title or on a button. */
+  label?: string;
+  /** For a button: the id of the page it scrolls to, or "top". */
+  target?: string;
 }
 
 export interface PageSettings {

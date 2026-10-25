@@ -1,4 +1,4 @@
-import { BOARD_H, BOARD_W, defaultBoard, PAGE_WIDGETS } from "../../shared/constants";
+import { BOARD_H, BOARD_W, defaultBoard, kindOf, knownPiece, PAGE_KINDS, PAGE_WIDGETS } from "../../shared/constants";
 import type { BoardBox, RenderModel } from "../../shared/types";
 import { esc } from "../util/dom";
 import { headHTML, linksHTML, shareHTML, viewsHTML } from "./card";
@@ -17,8 +17,10 @@ import { headHTML, linksHTML, shareHTML, viewsHTML } from "./card";
 export const STACK_BELOW = 720;
 
 /** The pieces of the page, and what goes inside each one. */
-export function widgetHTML(id: string, m: RenderModel): string {
-  switch (id) {
+export function widgetHTML(id: string, m: RenderModel, box?: BoardBox): string {
+  switch (kindOf(id)) {
+    case "page": return `<div class="fpage-in">${pageTitle(box)}</div>`;
+    case "jump": return `<span class="fjump" role="button" tabindex="0" data-jump="${esc(box?.target ?? "top")}"><span>${esc(box?.label || "Scroll down")}</span><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></span>`;
     case "profile": return `<div class="fhead">${shareHTML(m)}${headHTML(m)}</div>`;
     case "links": return linksHTML(m.profile);
     case "music": return `<div class="pslot" data-slot="music"></div>`;
@@ -28,10 +30,21 @@ export function widgetHTML(id: string, m: RenderModel): string {
   }
 }
 
+/** The title of a page panel, if it has one. */
+function pageTitle(box?: BoardBox): string {
+  return box?.label ? `<h2 class="fpage-t">${esc(box.label)}</h2>` : `<span class="fpage-t fpage-empty"></span>`;
+}
+
+/** What a piece is called, for its label in the editor. */
+export function pieceLabel(box: BoardBox): string {
+  const kind = kindOf(box.id);
+  const base = PAGE_WIDGETS.find(w => w.id === kind)?.label ?? PAGE_KINDS.find(k => k.kind === kind)?.label ?? box.id;
+  return (kind === "page" || kind === "jump") && box.label ? `${base}: ${box.label}` : base;
+}
+
 /** The boxes to draw: the ones the owner set, or a tidy page if there are none. */
 export function pageBoxes(boxes: readonly BoardBox[] | undefined): BoardBox[] {
-  const known = new Set<string>(PAGE_WIDGETS.map(w => w.id));
-  const list = (boxes ?? []).filter(b => known.has(b.id));
+  const list = (boxes ?? []).filter(b => knownPiece(b.id));
   return list.length ? list : defaultBoard();
 }
 
@@ -42,7 +55,7 @@ export function boxInner(body: string): string {
 
 /** One box of the board, with its place and size in CSS variables. */
 export function boxHTML(b: BoardBox, body: string): string {
-  return `<div class="fbox" data-widget="${esc(b.id)}" ${boxAttrs(b)} style="${boxVars(b)}">${boxInner(body)}</div>`;
+  return `<div class="fbox" data-widget="${esc(b.id)}" data-kind="${esc(kindOf(b.id))}" ${boxAttrs(b)} style="${boxVars(b)}">${boxInner(body)}</div>`;
 }
 
 /** The look a piece has on its own: how it is lined up and how it is filled. */
@@ -62,6 +75,17 @@ export function applyBoxLook(el: HTMLElement, b: BoardBox): void {
   el.style.setProperty("--h", b.fixedH ? `${b.h}px` : "auto");
   if (typeof b.pad === "number") el.style.setProperty("--pad", `${b.pad}px`); else el.style.removeProperty("--pad");
   if (typeof b.radius === "number") el.style.setProperty("--radius", `${b.radius}px`); else el.style.removeProperty("--radius");
+  const set = (name: string, v: string | null): void => { if (v === null) el.style.removeProperty(name); else el.style.setProperty(name, v); };
+  set("--op", typeof b.opacity === "number" ? String(b.opacity / 100) : null);
+  set("--bl", typeof b.blur === "number" ? `${b.blur}px` : null);
+  set("--bw-px", typeof b.borderW === "number" ? `${b.borderW}px` : null);
+  set("--sh", typeof b.shadow === "number" ? String(b.shadow / 100) : null);
+  set("--z", String(layerOf(b)));
+}
+
+/** The layer a piece is on: pages sit behind everything else unless the owner says otherwise. */
+export function layerOf(b: BoardBox): number {
+  return typeof b.z === "number" ? b.z : kindOf(b.id) === "page" ? 0 : 2;
 }
 
 /** Where a piece sits, how wide it is, and the room inside it. */
@@ -69,6 +93,11 @@ export function boxVars(b: BoardBox): string {
   const bits = [`--x:${b.x}px`, `--y:${b.y}px`, `--w:${b.w}px`, `--h:${b.fixedH ? `${b.h}px` : "auto"}`];
   if (typeof b.pad === "number") bits.push(`--pad:${b.pad}px`);
   if (typeof b.radius === "number") bits.push(`--radius:${b.radius}px`);
+  if (typeof b.opacity === "number") bits.push(`--op:${b.opacity / 100}`);
+  if (typeof b.blur === "number") bits.push(`--bl:${b.blur}px`);
+  if (typeof b.borderW === "number") bits.push(`--bw-px:${b.borderW}px`);
+  if (typeof b.shadow === "number") bits.push(`--sh:${b.shadow / 100}`);
+  bits.push(`--z:${layerOf(b)}`);
   return bits.join(";");
 }
 
@@ -76,7 +105,7 @@ export function boxVars(b: BoardBox): string {
 export function freeHTML(m: RenderModel, boxes: readonly BoardBox[] | undefined): string {
   const list = pageBoxes(boxes);
   const parts = list.map(b => {
-    const body = widgetHTML(b.id, m);
+    const body = widgetHTML(b.id, m, b);
     if (!body) return "";
     return boxHTML(b, body);
   });
@@ -121,11 +150,27 @@ export function fitFree(stage: HTMLElement): void {
     canvas.style.height = "";
     return;
   }
-  // The room on each side, and the bar that floats over the top of a public page.
-  const k = boardScale(stage.clientWidth - 32);
+  // On a screen wider than the board the board is made as wide as the screen, so a piece put at the
+  // left or right edge is at the edge of the screen. Pieces on the left stay left, pieces on the right
+  // stay right, and the ones in the middle stay in the middle.
+  const avail = stage.querySelector<HTMLElement>(".scroll")?.clientWidth || stage.clientWidth;
+  const wide = avail > BOARD_W;
+  const k = wide ? 1 : boardScale(avail);
+  const bw = wide ? avail : BOARD_W;
+  const extra = bw - BOARD_W;
+  canvas.style.setProperty("--bw", `${bw}px`);
+  for (const b of canvas.querySelectorAll<HTMLElement>(".fbox")) {
+    const x = parseFloat(b.style.getPropertyValue("--x")) || 0;
+    const w = parseFloat(b.style.getPropertyValue("--w")) || 0;
+    const full = x <= 24 && x + w >= BOARD_W - 24;
+    const mid = x + w / 2;
+    const ex = full ? 0 : mid < BOARD_W / 3 ? 0 : mid > (BOARD_W * 2) / 3 ? extra : extra / 2;
+    b.style.setProperty("--ex", `${ex}px`);
+    b.style.setProperty("--ew", full ? `${extra}px` : "0px");
+  }
   const h = boardHeight(canvas);
   canvas.style.height = `${h}px`;
   canvas.style.transform = `scale(${k})`;
-  scale.style.width = `${Math.round(BOARD_W * k)}px`;
+  scale.style.width = `${Math.round(bw * k)}px`;
   scale.style.height = `${Math.round(h * k)}px`;
 }

@@ -98,6 +98,12 @@ export class Stage {
     this.cleanups.push(delegate(this.wrap, "click", "[data-act]", (_e, t) => this.onControl(t)));
     this.cleanups.push(delegate(this.wrap, "click", "[data-lyr]", (_e, t) => this.toggleLyrics(this.sourceOf(t))));
     this.cleanups.push(delegate(this.wrap, "click", "[data-seek]", (e, t) => this.onSeek(e as MouseEvent, t)));
+    // A button on the free-form page scrolls to the page it points at.
+    this.cleanups.push(delegate(this.wrap, "click", "[data-jump]", (_e, t) => this.jump(t.dataset.jump ?? "top")));
+    this.cleanups.push(delegate(this.wrap, "keydown", "[data-jump]", (e, t) => {
+      const k = (e as KeyboardEvent).key;
+      if (k === "Enter" || k === " ") { e.preventDefault(); this.jump(t.dataset.jump ?? "top"); }
+    }));
     this.cleanups.push(lanyard.subscribe(() => this.renderSlot()));
     this.cleanups.push(player.subscribe(() => this.renderSlot()));
     this.cleanups.push(onLyricsLoaded(() => this.renderSlot()));
@@ -112,6 +118,19 @@ export class Stage {
     }
 
     this.update(model);
+  }
+
+  /** Scroll to a page of the board, or to the top. */
+  private jump(target: string): void {
+    const behavior: ScrollBehavior = matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+    const box = target === "top" ? null : this.mount.querySelector<HTMLElement>(`.fbox[data-widget="${CSS.escape(target)}"]`);
+    const scroller = this.el.querySelector<HTMLElement>(".scroll");
+    if (!box || !scroller) { scroller?.scrollTo({ top: 0, behavior }); return; }
+    const k = this.el.classList.contains("is-stacked") ? 1 : (this.mount.querySelector<HTMLElement>(".free")?.getBoundingClientRect().width ?? 1) / (this.mount.querySelector<HTMLElement>(".free")?.offsetWidth || 1);
+    const top = this.el.classList.contains("is-stacked")
+      ? box.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop
+      : box.offsetTop * k;
+    scroller.scrollTo({ top: Math.max(0, top), behavior });
   }
 
   /** Redraw for new data. */

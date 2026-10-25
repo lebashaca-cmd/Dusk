@@ -1,6 +1,6 @@
-import { BOARD_H, BOARD_W, BOX_ALIGNS, BOX_FILLS, defaultBoard, PAGE_WIDGETS } from "../../../shared/constants";
+import { BOARD_H, BOARD_W, BOX_ALIGNS, BOX_FILLS, defaultBoard, kindOf, MAX_PIECES, PAGE_KINDS, PAGE_WIDGETS } from "../../../shared/constants";
 import type { BoardBox, BoxAlign, BoxFill, RenderModel } from "../../../shared/types";
-import { applyBoxLook, boardHeight, boardScale, boxInner, widgetHTML } from "../../render/free";
+import { applyBoxLook, boardHeight, boardScale, boxInner, layerOf, pieceLabel, widgetHTML } from "../../render/free";
 import { applyTheme } from "../../render/theme";
 import { store } from "../../state";
 import { GRID, makeMover, makeResizer } from "../../ui/drag";
@@ -11,11 +11,14 @@ import type { Pane } from "./fields";
 /** The grip you hold to move a piece. */
 const GRIP = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>`;
 
-/** The name of a piece, for the label on it. */
-const labelOf = (id: string): string => PAGE_WIDGETS.find(w => w.id === id)?.label ?? id;
+/** Pieces you can have more than one of. */
+const MULTI = new Set<string>(PAGE_KINDS.map(k => k.kind));
 
 const ALIGN_LABELS: Record<BoxAlign, string> = { center: "Centre", left: "Left" };
 const FILL_LABELS: Record<BoxFill, string> = { soft: "Soft", solid: "Solid", outline: "Outline", glass: "Glass", none: "None" };
+
+/** Which setting each slider changes. */
+const SLIDER_KEYS: Record<string, keyof BoardBox> = { h: "h", pad: "pad", radius: "radius", op: "opacity", bl: "blur", bd: "borderW", sh: "shadow" };
 
 /** The room inside a piece, when the owner has not said otherwise. */
 const DEFAULT_PAD = 16;
@@ -123,15 +126,16 @@ export const pageboardPane: Pane = {
       card.className = "fbox";
       card.dataset.widget = box.id;
       card.tabIndex = 0;
-      card.setAttribute("aria-label", `${labelOf(box.id)}. Use the arrow keys to move it.`);
+      card.dataset.kind = kindOf(box.id);
+      card.setAttribute("aria-label", `${pieceLabel(box)}. Use the arrow keys to move it.`);
       card.style.left = `${box.x}px`;
       card.style.top = `${box.y}px`;
       card.style.width = `${box.w}px`;
       applyBoxLook(card, box);
       if (box.fixedH) card.style.height = `${box.h}px`;
       if (box.id === selected) card.classList.add("sel");
-      const body = model ? widgetHTML(box.id, model) : "";
-      card.innerHTML = `${boxInner(body)}<span class="pbgrip" data-move-handle aria-hidden="true">${GRIP}</span><span class="pbtag">${esc(labelOf(box.id))}</span><span class="wresize" data-resize-handle aria-hidden="true"></span>`;
+      const body = model ? widgetHTML(box.id, model, box) : "";
+      card.innerHTML = `${boxInner(body)}<span class="pbgrip" data-move-handle aria-hidden="true">${GRIP}</span><span class="pbtag">${esc(pieceLabel(box))}</span><span class="wresize" data-resize-handle aria-hidden="true"></span>`;
       canvas.append(card);
 
       cleanups.push(makeMover(card, canvas, () => {
@@ -176,13 +180,15 @@ export const pageboardPane: Pane = {
       });
     };
 
-    /** The buttons that add and remove pieces. */
+    /** The buttons that add and remove pieces, and the ones that add another page or button. */
     const drawChips = (): void => {
       const list = boxes();
-      chips.innerHTML = PAGE_WIDGETS.map(w => {
+      const usual = PAGE_WIDGETS.map(w => {
         const on = list.some(b => b.id === w.id);
         return `<button class="chip${on ? " on" : ""}" type="button" data-pb-piece="${esc(w.id)}" aria-pressed="${on}">${on ? "✓" : "+"} ${esc(w.label)}</button>`;
       }).join("");
+      const more = PAGE_KINDS.map(k => `<button class="chip chip-add" type="button" data-pb-add="${k.kind}">+ ${esc(k.label)}</button>`).join("");
+      chips.innerHTML = `${usual}<span class="pboard-sep" aria-hidden="true"></span>${more}`;
     };
 
     /** A word about whether this board is the one being shown. */
@@ -196,25 +202,49 @@ export const pageboardPane: Pane = {
     const drawOpts = (): void => {
       const box = picked();
       if (!box) {
-        opts.innerHTML = `<div class="pboard-opts-in pboard-opts-empty"><b>Pieces</b><p class="note">Click a piece on the board to change how it looks: alignment, fill, height, inside space and corners. Drag a piece by its grip to move it, and pull its corner to resize it.</p></div>`;
+        opts.innerHTML = `<div class="pboard-opts-in pboard-opts-empty"><b>Pieces</b><p class="note">Click a piece on the board to change how it looks: its place, fill, see-through, blur, border, shadow, layer, inside space and corners. Drag a piece by its grip to move it, and pull its corner to resize it.</p><p class="note"><b>Page</b> adds another screen to your page. <b>Button</b> adds a button that scrolls to one.</p></div>`;
         return;
       }
       const p = store.profile;
+      const kind = kindOf(box.id);
       // A piece with no setting of its own follows the page.
       const align = box.align ?? (p.card.align === "left" ? "left" : "center");
       const fill = box.fill ?? (p.card.style as BoxFill);
       const pad = box.pad ?? DEFAULT_PAD;
       const radius = box.radius ?? p.card.radius;
+      const layer = layerOf(box);
       const seg = (name: string, value: string, label: string, on: boolean): string =>
         `<button type="button" class="seg-btn" data-pb-${name}="${esc(value)}" aria-pressed="${on}">${esc(label)}</button>`;
+      const act = (name: string, label: string): string =>
+        `<button type="button" class="seg-btn" data-pb-${name}>${esc(label)}</button>`;
+      const slider = (name: string, label: string, value: number, min: number, max: number, unit: string, step = 1): string =>
+        `<label class="pboard-opt"><span>${esc(label)} <em data-pb-${name}-val>${value}${unit}</em></span><input type="range" data-pb-range data-key="${name}" data-unit="${unit}" min="${min}" max="${max}" step="${step}" value="${value}"></label>`;
+      const pages = boxes().filter(b => kindOf(b.id) === "page");
+      const target = box.target ?? "top";
+
+      const words = kind === "page"
+        ? `<label class="pboard-opt"><span>Title of this page</span><input type="text" class="pboard-text" data-pb-label maxlength="60" placeholder="No title" value="${esc(box.label ?? "")}"></label>
+           <p class="note">A page is a panel of your board. Put pieces on top of it, then add a Button that scrolls to it.</p>`
+        : kind === "jump"
+          ? `<label class="pboard-opt"><span>Button text</span><input type="text" class="pboard-text" data-pb-label maxlength="60" placeholder="Scroll down" value="${esc(box.label ?? "")}"></label>
+             <label class="pboard-opt"><span>Scrolls to</span><select class="pboard-text" data-pb-target>
+               <option value="top"${target === "top" ? " selected" : ""}>The top of the page</option>
+               ${pages.map(pg => `<option value="${esc(pg.id)}"${target === pg.id ? " selected" : ""}>${esc(pieceLabel(pg))}</option>`).join("")}
+             </select></label>`
+          : "";
 
       opts.innerHTML = `<div class="pboard-opts-in">
         <div class="pboard-opts-head">
-          <span class="pboard-opts-name">${esc(labelOf(box.id))}</span>
-          <button class="btn-ghost" type="button" data-pb-match>Match the page</button>
+          <span class="pboard-opts-name">${esc(pieceLabel(box))}</span>
+          <button class="btn-ghost" type="button" data-pb-match>Reset look</button>
           <button class="btn-ghost" type="button" data-pb-close>Done</button>
         </div>
+        ${words}
         <div class="pboard-opts-grid">
+          <div class="pboard-opt">
+            <span>Place on the board</span>
+            <div class="seg" role="group" aria-label="Place on the board">${act("at-left", "Left edge")}${act("at-center", "Centre")}${act("at-right", "Right edge")}${act("at-top", "Top edge")}${act("at-full", "Full width")}</div>
+          </div>
           <div class="pboard-opt">
             <span>Alignment</span>
             <div class="seg" role="group" aria-label="Alignment">${BOX_ALIGNS.map(a => seg("align", a, ALIGN_LABELS[a], a === align)).join("")}</div>
@@ -227,20 +257,20 @@ export const pageboardPane: Pane = {
             <span>Height</span>
             <div class="seg" role="group" aria-label="Height">${seg("height", "auto", "Fit the content", !box.fixedH)}${seg("height", "fixed", "Fixed", Boolean(box.fixedH))}</div>
           </div>
-          ${box.fixedH ? `<label class="pboard-opt">
-            <span>Piece height <em data-pb-h-val>${box.h}px</em></span>
-            <input type="range" data-pb-h min="40" max="1200" step="8" value="${Math.min(1200, box.h)}">
-          </label>` : ""}
-          <label class="pboard-opt">
-            <span>Inside space <em data-pb-pad-val>${pad}px</em></span>
-            <input type="range" data-pb-pad min="0" max="48" step="1" value="${pad}">
-          </label>
-          <label class="pboard-opt">
-            <span>Corners <em data-pb-radius-val>${radius}px</em></span>
-            <input type="range" data-pb-radius min="0" max="48" step="1" value="${radius}">
-          </label>
+          ${box.fixedH ? slider("h", "Piece height", Math.min(1600, box.h), 40, 1600, "px", 8) : ""}
+          <div class="pboard-opt">
+            <span>Layer <em>${layer}</em></span>
+            <div class="seg" role="group" aria-label="Layer">${act("back", "Send back")}${act("forward", "Bring forward")}</div>
+          </div>
+          ${slider("op", "See-through", box.opacity ?? 100, 20, 100, "%")}
+          ${slider("bl", "Blur behind", box.blur ?? 0, 0, 40, "px")}
+          ${slider("bd", "Border", box.borderW ?? 1, 0, 8, "px")}
+          ${slider("sh", "Shadow", box.shadow ?? 0, 0, 100, "%")}
+          ${slider("pad", "Inside space", pad, 0, 48, "px")}
+          ${slider("radius", "Corners", radius, 0, 48, "px")}
         </div>
-        <p class="note">What is inside a piece is never shrunk: it is laid out at its own size, the same as on the usual page. "Fit the content" makes the piece as tall as what is in it.</p>
+        <p class="note">What is inside a piece is never shrunk: it is laid out at its own size, the same as on the usual page.</p>
+        ${kind === "page" || kind === "jump" ? `<button class="btn-ghost danger" type="button" data-pb-remove>Remove this ${kind === "page" ? "page" : "button"}</button>` : ""}
       </div>`;
     };
 
@@ -298,6 +328,20 @@ export const pageboardPane: Pane = {
       if (store.saveState !== lastSave) { lastSave = store.saveState; return; }
       redraw();
     });
+
+    /** Draw the inside of a piece again, after its words changed. */
+    const refresh = (box: BoardBox): void => {
+      const card = cardOf(box.id);
+      const model = store.model;
+      const inside = card?.querySelector<HTMLElement>(".fbox-in");
+      if (!card || !model || !inside) return;
+      inside.innerHTML = widgetHTML(box.id, model, box);
+      const tag = card.querySelector<HTMLElement>(".pbtag");
+      if (tag) tag.textContent = pieceLabel(box);
+      const name = opts.querySelector<HTMLElement>(".pboard-opts-name");
+      if (name) name.textContent = pieceLabel(box);
+      grow();
+    };
 
     /** Change a piece and show it at once, without waiting for the page to be drawn again. */
     const change = (box: BoardBox, patch: Partial<BoardBox>): void => {
@@ -365,6 +409,11 @@ export const pageboardPane: Pane = {
         delete box.pad;
         delete box.radius;
         delete box.fixedH;
+        delete box.opacity;
+        delete box.blur;
+        delete box.borderW;
+        delete box.shadow;
+        delete box.z;
         change(box, {});
         commit();
         drawOpts();
@@ -400,33 +449,101 @@ export const pageboardPane: Pane = {
       }),
 
       // The sliders show the change at once, and are saved when the drag ends.
-      delegate(el, "input", "[data-pb-h]", (_e, t) => {
+      // The sliders show the change at once, and are saved when the drag ends.
+      delegate(el, "input", "[data-pb-range]", (_e, t) => {
         const box = picked();
         const input = t as HTMLInputElement;
-        if (!box) return;
-        change(box, { h: Number(input.value) });
-        const readout = opts.querySelector<HTMLElement>("[data-pb-h-val]");
-        if (readout) readout.textContent = `${input.value}px`;
+        const key = SLIDER_KEYS[input.dataset.key ?? ""];
+        if (!box || !key) return;
+        change(box, { [key]: Number(input.value) } as Partial<BoardBox>);
+        const readout = opts.querySelector<HTMLElement>(`[data-pb-${input.dataset.key}-val]`);
+        if (readout) readout.textContent = `${input.value}${input.dataset.unit ?? ""}`;
       }),
-      delegate(el, "change", "[data-pb-h]", commit),
-      delegate(el, "input", "[data-pb-pad]", (_e, t) => {
+      delegate(el, "change", "[data-pb-range]", commit),
+
+      // Where the piece sits on the board: right at an edge, not near it.
+      delegate(el, "click", "[data-pb-at-left], [data-pb-at-center], [data-pb-at-right], [data-pb-at-top], [data-pb-at-full]", (_e, t) => {
         const box = picked();
-        const input = t as HTMLInputElement;
-        if (!box) return;
-        change(box, { pad: Number(input.value) });
-        const readout = opts.querySelector<HTMLElement>("[data-pb-pad-val]");
-        if (readout) readout.textContent = `${input.value}px`;
+        const card = box ? cardOf(box.id) : null;
+        if (!box || !card) return;
+        const d = t.dataset;
+        const w = card.offsetWidth;
+        if ("pbAtFull" in d) { box.x = 0; box.w = BOARD_W; card.style.width = `${BOARD_W}px`; }
+        else if ("pbAtLeft" in d) box.x = 0;
+        else if ("pbAtRight" in d) box.x = BOARD_W - w;
+        else if ("pbAtCenter" in d) box.x = Math.round((BOARD_W - w) / 2);
+        else if ("pbAtTop" in d) box.y = 0;
+        card.style.left = `${box.x}px`;
+        card.style.top = `${box.y}px`;
+        grow();
+        commit();
       }),
-      delegate(el, "change", "[data-pb-pad]", commit),
-      delegate(el, "input", "[data-pb-radius]", (_e, t) => {
+      // Which piece is in front.
+      delegate(el, "click", "[data-pb-back], [data-pb-forward]", (_e, t) => {
         const box = picked();
-        const input = t as HTMLInputElement;
         if (!box) return;
-        change(box, { radius: Number(input.value) });
-        const readout = opts.querySelector<HTMLElement>("[data-pb-radius-val]");
-        if (readout) readout.textContent = `${input.value}px`;
+        const z = layerOf(box) + ("pbForward" in t.dataset ? 1 : -1);
+        change(box, { z: Math.max(0, Math.min(20, z)) });
+        commit();
+        drawOpts();
       }),
-      delegate(el, "change", "[data-pb-radius]", commit),
+
+      // The words on a page or a button, and where a button goes.
+      delegate(el, "input", "[data-pb-label]", (_e, t) => {
+        const box = picked();
+        if (!box) return;
+        box.label = (t as HTMLInputElement).value;
+        refresh(box);
+      }),
+      delegate(el, "change", "[data-pb-label]", () => { commit(); drawOpts(); }),
+      delegate(el, "change", "[data-pb-target]", (_e, t) => {
+        const box = picked();
+        if (!box) return;
+        box.target = (t as HTMLSelectElement).value;
+        refresh(box);
+        commit();
+      }),
+
+      // Another page, or another button.
+      delegate(el, "click", "[data-pb-add]", (_e, t) => {
+        const kind = t.dataset.pbAdd ?? "";
+        const spec = PAGE_KINDS.find(k => k.kind === kind);
+        const list = boxes();
+        if (!spec) return;
+        if (list.length >= MAX_PIECES) { toast("That is the most pieces a board can hold."); return; }
+        let n = 2;
+        while (list.some(b => b.id === `${kind}:${n}`)) n++;
+        const id = `${kind}:${n}`;
+        let box: BoardBox;
+        if (kind === "page") {
+          // The next page starts below everything that is already there.
+          const bottom = list.reduce((m, b) => { const c = cardOf(b.id); return Math.max(m, b.y + (c ? c.offsetHeight : b.h)); }, 0);
+          const y = Math.ceil((bottom + 80) / GRID) * GRID;
+          box = { id, x: 40, y, w: 1120, h: spec.h, fixedH: true, fill: "soft", label: `Page ${list.filter(b => kindOf(b.id) === "page").length + 2}` };
+        } else {
+          const firstPage = list.find(b => kindOf(b.id) === "page");
+          const spot = findSpot(spec.w, spec.h);
+          box = { id, x: spot.x, y: spot.y, w: spec.w, h: spec.h, fill: "outline", label: "Scroll down", target: firstPage?.id ?? "top" };
+        }
+        list.push(box);
+        selected = id;
+        commit();
+        draw();
+        watch();
+        cardOf(id)?.scrollIntoView({ block: "nearest" });
+      }),
+      delegate(el, "click", "[data-pb-remove]", () => {
+        const box = picked();
+        if (!box) return;
+        const list = boxes();
+        list.splice(list.indexOf(box), 1);
+        // A button that went to this page goes to the top now.
+        for (const b of list) if (b.target === box.id) b.target = "top";
+        selected = null;
+        commit();
+        draw();
+        watch();
+      }),
     ];
 
     return () => {

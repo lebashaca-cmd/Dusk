@@ -7,9 +7,11 @@
 /* One piece of the page. Its place and width come from the owner's board; it is as tall as what is in it. */
 .fbox {
   position: absolute;
-  left: var(--x);
+  left: calc(var(--x) + var(--ex, 0px));
   top: var(--y);
-  width: var(--w);
+  width: calc(var(--w) + var(--ew, 0px));
+  z-index: var(--z, 2);
+  opacity: var(--op, 1);
   height: var(--h, auto);
   box-sizing: border-box;
   overflow: hidden;
@@ -18,7 +20,7 @@
   color: var(--p-text);
   font-family: var(--p-font, var(--font));
   background: color-mix(in srgb, var(--p-text) 4%, transparent);
-  border: 1px solid color-mix(in srgb, var(--p-text) 12%, transparent);
+  border: var(--bw-px, 1px) solid color-mix(in srgb, var(--p-text) 12%, transparent);
 }
 /* A piece with a height of its own scrolls if what is inside is taller. */
 .fbox[data-fixed="true"] { overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--p-text) 28%, transparent) transparent; }
@@ -47,11 +49,20 @@
 .is-free[data-card="none"] { --fit-pad: 8px; }
 .is-free[data-card="glass"] .fbox { backdrop-filter: blur(var(--p-blur)); -webkit-backdrop-filter: blur(var(--p-blur)); }
 
-.is-free .fbox[data-fill="soft"] { background: color-mix(in srgb, var(--p-text) 4%, transparent); border-color: color-mix(in srgb, var(--p-text) 12%, transparent); box-shadow: none; }
+/* A fill is the whole look of the piece: it replaces the page-wide style completely, so nothing of
+   the page's card (its blur, its shadow, its glow) is left over the top. */
+.is-free .fbox[data-fill] { backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; }
+.is-free .fbox[data-fill]::before { content: none; }
+.is-free .fbox[data-fill="soft"] { background: color-mix(in srgb, var(--p-text) 4%, transparent); border-color: color-mix(in srgb, var(--p-text) 12%, transparent); }
 .is-free .fbox[data-fill="solid"] { background: var(--p-bg2); border-color: color-mix(in srgb, var(--p-text) 10%, transparent); box-shadow: 0 20px 50px rgb(0 0 0 / calc(var(--p-shadow, 50) * 0.007)); }
-.is-free .fbox[data-fill="outline"] { background: transparent; border-color: color-mix(in srgb, var(--p-text) 28%, transparent); box-shadow: none; }
-.is-free .fbox[data-fill="glass"] { background: color-mix(in srgb, var(--p-bg) 40%, transparent); border-color: color-mix(in srgb, var(--p-text) 12%, transparent); box-shadow: none; backdrop-filter: blur(var(--p-blur)); -webkit-backdrop-filter: blur(var(--p-blur)); }
-.is-free .fbox[data-fill="none"] { background: transparent; border-color: transparent; box-shadow: none; }
+.is-free .fbox[data-fill="outline"] { background: transparent; border-color: color-mix(in srgb, var(--p-text) 28%, transparent); }
+.is-free .fbox[data-fill="glass"] { background: color-mix(in srgb, var(--p-bg) 40%, transparent); border-color: color-mix(in srgb, var(--p-text) 12%, transparent); backdrop-filter: blur(var(--p-blur)); -webkit-backdrop-filter: blur(var(--p-blur)); }
+.is-free .fbox[data-fill="none"] { background: transparent; border-color: transparent; }
+
+/* The settings a piece can have on its own come after its fill, so they win. */
+.is-free .fbox[style*="--bl"] { backdrop-filter: blur(var(--bl)); -webkit-backdrop-filter: blur(var(--bl)); }
+.is-free .fbox[style*="--sh"] { box-shadow: 0 20px 50px rgb(0 0 0 / calc(var(--sh) * 0.7)); }
+.is-free .fbox[style*="--bw-px"] { border-width: var(--bw-px); border-style: solid; }
 
 /* How a piece lines its content up. A piece can choose for itself; if it does not,
    the page's own setting is used. */
@@ -62,8 +73,8 @@
 .is-free .fbox .tags { justify-content: var(--box-items, center); }
 .is-free .fbox .meta { justify-content: var(--box-items, center); }
 .is-free .fbox .views { justify-content: var(--box-items, center); }
-.is-free[data-glow="on"] .fbox::before { content: ""; position: absolute; inset: 0; z-index: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 0.25s; background: radial-gradient(280px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--p-accent) 26%, transparent), transparent 70%); }
-.is-free[data-glow="on"] .mount.lit .fbox::before { opacity: 1; }
+.is-free[data-glow="on"] .fbox:not([data-fill])::before { content: ""; position: absolute; inset: 0; z-index: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 0.25s; background: radial-gradient(280px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--p-accent) 26%, transparent), transparent 70%); }
+.is-free[data-glow="on"] .mount.lit .fbox:not([data-fill])::before { opacity: 1; }
 
 .fhead { display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%; }
 .fbox .plinks-wrap { width: 100%; }
@@ -77,8 +88,24 @@
 .is-free.is-stacked .free { width: 100%; height: auto; display: flex; flex-direction: column; gap: 16px; }
 .is-free.is-stacked .fbox { position: static; width: 100%; height: auto; order: var(--o, 0); }
 .is-free.is-stacked .fbox:has(.pslot:empty) { display: none; }
-/* The bar at the top of a public page floats over the page, so the first piece starts below it. */
-.public .stage.is-free .scroll { padding-top: 84px; }
+/* The board reaches the edges of the screen: a piece put at the left, right or top is at the left, right or top. */
+.stage.is-free .scroll { padding: 0; overflow-x: hidden; scrollbar-gutter: stable; }
+.stage.is-free.has-island .scroll { padding-top: 66px; }
+
+/* A page is a panel of the board that sits behind the other pieces; a button scrolls to one. */
+.fbox[data-kind="page"] { text-align: left; }
+.fbox[data-kind="page"] .fbox-in { justify-content: flex-start; align-items: flex-start; }
+.fpage-t { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+.fpage-empty { display: block; min-height: 1px; }
+.fbox[data-kind="jump"] .fbox-in { padding: 0; justify-content: center; }
+.fjump { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; height: 100%; min-height: 40px; padding: 12px 18px; font: inherit; font-weight: 600; color: var(--p-text); cursor: pointer; border-radius: inherit; transition: transform 0.2s, background 0.2s; }
+.fjump svg { width: 18px; height: 18px; flex: none; animation: fjump-bob 1.8s ease-in-out infinite; }
+.fjump:hover { background: color-mix(in srgb, var(--p-text) 8%, transparent); }
+@keyframes fjump-bob { 0%, 100% { transform: translateY(-2px); } 50% { transform: translateY(3px); } }
+@media (prefers-reduced-motion: reduce) { .fjump svg { animation: none; } }
+.is-free.is-stacked .fbox[data-kind="page"] { background: transparent; border: 0; }
+.is-free.is-stacked .fbox[data-kind="page"] .fpage-empty { display: none; }
+.is-free.is-stacked .fbox[data-kind="page"]:has(.fpage-empty) { display: none; }
 
 /* The lyrics panel floats over the board instead of sitting beside it. */
 .lyr-panel.on-free { position: absolute; right: 16px; bottom: 16px; z-index: 30; width: min(320px, 42%); height: min(420px, 60%); max-width: none; min-width: 0; flex: none; }
@@ -129,7 +156,7 @@
 .pboard-canvas .fbox:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* Pieces are only a picture here: a click picks the piece, it never follows a link or presses a button. */
 .pboard-canvas .fbox-in { pointer-events: none; }
-.pboard-canvas .fbox.sel { outline: 2px solid var(--accent); outline-offset: 2px; z-index: 4; }
+.pboard-canvas .fbox.sel { outline: 2px solid var(--accent); outline-offset: 2px; }
 .pboard-canvas .fbox[data-widget="music"] .pslot:empty::after { content: "Your song shows here while it plays"; }
 .pboard-canvas .fbox[data-widget="discord"] .pslot:empty::after { content: "Your Discord status shows here"; }
 .pboard-canvas .pslot:empty { display: grid; place-items: center; }
@@ -143,3 +170,12 @@
 .pboard-canvas .wresize { position: absolute; right: 0; bottom: 0; width: calc(22px * var(--inv, 1)); height: calc(22px * var(--inv, 1)); opacity: 0; transition: opacity 0.2s; z-index: 2; cursor: nwse-resize; touch-action: none; pointer-events: auto; }
 .pboard-canvas .fbox:hover .pbgrip, .pboard-canvas .fbox:hover .pbtag, .pboard-canvas .fbox:focus-visible .pbgrip, .pboard-canvas .fbox:focus-visible .pbtag, .pboard-canvas .fbox.sel .pbgrip, .pboard-canvas .fbox.sel .pbtag { opacity: 1; }
 .pboard-canvas .fbox:hover .wresize, .pboard-canvas .fbox.sel .wresize { opacity: 0.7; }
+
+/* More things the board's editor needs. */
+.pboard-sep { width: 1px; height: 22px; background: var(--line-2); margin: 0 4px; align-self: center; }
+.pboard-chips .chip-add { border-style: dashed; }
+.pboard-text { width: 100%; box-sizing: border-box; background: var(--glass); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; color: var(--ink); font: inherit; font-size: 13px; }
+.pboard-text:focus { outline: none; border-color: var(--accent); }
+.pboard-opts-in .danger { color: #ff8a8a; align-self: flex-start; }
+.pboard-opts-name { flex: 1 1 100%; }
+
