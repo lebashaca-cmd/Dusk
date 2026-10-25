@@ -94,6 +94,10 @@ export type PageWidgetId = (typeof PAGE_WIDGETS)[number]["id"];
 export const PAGE_KINDS = [
   { kind: "page", label: "Page", w: 1120, h: 700 },
   { kind: "jump", label: "Button", w: 220, h: 56 },
+  { kind: "rail", label: "Scroll rail", w: 48, h: 200 },
+  { kind: "text", label: "Text", w: 360, h: 160 },
+  { kind: "image", label: "Image", w: 360, h: 240 },
+  { kind: "divider", label: "Divider", w: 400, h: 24 },
 ] as const satisfies ReadonlyArray<{ kind: string; label: string; w: number; h: number }>;
 
 /** The kind of piece an id is: "page:2" is a "page", "links" is "links". */
@@ -102,7 +106,7 @@ export const kindOf = (id: string): string => id.split(":")[0] ?? id;
 /** Whether an id names a piece that exists: one of the usual pieces, or a copy of a page or a button. */
 export function knownPiece(id: string): boolean {
   if (PAGE_WIDGETS.some(w => w.id === id)) return true;
-  return /^(page|jump):\d{1,3}$/.test(id);
+  return /^(page|jump|rail|text|image|divider):\d{1,3}$/.test(id);
 }
 
 /** The most pieces a board can hold. */
@@ -237,7 +241,7 @@ export function normalizeBoard(board: unknown): BoardBox[] {
     if (typeof box.id !== "string" || !knownPiece(box.id)) continue;
     if (![box.x, box.y, box.w, box.h].every(n => typeof n === "number" && Number.isFinite(n))) continue;
     if (out.some(o => o.id === box.id)) continue;
-    const piece: BoardBox = { id: box.id, x: box.x!, y: box.y!, w: Math.max(60, box.w!), h: Math.max(40, box.h!) };
+    const piece: BoardBox = { id: box.id, x: box.x!, y: box.y!, w: Math.max(20, box.w!), h: Math.max(16, box.h!) };
     // The look of a piece is kept only when it is one of the choices.
     if (box.align === "center" || box.align === "left") piece.align = box.align;
     if (box.fill && BOX_FILLS.includes(box.fill)) piece.fill = box.fill;
@@ -253,6 +257,12 @@ export function normalizeBoard(board: unknown): BoardBox[] {
     const shadow = nn(box.shadow, 0, 100); if (shadow !== undefined) piece.shadow = shadow;
     const z = nn(box.z, 0, 20); if (z !== undefined) piece.z = z;
     if (typeof box.label === "string") piece.label = box.label.slice(0, 60);
+    if (typeof box.text === "string") piece.text = box.text.slice(0, 600);
+    if (typeof box.url === "string") { const u = box.url.trim().slice(0, 500); if (/^https?:\/\/\S+$/i.test(u)) piece.url = u; }
+    if (box.dock === "here" || box.dock === "left" || box.dock === "right") piece.dock = box.dock;
+    if (box.look === "bar" || box.look === "dot" || box.look === "cover" || box.look === "contain") piece.look = box.look;
+    const size = nn(box.size, 1, 12); if (size !== undefined) piece.size = size;
+    if (typeof box.color === "string" && /^#[0-9a-fA-F]{6}$/.test(box.color)) piece.color = box.color;
     if (typeof box.target === "string" && /^(top|page:\d{1,3})$/.test(box.target)) piece.target = box.target;
     out.push(piece);
     if (out.length >= MAX_PIECES) break;

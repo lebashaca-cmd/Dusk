@@ -19,8 +19,12 @@ export const STACK_BELOW = 720;
 /** The pieces of the page, and what goes inside each one. */
 export function widgetHTML(id: string, m: RenderModel, box?: BoardBox): string {
   switch (kindOf(id)) {
+    case "rail": return railHTML(m.profile.page.board, box);
+    case "text": return `<div class="ftext">${box?.label ? `<h3>${esc(box.label)}</h3>` : ""}${box?.text ? `<p>${esc(box.text).replace(/\n/g, "<br>")}</p>` : ""}${box?.label || box?.text ? "" : `<p class="ftext-empty">Write something</p>`}</div>`;
+    case "image": return box?.url ? `<img class="fimg" src="${esc(box.url)}" alt="${esc(box.label ?? "")}" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : `<div class="fimg-empty">Add an image address</div>`;
+    case "divider": return `<hr class="fdiv">`;
     case "page": return `<div class="fpage-in">${pageTitle(box)}</div>`;
-    case "jump": return `<span class="fjump" role="button" tabindex="0" data-jump="${esc(box?.target ?? "top")}"><span>${esc(box?.label || "Scroll down")}</span><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></span>`;
+    case "jump": return `<span class="fjump" role="button" tabindex="0" data-dir="${jumpUp(m.profile.page.board, box) ? "up" : "down"}" data-jump="${esc(box?.target ?? "top")}"><span>${esc(box?.label || "Scroll down")}</span><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></span>`;
     case "profile": return `<div class="fhead">${shareHTML(m)}${headHTML(m)}</div>`;
     case "links": return linksHTML(m.profile);
     case "music": return `<div class="pslot" data-slot="music"></div>`;
@@ -28,6 +32,26 @@ export function widgetHTML(id: string, m: RenderModel, box?: BoardBox): string {
     case "views": return viewsHTML(m);
     default: return "";
   }
+}
+
+/** Whether a button sends you up the page: its page is above the button. */
+function jumpUp(board: readonly BoardBox[], box?: BoardBox): boolean {
+  if (!box) return false;
+  const target = box.target ?? "top";
+  const y = target === "top" ? 0 : board.find(b => b.id === target)?.y ?? 0;
+  return y < box.y;
+}
+
+/** The pages a rail points at: the top of the page, then every page panel, from the top down. */
+export function railPages(board: readonly BoardBox[]): Array<{ id: string; label: string }> {
+  const pages = board.filter(b => kindOf(b.id) === "page").sort((a, b) => a.y - b.y);
+  return [{ id: "top", label: "Top" }, ...pages.map(b => ({ id: b.id, label: b.label || "Page" }))];
+}
+
+/** A rail: one mark for each page, the page you are on shown long. Pressing a mark scrolls to that page. */
+export function railHTML(board: readonly BoardBox[], box?: BoardBox, active = 0): string {
+  const items = railPages(board).map((p, i) => `<button type="button" class="frail-i${i === active ? " on" : ""}" data-jump="${esc(p.id)}" aria-label="${esc(p.label)}"><i></i></button>`).join("");
+  return `<nav class="frail" data-look="${box?.look === "dot" ? "dot" : "bar"}" aria-label="Pages">${items}</nav>`;
 }
 
 /** The title of a page panel, if it has one. */
@@ -64,6 +88,7 @@ export function boxAttrs(b: BoardBox): string {
   if (b.align) bits.push(`data-align="${esc(b.align)}"`);
   if (b.fill) bits.push(`data-fill="${esc(b.fill)}"`);
   if (b.fixedH) bits.push(`data-fixed="true"`);
+  if (b.look) bits.push(`data-look="${esc(b.look)}"`);
   return bits.join(" ");
 }
 
@@ -81,6 +106,10 @@ export function applyBoxLook(el: HTMLElement, b: BoardBox): void {
   set("--bw-px", typeof b.borderW === "number" ? `${b.borderW}px` : null);
   set("--sh", typeof b.shadow === "number" ? String(b.shadow / 100) : null);
   set("--z", String(layerOf(b)));
+  set("--pc", b.color ?? null);
+  set("--ps", typeof b.size === "number" ? `${b.size}px` : null);
+  el.dataset.look = b.look ?? "";
+  if (!b.look) delete el.dataset.look;
 }
 
 /** The layer a piece is on: pages sit behind everything else unless the owner says otherwise. */
@@ -98,6 +127,8 @@ export function boxVars(b: BoardBox): string {
   if (typeof b.borderW === "number") bits.push(`--bw-px:${b.borderW}px`);
   if (typeof b.shadow === "number") bits.push(`--sh:${b.shadow / 100}`);
   bits.push(`--z:${layerOf(b)}`);
+  if (b.color) bits.push(`--pc:${b.color}`);
+  if (typeof b.size === "number") bits.push(`--ps:${b.size}px`);
   return bits.join(";");
 }
 
@@ -105,6 +136,8 @@ export function boxVars(b: BoardBox): string {
 export function freeHTML(m: RenderModel, boxes: readonly BoardBox[] | undefined): string {
   const list = pageBoxes(boxes);
   const parts = list.map(b => {
+    // A rail docked to the side of the screen is drawn by the stage, outside the board.
+    if (kindOf(b.id) === "rail" && (b.dock === "left" || b.dock === "right")) return "";
     const body = widgetHTML(b.id, m, b);
     if (!body) return "";
     return boxHTML(b, body);

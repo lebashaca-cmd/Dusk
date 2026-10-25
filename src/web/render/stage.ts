@@ -8,7 +8,8 @@ import { copyText } from "../ui/toast";
 import { delegate } from "../util/dom";
 import { GridField, ParticleField } from "./background";
 import { bioLines, cardHTML } from "./card";
-import { fitFree, freeHTML } from "./free";
+import { kindOf } from "../../shared/constants";
+import { applyBoxLook, boxInner, fitFree, freeHTML, railHTML } from "./free";
 import { IslandPanel } from "./island";
 import { LyricPanel, panelSignature } from "./lyricpanel";
 import { nowCardHTML, tickNowCard } from "./nowcard";
@@ -98,9 +99,19 @@ export class Stage {
     this.cleanups.push(delegate(this.wrap, "click", "[data-act]", (_e, t) => this.onControl(t)));
     this.cleanups.push(delegate(this.wrap, "click", "[data-lyr]", (_e, t) => this.toggleLyrics(this.sourceOf(t))));
     this.cleanups.push(delegate(this.wrap, "click", "[data-seek]", (e, t) => this.onSeek(e as MouseEvent, t)));
+    // The page scrolls smoothly when a button sends it somewhere; the visitor taking over stops it. The rail
+    // shows which page is on screen.
+    const scroller = el.querySelector<HTMLElement>(".scroll");
+    if (scroller) {
+      const stop = (): void => cancelAnimationFrame(this.scrollAnim);
+      scroller.addEventListener("wheel", stop, { passive: true });
+      scroller.addEventListener("touchstart", stop, { passive: true });
+      scroller.addEventListener("keydown", stop);
+      scroller.addEventListener("scroll", () => this.syncRail(), { passive: true });
+    }
     // A button on the free-form page scrolls to the page it points at.
-    this.cleanups.push(delegate(this.wrap, "click", "[data-jump]", (_e, t) => this.jump(t.dataset.jump ?? "top")));
-    this.cleanups.push(delegate(this.wrap, "keydown", "[data-jump]", (e, t) => {
+    this.cleanups.push(delegate(this.el, "click", "[data-jump]", (_e, t) => this.jump(t.dataset.jump ?? "top")));
+    this.cleanups.push(delegate(this.el, "keydown", "[data-jump]", (e, t) => {
       const k = (e as KeyboardEvent).key;
       if (k === "Enter" || k === " ") { e.preventDefault(); this.jump(t.dataset.jump ?? "top"); }
     }));
@@ -112,25 +123,94 @@ export class Stage {
     // pieces grow and shrink with what is in them (a song starts, the bio is typed), and the board
     // is as tall as its lowest piece, so it is fitted again when any piece changes size.
     if (typeof ResizeObserver !== "undefined") {
-      this.resize = new ResizeObserver(() => fitFree(this.el));
+      this.resize = new ResizeObserver(() => { fitFree(this.el); this.syncRail(); });
       this.resize.observe(this.el);
-      this.boxes = new ResizeObserver(() => fitFree(this.el));
+      this.boxes = new ResizeObserver(() => { fitFree(this.el); this.syncRail(); });
     }
 
     this.update(model);
   }
 
+  private scrollAnim = 0;
+
+  /** Scroll smoothly, down or up, slowing in and out. */
+  private smoothTo(scroller: HTMLElement, target: number): void {
+    cancelAnimationFrame(this.scrollAnim);
+    const from = scroller.scrollTop;
+    const to = Math.max(0, Math.min(target, scroller.scrollHeight - scroller.clientHeight));
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches || Math.abs(to - from) < 2) { scroller.scrollTop = to; return; }
+    const dur = Math.min(1200, 480 + Math.abs(to - from) * 0.3);
+    const t0 = performance.now();
+    const step = (now: number): void => {
+      const t = Math.min(1, (now - t0) / dur);
+      const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      scroller.scrollTop = from + (to - from) * e;
+      if (t < 1) this.scrollAnim = requestAnimationFrame(step);
+    };
+    this.scrollAnim = requestAnimationFrame(step);
+  }
+
+  /** Where each page starts, in scroll pixels: the top first, then every page panel from the top down. */
+  private pageTops(): number[] {
+    const scroller = this.el.querySelector<HTMLElement>(".scroll");
+    const free = this.mount.querySelector<HTMLElement>(".free");
+    if (!scroller || !free) return [0];
+    const stacked = this.el.classList.contains("is-stacked");
+    const k = stacked ? 1 : free.getBoundingClientRect().width / (free.offsetWidth || 1);
+    const base = scroller.getBoundingClientRect().top - scroller.scrollTop;
+    const tops = [...this.mount.querySelectorAll<HTMLElement>('.fbox[data-kind="page"]')]
+      .filter(b => b.offsetParent !== null || !stacked)
+      .map(b => stacked ? b.getBoundingClientRect().top - base : b.offsetTop * k)
+      .sort((a, b) => a - b);
+    return [0, ...tops];
+  }
+
   /** Scroll to a page of the board, or to the top. */
   private jump(target: string): void {
-    const behavior: ScrollBehavior = matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
-    const box = target === "top" ? null : this.mount.querySelector<HTMLElement>(`.fbox[data-widget="${CSS.escape(target)}"]`);
     const scroller = this.el.querySelector<HTMLElement>(".scroll");
-    if (!box || !scroller) { scroller?.scrollTo({ top: 0, behavior }); return; }
-    const k = this.el.classList.contains("is-stacked") ? 1 : (this.mount.querySelector<HTMLElement>(".free")?.getBoundingClientRect().width ?? 1) / (this.mount.querySelector<HTMLElement>(".free")?.offsetWidth || 1);
-    const top = this.el.classList.contains("is-stacked")
-      ? box.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop
-      : box.offsetTop * k;
-    scroller.scrollTo({ top: Math.max(0, top), behavior });
+    if (!scroller) return;
+    const box = target === "top" ? null : this.mount.querySelector<HTMLElement>(`.fbox[data-widget="${CSS.escape(target)}"]`);
+    if (!box) { this.smoothTo(scroller, 0); return; }
+    const tops = this.pageTops();
+    const free = this.mount.querySelector<HTMLElement>(".free");
+    const stacked = this.el.classList.contains("is-stacked");
+    const k = stacked || !free ? 1 : free.getBoundingClientRect().width / (free.offsetWidth || 1);
+    const base = scroller.getBoundingClientRect().top - scroller.scrollTop;
+    const top = stacked ? box.getBoundingClientRect().top - base : box.offsetTop * k;
+    this.smoothTo(scroller, tops.length ? top : 0);
+  }
+
+  /** Mark the page that is on screen on every rail. */
+  private syncRail(): void {
+    const rails = this.el.querySelectorAll<HTMLElement>(".frail");
+    if (!rails.length) return;
+    const scroller = this.el.querySelector<HTMLElement>(".scroll");
+    if (!scroller) return;
+    const tops = this.pageTops();
+    const bottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 4 && scroller.scrollTop > 0;
+    let active = 0;
+    tops.forEach((t, i) => { if (t <= scroller.scrollTop + scroller.clientHeight * 0.4) active = i; });
+    if (bottom) active = tops.length - 1;
+    for (const rail of rails) rail.querySelectorAll<HTMLElement>(".frail-i").forEach((b, i) => b.classList.toggle("on", i === active));
+  }
+
+  /** A rail docked to the side of the screen stays there while the page scrolls, so it sits outside the board. */
+  private buildDock(free: boolean): void {
+    this.el.querySelectorAll(".frail-dock").forEach(d => d.remove());
+    if (!free) return;
+    const board = this.model.profile.page.board;
+    const docked = board.filter(b => kindOf(b.id) === "rail" && (b.dock === "left" || b.dock === "right"));
+    for (const box of docked) {
+      const d = document.createElement("div");
+      d.className = "fbox frail-dock";
+      d.dataset.widget = box.id;
+      d.dataset.side = box.dock;
+      d.dataset.kind = "rail";
+      applyBoxLook(d, box);
+      d.innerHTML = boxInner(railHTML(board, box));
+      this.el.append(d);
+    }
+    this.syncRail();
   }
 
   /** Redraw for new data. */
@@ -151,6 +231,8 @@ export class Stage {
     this.updateDot();
     this.renderSlot();
     fitFree(this.el);
+    this.buildDock(free);
+    this.syncRail();
     this.boxes?.disconnect();
     if (free) for (const box of this.mount.querySelectorAll(".fbox-in")) this.boxes?.observe(box);
     if (p.typewriter) this.stopTyping = startTypewriter(this.mount.querySelector<HTMLElement>(".bio-text"), bioLines(p.bio));

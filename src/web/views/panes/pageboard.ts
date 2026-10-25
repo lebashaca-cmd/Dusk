@@ -18,7 +18,7 @@ const ALIGN_LABELS: Record<BoxAlign, string> = { center: "Centre", left: "Left" 
 const FILL_LABELS: Record<BoxFill, string> = { soft: "Soft", solid: "Solid", outline: "Outline", glass: "Glass", none: "None" };
 
 /** Which setting each slider changes. */
-const SLIDER_KEYS: Record<string, keyof BoardBox> = { h: "h", pad: "pad", radius: "radius", op: "opacity", bl: "blur", bd: "borderW", sh: "shadow" };
+const SLIDER_KEYS: Record<string, keyof BoardBox> = { sz: "size", h: "h", pad: "pad", radius: "radius", op: "opacity", bl: "blur", bd: "borderW", sh: "shadow" };
 
 /** The room inside a piece, when the owner has not said otherwise. */
 const DEFAULT_PAD = 16;
@@ -152,12 +152,12 @@ export const pageboardPane: Pane = {
       grip?.addEventListener("pointerdown", () => { startH = card.offsetHeight; }, true);
       cleanups.push(makeResizer(card, () => {
         const dragged = card.offsetHeight;
-        const width = Math.max(60, card.offsetWidth);
+        const width = Math.max(20, card.offsetWidth);
         const heightMoved = Math.abs(dragged - startH) > 6;
         if (width === box.w && !heightMoved) { card.style.height = box.fixedH ? `${box.h}px` : ""; return; }
         dragEnded = performance.now();
         box.w = width;
-        if (heightMoved) { box.fixedH = true; box.h = Math.max(40, dragged); }
+        if (heightMoved) { box.fixedH = true; box.h = Math.max(16, dragged); }
         card.style.height = box.fixedH ? `${box.h}px` : "";
         store.profileChanged();
       }, () => scale, grow, () => ({ w: BOARD_W - card.offsetLeft, h: 3000 })));
@@ -222,16 +222,34 @@ export const pageboardPane: Pane = {
       const pages = boxes().filter(b => kindOf(b.id) === "page");
       const target = box.target ?? "top";
 
-      const words = kind === "page"
-        ? `<label class="pboard-opt"><span>Title of this page</span><input type="text" class="pboard-text" data-pb-label maxlength="60" placeholder="No title" value="${esc(box.label ?? "")}"></label>
-           <p class="note">A page is a panel of your board. Put pieces on top of it, then add a Button that scrolls to it.</p>`
-        : kind === "jump"
-          ? `<label class="pboard-opt"><span>Button text</span><input type="text" class="pboard-text" data-pb-label maxlength="60" placeholder="Scroll down" value="${esc(box.label ?? "")}"></label>
-             <label class="pboard-opt"><span>Scrolls to</span><select class="pboard-text" data-pb-target>
+      const textIn = (name: string, label: string, value: string, ph: string, max = 60): string =>
+        `<label class="pboard-opt"><span>${esc(label)}</span><input type="text" class="pboard-text" data-pb-${name} maxlength="${max}" placeholder="${esc(ph)}" value="${esc(value)}"></label>`;
+      const colorIn = `<div class="pboard-opt"><span>Colour</span><div class="pboard-colorrow"><input type="color" data-pb-color value="${esc(box.color ?? "#ffffff")}" aria-label="Colour"><button type="button" class="seg-btn" data-pb-color-clear>Use the page colour</button></div></div>`;
+      const targets = `<label class="pboard-opt"><span>Scrolls to</span><select class="pboard-text" data-pb-target>
                <option value="top"${target === "top" ? " selected" : ""}>The top of the page</option>
                ${pages.map(pg => `<option value="${esc(pg.id)}"${target === pg.id ? " selected" : ""}>${esc(pieceLabel(pg))}</option>`).join("")}
-             </select></label>`
-          : "";
+             </select></label>`;
+      let words = "";
+      if (kind === "page") {
+        words = `${textIn("label", "Title of this page", box.label ?? "", "No title")}${colorIn}
+           <p class="note">A page is a panel of your board. Put pieces on top of it, then add a Button or a Scroll rail to move between pages.</p>`;
+      } else if (kind === "jump") {
+        words = `${textIn("label", "Button text", box.label ?? "", "Scroll down")}${targets}${colorIn}`;
+      } else if (kind === "rail") {
+        const dock = box.dock ?? "here";
+        words = `<div class="pboard-opt"><span>Where it sits</span><div class="seg" role="group" aria-label="Where it sits">${seg("dock", "right", "Right of the screen", dock === "right")}${seg("dock", "left", "Left of the screen", dock === "left")}${seg("dock", "here", "Here on the board", dock === "here")}</div></div>
+           <div class="pboard-opt"><span>Marks</span><div class="seg" role="group" aria-label="Marks">${seg("look", "bar", "Bars", box.look !== "dot")}${seg("look", "dot", "Dots", box.look === "dot")}</div></div>
+           ${slider("sz", "Thickness", box.size ?? 3, 1, 12, "px")}${colorIn}
+           <p class="note">The rail has one mark for the top and one for each page. The page you are on is shown long. On the screen it stays in place as you scroll.</p>`;
+      } else if (kind === "text") {
+        words = `${textIn("label", "Heading", box.label ?? "", "No heading")}
+           <label class="pboard-opt"><span>Text</span><textarea class="pboard-text" data-pb-text maxlength="600" placeholder="Write something">${esc(box.text ?? "")}</textarea></label>${colorIn}`;
+      } else if (kind === "image") {
+        words = `${textIn("url", "Image address", box.url ?? "", "https://…", 500)}${textIn("label", "Describe it (for screen readers)", box.label ?? "", "A short description")}
+           <div class="pboard-opt"><span>Fills the piece</span><div class="seg" role="group" aria-label="Fills the piece">${seg("look", "cover", "Cover", box.look !== "contain")}${seg("look", "contain", "Fit inside", box.look === "contain")}</div></div>`;
+      } else if (kind === "divider") {
+        words = `${slider("sz", "Thickness", box.size ?? 2, 1, 12, "px")}${colorIn}`;
+      }
 
       opts.innerHTML = `<div class="pboard-opts-in">
         <div class="pboard-opts-head">
@@ -257,7 +275,7 @@ export const pageboardPane: Pane = {
             <span>Height</span>
             <div class="seg" role="group" aria-label="Height">${seg("height", "auto", "Fit the content", !box.fixedH)}${seg("height", "fixed", "Fixed", Boolean(box.fixedH))}</div>
           </div>
-          ${box.fixedH ? slider("h", "Piece height", Math.min(1600, box.h), 40, 1600, "px", 8) : ""}
+          ${box.fixedH ? slider("h", "Piece height", Math.min(1600, box.h), 16, 1600, "px", 8) : ""}
           <div class="pboard-opt">
             <span>Layer <em>${layer}</em></span>
             <div class="seg" role="group" aria-label="Layer">${act("back", "Send back")}${act("forward", "Bring forward")}</div>
@@ -270,7 +288,7 @@ export const pageboardPane: Pane = {
           ${slider("radius", "Corners", radius, 0, 48, "px")}
         </div>
         <p class="note">What is inside a piece is never shrunk: it is laid out at its own size, the same as on the usual page.</p>
-        ${kind === "page" || kind === "jump" ? `<button class="btn-ghost danger" type="button" data-pb-remove>Remove this ${kind === "page" ? "page" : "button"}</button>` : ""}
+        ${MULTI.has(kind) ? `<button class="btn-ghost danger" type="button" data-pb-remove>Remove this ${esc((PAGE_KINDS.find(k => k.kind === kind)?.label ?? "piece").toLowerCase())}</button>` : ""}
       </div>`;
     };
 
@@ -439,7 +457,7 @@ export const pageboardPane: Pane = {
         if (!box) return;
         if (t.dataset.pbHeight === "fixed") {
           const card = cardOf(box.id);
-          change(box, { fixedH: true, h: Math.max(40, card ? card.offsetHeight : box.h) });
+          change(box, { fixedH: true, h: Math.max(16, card ? card.offsetHeight : box.h) });
         } else {
           delete box.fixedH;
           change(box, {});
@@ -494,6 +512,7 @@ export const pageboardPane: Pane = {
         if (!box) return;
         box.label = (t as HTMLInputElement).value;
         refresh(box);
+        if (kindOf(box.id) === "page") for (const r of boxes()) if (kindOf(r.id) === "rail") refresh(r);
       }),
       delegate(el, "change", "[data-pb-label]", () => { commit(); drawOpts(); }),
       delegate(el, "change", "[data-pb-target]", (_e, t) => {
@@ -501,6 +520,61 @@ export const pageboardPane: Pane = {
         if (!box) return;
         box.target = (t as HTMLSelectElement).value;
         refresh(box);
+        commit();
+      }),
+
+      delegate(el, "click", "[data-pb-dock]", (_e, t) => {
+        const box = picked();
+        const v = t.dataset.pbDock;
+        if (!box || (v !== "here" && v !== "left" && v !== "right")) return;
+        box.dock = v;
+        commit();
+        drawOpts();
+        toast(v === "here" ? "The rail sits on the board." : "On your page the rail stays at the side of the screen as you scroll.");
+      }),
+      delegate(el, "click", "[data-pb-look]", (_e, t) => {
+        const box = picked();
+        const v = t.dataset.pbLook;
+        if (!box || (v !== "bar" && v !== "dot" && v !== "cover" && v !== "contain")) return;
+        change(box, { look: v });
+        refresh(box);
+        commit();
+        drawOpts();
+      }),
+      delegate(el, "input", "[data-pb-color]", (_e, t) => {
+        const box = picked();
+        if (!box) return;
+        change(box, { color: (t as HTMLInputElement).value });
+      }),
+      delegate(el, "change", "[data-pb-color]", commit),
+      delegate(el, "click", "[data-pb-color-clear]", () => {
+        const box = picked();
+        if (!box) return;
+        delete box.color;
+        change(box, {});
+        commit();
+        drawOpts();
+      }),
+      delegate(el, "input", "[data-pb-text]", (_e, t) => {
+        const box = picked();
+        if (!box) return;
+        box.text = (t as HTMLTextAreaElement).value;
+        refresh(box);
+      }),
+      delegate(el, "change", "[data-pb-text]", commit),
+      delegate(el, "input", "[data-pb-url]", (_e, t) => {
+        const box = picked();
+        if (!box) return;
+        const v = (t as HTMLInputElement).value.trim();
+        if (/^https?:\/\/\S+$/i.test(v)) box.url = v; else delete box.url;
+        refresh(box);
+      }),
+      delegate(el, "change", "[data-pb-url]", (_e, t) => {
+        const box = picked();
+        const input = t as HTMLInputElement;
+        const v = input.value.trim();
+        // A bare address gets https:// in front, the same as the links do.
+        if (box && v && !/^[a-z][a-z0-9+.-]*:/i.test(v) && !/\s/.test(v)) { box.url = `https://${v}`; input.value = box.url; refresh(box); }
         commit();
       }),
 
@@ -515,15 +589,23 @@ export const pageboardPane: Pane = {
         while (list.some(b => b.id === `${kind}:${n}`)) n++;
         const id = `${kind}:${n}`;
         let box: BoardBox;
+        const spot = findSpot(spec.w, spec.h);
         if (kind === "page") {
           // The next page starts below everything that is already there.
           const bottom = list.reduce((m, b) => { const c = cardOf(b.id); return Math.max(m, b.y + (c ? c.offsetHeight : b.h)); }, 0);
           const y = Math.ceil((bottom + 80) / GRID) * GRID;
           box = { id, x: 40, y, w: 1120, h: spec.h, fixedH: true, fill: "soft", label: `Page ${list.filter(b => kindOf(b.id) === "page").length + 2}` };
-        } else {
+        } else if (kind === "jump") {
           const firstPage = list.find(b => kindOf(b.id) === "page");
-          const spot = findSpot(spec.w, spec.h);
           box = { id, x: spot.x, y: spot.y, w: spec.w, h: spec.h, fill: "outline", label: "Scroll down", target: firstPage?.id ?? "top" };
+        } else if (kind === "rail") {
+          box = { id, x: BOARD_W - spec.w - 16, y: 120, w: spec.w, h: spec.h, fill: "none", dock: "right", look: "bar" };
+        } else if (kind === "text") {
+          box = { id, x: spot.x, y: spot.y, w: spec.w, h: spec.h, fill: "soft", label: "A heading", text: "Write something here." };
+        } else if (kind === "image") {
+          box = { id, x: spot.x, y: spot.y, w: spec.w, h: spec.h, fixedH: true, fill: "none", pad: 0, look: "cover" };
+        } else {
+          box = { id, x: spot.x, y: spot.y, w: spec.w, h: spec.h, fill: "none", size: 2 };
         }
         list.push(box);
         selected = id;

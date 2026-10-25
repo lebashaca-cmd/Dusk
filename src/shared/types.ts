@@ -187,6 +187,18 @@ export interface BoardBox {
   label?: string;
   /** For a button: the id of the page it scrolls to, or "top". */
   target?: string;
+  /** The words of a text piece. */
+  text?: string;
+  /** The address of a picture, for an image piece. */
+  url?: string;
+  /** For a scroll rail: where it sits. "here" is on the board; the others stay on the screen as you scroll. */
+  dock?: "here" | "left" | "right";
+  /** How a rail marks a page ("bar" or "dot"), or how an image fills its piece ("cover" or "contain"). */
+  look?: "bar" | "dot" | "cover" | "contain";
+  /** How thick a rail or a divider is, in pixels. */
+  size?: number;
+  /** The colour of a piece's writing, rail or divider, like #aabbcc. */
+  color?: string;
 }
 
 export interface PageSettings {
