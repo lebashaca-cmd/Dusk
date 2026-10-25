@@ -153,7 +153,6 @@ export class Stage {
   /** The wheel and the trackpad: the page eases toward where you scrolled, like it has a weight. */
   private onWheel(e: WheelEvent, scroller: HTMLElement): void {
     if (e.ctrlKey || e.defaultPrevented || e.deltaY === 0 && e.deltaX !== 0) return;
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const max = scroller.scrollHeight - scroller.clientHeight;
     if (max <= 0) return;
     // A piece that scrolls on its own (a tall piece with a fixed height) keeps the wheel while it can use it.
@@ -173,20 +172,31 @@ export class Stage {
     if (this.scrolling && this.glide) return;
     this.glide = true;
     this.scrolling = true;
+    this.vel = 0;
     cancelAnimationFrame(this.scrollAnim);
     let last = performance.now();
+    // A spring that is neither bouncy nor sluggish: it starts from rest and builds up speed (the ease in),
+    // then slows down gently as it reaches the goal (the ease out). New wheel turns keep its speed.
+    const W = 8;
     const step = (now: number): void => {
-      const dt = Math.min(64, now - last);
+      let left = Math.min(64, now - last) / 1000;
       last = now;
-      // Easing toward the goal: it starts fast and settles slowly, which is what gives it weight.
-      this.pos += (this.goal - this.pos) * (1 - Math.exp(-dt / 150));
-      if (Math.abs(this.goal - this.pos) < 0.4) this.pos = this.goal;
+      while (left > 0) {
+        const h = Math.min(left, 1 / 240);
+        this.vel += (W * W * (this.goal - this.pos) - 2 * W * this.vel) * h;
+        this.pos += this.vel * h;
+        left -= h;
+      }
+      if (Math.abs(this.goal - this.pos) < 0.3 && Math.abs(this.vel) < 6) { this.pos = this.goal; this.vel = 0; }
+      if (this.pos < 0 || this.pos > max) { this.pos = Math.max(0, Math.min(max, this.pos)); this.vel = 0; this.goal = this.pos; }
       scroller.scrollTop = this.pos;
+      // The page hit the top or the bottom: the spring is done.
       if (this.pos === this.goal) { this.scrolling = false; this.glide = false; return; }
       this.scrollAnim = requestAnimationFrame(step);
     };
     this.scrollAnim = requestAnimationFrame(step);
   }
+  private vel = 0;
   private glide = false;
 
   /** Scroll smoothly, down or up, slowing in and out. A button asked for it, so it always moves smoothly. */
