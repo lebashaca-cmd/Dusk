@@ -1,6 +1,8 @@
 import { BOARD_H, BOARD_W, defaultBoard, kindOf, knownPiece, PAGE_KINDS, PAGE_WIDGETS } from "../../shared/constants";
 import type { BoardBox, RenderModel } from "../../shared/types";
-import { isVideoUrl } from "../../shared/url";
+import { brandForUrl } from "../../shared/brands";
+import { isVideoUrl, safeUrl } from "../../shared/url";
+import { icon } from "../ui/icons";
 import { esc } from "../util/dom";
 import { headHTML, linksHTML, shareHTML, viewsHTML } from "./card";
 
@@ -20,6 +22,8 @@ export const STACK_BELOW = 720;
 /** The pieces of the page, and what goes inside each one. */
 export function widgetHTML(id: string, m: RenderModel, box?: BoardBox): string {
   switch (kindOf(id)) {
+    case "item": return itemHTML(box);
+    case "group": return groupHTML(box, m);
     case "rail": return railHTML(m.profile.page.board, box);
     case "text": return `<div class="ftext">${box?.label ? `<h3>${esc(box.label)}</h3>` : ""}${box?.text ? `<p>${esc(box.text).replace(/\n/g, "<br>")}</p>` : ""}${box?.label || box?.text ? "" : `<p class="ftext-empty">Write something</p>`}</div>`;
     case "image": return box?.url && isVideoUrl(box.url) ? `<video class="fimg" src="${esc(box.url)}" aria-label="${esc(box.label ?? "")}" autoplay muted loop playsinline preload="metadata"></video>` : box?.url ? `<img class="fimg" src="${esc(box.url)}" alt="${esc(box.label ?? "")}" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : `<div class="fimg-empty">Add a picture or video address, or choose a file</div>`;
@@ -44,6 +48,37 @@ function jumpUp(board: readonly BoardBox[], box?: BoardBox): boolean {
   return y < box.y;
 }
 
+/** A link or a line of text, as its owner set it. */
+function itemHTML(box?: BoardBox): string {
+  const mode = box?.mode ?? "link";
+  const href = box?.url ? safeUrl(box.url) : "";
+  const label = box?.label?.trim() ?? "";
+  const kind = box?.icon ?? (mode === "link" ? "auto" : "none");
+  const ic = kind === "none" ? "" : icon(kind === "auto" ? (brandForUrl(href) ?? "link") : (kind as never));
+  const shown = label || (mode === "link" ? href.replace(/^https?:\/\//, "") : "");
+  const words = `<span class="t"><b${shown ? "" : ' class="fitem-empty"'}>${esc(shown || "Write something")}</b>${box?.text ? `<small>${esc(box.text)}</small>` : ""}</span>`;
+  const arrow = mode === "link" ? `<span class="arr">${icon("arrow")}</span>` : "";
+  const cls = `fitem${mode === "text" ? " is-text" : ""}`;
+  return href
+    ? `<a class="${cls}" href="${esc(href)}" target="_blank" rel="noopener noreferrer">${ic}${words}${arrow}</a>`
+    : `<span class="${cls}">${ic}${words}${arrow}</span>`;
+}
+
+/** The items that sit in a group. */
+export function itemsOf(board: readonly BoardBox[], group: BoardBox): BoardBox[] {
+  return board.filter(b => b.into === group.id);
+}
+
+/** A group: the items put into it, laid out in a row, a column or a grid. */
+function groupHTML(box: BoardBox | undefined, m: RenderModel): string {
+  if (!box) return "";
+  const kids = itemsOf(m.profile.page.board, box);
+  const title = box.label ? `<h3 class="fgroup-t">${esc(box.label)}</h3>` : "";
+  const gap = typeof box.gap === "number" ? ` style="--gap:${box.gap}px"` : "";
+  const body = kids.length ? kids.map(k => boxHTML(k, widgetHTML(k.id, m, k), true)).join("") : `<span class="fgroup-empty"></span>`;
+  return `<div class="fgroup" data-flow="${box.flow ?? "col"}"${gap}>${title}${body}</div>`;
+}
+
 /** The pages a rail points at: the top of the page, then every page panel, from the top down. */
 export function railPages(board: readonly BoardBox[]): Array<{ id: string; label: string }> {
   const pages = board.filter(b => kindOf(b.id) === "page").sort((a, b) => a.y - b.y);
@@ -65,7 +100,7 @@ function pageTitle(box?: BoardBox): string {
 export function pieceLabel(box: BoardBox): string {
   const kind = kindOf(box.id);
   const base = PAGE_WIDGETS.find(w => w.id === kind)?.label ?? PAGE_KINDS.find(k => k.kind === kind)?.label ?? box.id;
-  return (kind === "page" || kind === "jump") && box.label ? `${base}: ${box.label}` : base;
+  return (kind === "page" || kind === "jump" || kind === "group" || kind === "item") && box.label ? `${base}: ${box.label}` : base;
 }
 
 /** The boxes to draw: the ones the owner set, or a tidy page if there are none. */
@@ -80,8 +115,8 @@ export function boxInner(body: string): string {
 }
 
 /** One box of the board, with its place and size in CSS variables. */
-export function boxHTML(b: BoardBox, body: string): string {
-  return `<div class="fbox" data-widget="${esc(b.id)}" data-kind="${esc(kindOf(b.id))}" ${boxAttrs(b)} style="${boxVars(b)}">${boxInner(body)}</div>`;
+export function boxHTML(b: BoardBox, body: string, child = false): string {
+  return `<div class="fbox${child ? " fgi" : ""}" data-widget="${esc(b.id)}" data-kind="${esc(kindOf(b.id))}" ${boxAttrs(b)} style="${boxVars(b)}">${boxInner(body)}</div>`;
 }
 
 /** The look a piece has on its own: how it is lined up and how it is filled. */
@@ -167,7 +202,10 @@ export function boxVars(b: BoardBox): string {
 /** The free-form page, ready to be dropped into the stage. */
 export function freeHTML(m: RenderModel, boxes: readonly BoardBox[] | undefined): string {
   const list = pageBoxes(boxes);
+  const groups = new Set(list.filter(b => kindOf(b.id) === "group").map(b => b.id));
   const parts = list.map(b => {
+    // An item in a group is drawn inside the group.
+    if (b.into && groups.has(b.id === b.into ? "" : b.into)) return "";
     // A rail docked to the side of the screen is drawn by the stage, outside the board.
     if (kindOf(b.id) === "rail" && (b.dock === "left" || b.dock === "right")) return "";
     const body = widgetHTML(b.id, m, b);
@@ -180,7 +218,7 @@ export function freeHTML(m: RenderModel, boxes: readonly BoardBox[] | undefined)
 /** How tall the board has to be to hold every piece on it, with room below the last one. */
 export function boardHeight(canvas: HTMLElement, least = BOARD_H): number {
   let bottom = 0;
-  for (const box of canvas.querySelectorAll<HTMLElement>(".fbox")) {
+  for (const box of canvas.querySelectorAll<HTMLElement>(":scope > .fbox")) {
     bottom = Math.max(bottom, box.offsetTop + box.offsetHeight);
   }
   return Math.max(least, Math.ceil(bottom + 40));
@@ -217,7 +255,7 @@ export function fitFree(stage: HTMLElement): void {
   stage.classList.toggle("is-stacked", narrow);
   if (narrow) {
     // The pieces follow each other from the top of the board to the bottom, left to right.
-    const boxes = [...canvas.querySelectorAll<HTMLElement>(".fbox")];
+    const boxes = [...canvas.querySelectorAll<HTMLElement>(":scope > .fbox")];
     boxes.sort((a, b) => (a.offsetTop - b.offsetTop) || (a.offsetLeft - b.offsetLeft));
     boxes.forEach((b, i) => b.style.setProperty("--o", String(i)));
     scale.style.width = "";
@@ -235,7 +273,7 @@ export function fitFree(stage: HTMLElement): void {
   const bw = wide ? avail : BOARD_W;
   const extra = bw - BOARD_W;
   canvas.style.setProperty("--bw", `${bw}px`);
-  for (const b of canvas.querySelectorAll<HTMLElement>(".fbox")) {
+  for (const b of canvas.querySelectorAll<HTMLElement>(":scope > .fbox")) {
     const x = parseFloat(b.style.getPropertyValue("--x")) || 0;
     const w = parseFloat(b.style.getPropertyValue("--w")) || 0;
     const { ex, ew } = anchorShift(x, w, extra);

@@ -102,6 +102,8 @@ export const PAGE_KINDS = [
   { kind: "text", label: "Text", w: 360, h: 160 },
   { kind: "image", label: "Image", w: 360, h: 240 },
   { kind: "divider", label: "Divider", w: 400, h: 24 },
+  { kind: "item", label: "Link or text", w: 300, h: 64 },
+  { kind: "group", label: "Group", w: 340, h: 200 },
 ] as const satisfies ReadonlyArray<{ kind: string; label: string; w: number; h: number }>;
 
 /** The kind of piece an id is: "page:2" is a "page", "links" is "links". */
@@ -110,7 +112,7 @@ export const kindOf = (id: string): string => id.split(":")[0] ?? id;
 /** Whether an id names a piece that exists: one of the usual pieces, or a copy of a page or a button. */
 export function knownPiece(id: string): boolean {
   if (PAGE_WIDGETS.some(w => w.id === id)) return true;
-  return /^(page|jump|rail|text|image|divider):\d{1,3}$/.test(id);
+  return /^(page|jump|rail|text|image|divider|item|group):\d{1,3}$/.test(id);
 }
 
 /** The most pieces a board can hold. */
@@ -261,6 +263,11 @@ export function normalizeBoard(board: unknown): BoardBox[] {
     const shadow = nn(box.shadow, 0, 100); if (shadow !== undefined) piece.shadow = shadow;
     const z = nn(box.z, 0, 20); if (z !== undefined) piece.z = z;
     if (typeof box.label === "string") piece.label = box.label.slice(0, 60);
+    if (box.mode === "link" || box.mode === "text") piece.mode = box.mode;
+    if (typeof box.into === "string" && /^group:\d{1,3}$/.test(box.into)) piece.into = box.into;
+    if (box.flow === "col" || box.flow === "row" || box.flow === "grid") piece.flow = box.flow;
+    const gap = nn(box.gap, 0, 48); if (gap !== undefined) piece.gap = gap;
+    if (typeof box.icon === "string" && /^[a-z0-9-]{1,24}$/.test(box.icon)) piece.icon = box.icon;
     if (typeof box.text === "string") piece.text = box.text.slice(0, 600);
     if (typeof box.url === "string") { const u = box.url.trim().slice(0, 500); if (/^https?:\/\/\S+$/i.test(u) || /^\/media\/file\/[A-Za-z0-9_-]{1,40}\/m-[a-f0-9]{16}\.(jpg|png|webp|gif|mp4|webm|ogg)$/.test(u)) piece.url = u; }
     if (box.dock === "here" || box.dock === "left" || box.dock === "right") piece.dock = box.dock;
@@ -283,6 +290,10 @@ export function normalizeBoard(board: unknown): BoardBox[] {
     if (typeof box.target === "string" && /^(top|page:\d{1,3})$/.test(box.target)) piece.target = box.target;
     out.push(piece);
     if (out.length >= MAX_PIECES) break;
+  }
+  // An item only sits in a group that exists, and only a standalone piece is a group's home.
+  for (const b of out) {
+    if (b.into && (!out.some(g => g.id === b.into && !g.into) || kindOf(b.id) !== "item")) delete b.into;
   }
   return out;
 }

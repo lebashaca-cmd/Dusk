@@ -1,5 +1,5 @@
 import { BOARD_H, BOARD_W, BOX_ALIGNS, BOX_FILLS, defaultBoard, kindOf, MAX_PIECES, PAGE_KINDS, PAGE_WIDGETS } from "../../../shared/constants";
-import type { BoardBox, BoxAlign, BoxFill, RenderModel } from "../../../shared/types";
+import { ICON_NAMES, type BoardBox, type BoxAlign, type BoxFill, type RenderModel } from "../../../shared/types";
 import { anchorShift, applyBoxLook, boardHeight, boardScale, boxInner, layerOf, pieceLabel, widgetHTML } from "../../render/free";
 import { Stage } from "../../render/stage";
 import { applyTheme } from "../../render/theme";
@@ -20,7 +20,7 @@ const ALIGN_LABELS: Record<BoxAlign, string> = { center: "Centre", left: "Left" 
 const FILL_LABELS: Record<BoxFill, string> = { soft: "Soft", solid: "Solid", outline: "Outline", glass: "Glass", none: "None" };
 
 /** Which setting each slider changes. */
-const SLIDER_KEYS: Record<string, keyof BoardBox> = { sz: "size", h: "h", pad: "pad", radius: "radius", op: "opacity", bl: "blur", bd: "borderW", sh: "shadow", gl: "glow", rot: "rot", zm: "zoom", bga: "bga" };
+const SLIDER_KEYS: Record<string, keyof BoardBox> = { sz: "size", h: "h", pad: "pad", radius: "radius", op: "opacity", bl: "blur", bd: "borderW", sh: "shadow", gl: "glow", rot: "rot", zm: "zoom", bga: "bga", gp: "gap" };
 
 /** The groups of options that are open. They stay open from one piece to the next. */
 const OPEN = new Set<string>(["content", "place"]);
@@ -96,6 +96,9 @@ export const pageboardPane: Pane = {
       if (!p.page.board.length) p.page.board = defaultBoard();
       return p.page.board;
     };
+    /** Whether an item sits in a group that is on the board. Such an item is drawn inside the group, not on the board. */
+    const isChild = (b: BoardBox): boolean => Boolean(b.into) && boxes().some(g => g.id === b.into);
+    const tops = (): BoardBox[] => boxes().filter(b => !isChild(b));
     const picked = (): BoardBox | undefined => (selected ? boxes().find(b => b.id === selected) : undefined);
     const cardOf = (id: string): HTMLElement | null => canvas.querySelector<HTMLElement>(`.fbox[data-widget="${id}"]`);
 
@@ -139,13 +142,13 @@ export const pageboardPane: Pane = {
       canvas.style.setProperty("--inv", String(Math.min(2.2, 1 / scale)));
       scaleBox.style.width = `${Math.round(bw * scale)}px`;
       zoom.textContent = full ? `${Math.round(bw * scale)}px wide` : `${Math.round(scale * 100)}%`;
-      if (moved) for (const b of boxes()) layout(b);
+      if (moved) for (const b of tops()) layout(b);
       grow();
     };
 
     /** Where a new piece can go without landing on another one. */
     const findSpot = (w: number, h: number): { x: number; y: number } => {
-      const rects = boxes().map(b => {
+      const rects = tops().map(b => {
         const c = cardOf(b.id);
         return { x: b.x, y: b.y, w: b.w, h: c ? c.offsetHeight : b.h };
       });
@@ -301,18 +304,37 @@ export const pageboardPane: Pane = {
            <div class="pboard-opt"><span>Fills the piece</span><div class="seg" role="group" aria-label="Fills the piece">${seg("look", "cover", "Cover", box.look !== "contain")}${seg("look", "contain", "Fit inside", box.look === "contain")}</div></div>`;
       } else if (kind === "divider") {
         words = `${slider("sz", "Thickness", box.size ?? 2, 1, 12, "px")}${colorIn}`;
+      } else if (kind === "item") {
+        const mode = box.mode ?? "link";
+        const groups = boxes().filter(b => kindOf(b.id) === "group");
+        const icons = ICON_NAMES.map(n => `<option value="${n}"${(box.icon ?? (mode === "link" ? "auto" : "none")) === n ? " selected" : ""}>${n === "auto" ? "Pick from the address" : n[0]!.toUpperCase() + n.slice(1)}</option>`).join("");
+        words = `<div class="pboard-opt"><span>This is</span><div class="seg" role="group" aria-label="This is">${setSeg("mode", "link", "A link", mode === "link")}${setSeg("mode", "text", "Just text", mode === "text")}</div></div>
+           ${textIn("label", mode === "link" ? "Button text" : "Text", box.label ?? "", mode === "link" ? "My link" : "Write something", 80)}
+           ${textIn("text", "Small line under it", box.text ?? "", "Optional", 80)}
+           ${textIn("url", mode === "link" ? "Link address" : "Make it a link (optional)", box.url ?? "", "https://…", 500)}
+           <label class="pboard-opt"><span>Little picture</span><select class="pboard-text" data-pb-icon><option value="none"${(box.icon ?? (mode === "link" ? "auto" : "none")) === "none" ? " selected" : ""}>None</option>${icons}</select></label>
+           <label class="pboard-opt"><span>Group</span><select class="pboard-text" data-pb-into><option value="">On its own</option>${groups.map(g => `<option value="${esc(g.id)}"${box.into === g.id ? " selected" : ""}>${esc(pieceLabel(g))}</option>`).join("")}</select></label>
+           ${box.into ? `<div class="pboard-opt"><span>Order in the group</span><div class="seg" role="group" aria-label="Order">${act("item-up", "Move up")}${act("item-down", "Move down")}</div></div>` : ""}`;
+      } else if (kind === "group") {
+        const flow = box.flow ?? "col";
+        words = `${textIn("label", "Title (optional)", box.label ?? "", "No title")}
+           <div class="pboard-opt"><span>Items go</span><div class="seg" role="group" aria-label="Items go">${setSeg("flow", "col", "Down", flow === "col")}${setSeg("flow", "row", "Across", flow === "row")}${setSeg("flow", "grid", "In a grid", flow === "grid")}</div></div>
+           ${slider("gp", "Space between", box.gap ?? 10, 0, 48, "px")}
+           <button class="btn-ghost" type="button" data-pb-additem style="justify-content:center">+ Add a link or text here</button>
+           <p class="note">${boxes().filter(b => b.into === box.id).length} in this group. Pick an item to change it, move it up or down, or take it out of the group.</p>`;
       } else if (kind === "lyrics") {
         words = `<p class="note">The lyrics of the song that is playing show here, instead of floating over the page. Nothing shows until a song plays.</p>`;
       } else if (kind === "music" || kind === "discord") {
         words = `<p class="note">This shows when ${kind === "music" ? "one of your songs is playing" : "Discord has something to show"}. Until then it is hidden on your page.</p>`;
       }
 
-      const nums = `<div class="pboard-nums">${num("x", "Left", box.x, 0, BOARD_W)}${num("y", "Top", box.y, 0, MAX_Y)}${num("w", "Width", box.w, 20, 3000)}${num("h", "Height", box.h, 16, 3000)}</div>`;
+      const child = isChild(box);
+      const nums = child ? "" : `<div class="pboard-nums">${num("x", "Left", box.x, 0, BOARD_W)}${num("y", "Top", box.y, 0, MAX_Y)}${num("w", "Width", box.w, 20, 3000)}${num("h", "Height", box.h, 16, 3000)}</div>`;
       const vAlign = box.valign ?? "middle";
 
       const groups = [
         group("content", "Content", words),
-        group("place", "Position and size", `
+        child ? "" : group("place", "Position and size", `
           <div class="pboard-opt"><span>Put it at</span><div class="seg" role="group" aria-label="Put it at">${act("at-left", "Left edge")}${act("at-center", "Centre")}${act("at-right", "Right edge")}${act("at-top", "Top edge")}${act("at-full", "Full width")}</div></div>
           ${nums}
           <div class="pboard-opt"><span>Height</span><div class="seg" role="group" aria-label="Height">${seg("height", "auto", "Fit the content", !box.fixedH)}${seg("height", "fixed", "Fixed", Boolean(box.fixedH))}</div></div>
@@ -342,7 +364,7 @@ export const pageboardPane: Pane = {
           <div class="pboard-opt"><span>When the pointer is over it</span><div class="seg" role="group" aria-label="Hover">${(["none", "lift", "grow", "glow"] as const).map(h => setSeg("hover", h, h === "none" ? "Nothing" : h[0]!.toUpperCase() + h.slice(1), (box.hover ?? "none") === h)).join("")}</div></div>
           <div class="pboard-opt"><span>How it arrives</span><div class="seg" role="group" aria-label="Arrival">${(["none", "fade", "rise", "zoom", "slide"] as const).map(a => setSeg("anim", a, a === "none" ? "Nothing" : a[0]!.toUpperCase() + a.slice(1), (box.anim ?? "none") === a)).join("")}</div></div>
           ${flag("float", "Floats gently up and down", Boolean(box.float))}`),
-        group("layer", "Layer and phones", `
+        child ? "" : group("layer", "Layer and phones", `
           <div class="pboard-opt"><span>Layer <em>${layer}</em></span><div class="seg" role="group" aria-label="Layer">${act("back", "Send back")}${act("forward", "Bring forward")}</div></div>
           ${flag("hideMobile", "Leave it out on phones", Boolean(box.hideMobile))}`),
       ].join("");
@@ -365,7 +387,7 @@ export const pageboardPane: Pane = {
       canvas.innerHTML = "";
       const model = store.model;
       if (model) applyTheme(canvas, model);
-      for (const box of boxes()) place(box, model);
+      for (const box of tops()) place(box, model);
       drawChips();
       drawNote();
       drawOpts();
@@ -398,7 +420,11 @@ export const pageboardPane: Pane = {
     const redraw = (): void => {
       if (holding) { late = true; return; }
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => { draw(); watch(); if (bgStage && store.model) bgStage.update(store.model); }, 0);
+      timer = window.setTimeout(() => {
+        // Someone is typing in one of the options: drawing the panel again now would take the box out from under them.
+        const at = document.activeElement;
+        if (at && opts.contains(at) && /^(INPUT|TEXTAREA|SELECT)$/.test(at.tagName)) return;
+        draw(); watch(); if (bgStage && store.model) bgStage.update(store.model); }, 0);
     };
     const hold = (): void => { holding = true; };
     const release = (): void => {
@@ -462,7 +488,7 @@ export const pageboardPane: Pane = {
         if (document.fullscreenElement === wrap) void document.exitFullscreen().catch(() => {});
       }
       fit();
-      for (const b of boxes()) layout(b);
+      for (const b of tops()) layout(b);
       grow();
     };
     const onFullChange = (): void => { if (full && !document.fullscreenElement && wrap.dataset.fsReady === "1") setFull(false); };
@@ -585,6 +611,7 @@ export const pageboardPane: Pane = {
         const key = SLIDER_KEYS[input.dataset.key ?? ""];
         if (!box || !key) return;
         change(box, { [key]: Number(input.value) } as Partial<BoardBox>);
+        if (key === "gap") refresh(box);
         const readout = opts.querySelector<HTMLElement>(`[data-pb-${input.dataset.key}-val]`);
         if (readout) readout.textContent = `${input.value}${input.dataset.unit ?? ""}`;
       }),
@@ -724,9 +751,56 @@ export const pageboardPane: Pane = {
         const [key, value] = (t.dataset.pbSet ?? "").split(":");
         if (!box || !key || !value) return;
         (box as unknown as Record<string, unknown>)[key] = value;
+        // A line of text starts without a little picture, and a link with one picked from its address.
+        if (key === "mode") { if (value === "text" && (!box.icon || box.icon === "auto")) box.icon = "none"; else if (value === "link" && (!box.icon || box.icon === "none")) box.icon = "auto"; }
         change(box, {});
         commit();
-        drawOpts();
+        // What an item is, and how a group lays out its items, changes what is drawn.
+        if (key === "mode" || key === "flow") { draw(); watch(); } else drawOpts();
+      }),
+
+      // A link or a line of text: its little picture, and which group it is in.
+      delegate(el, "change", "[data-pb-icon]", (_e, t) => {
+        const box = picked();
+        if (!box) return;
+        box.icon = (t as HTMLSelectElement).value;
+        refresh(box);
+        commit();
+      }),
+      delegate(el, "change", "[data-pb-into]", (_e, t) => {
+        const box = picked();
+        if (!box) return;
+        const to = (t as HTMLSelectElement).value;
+        if (to) box.into = to;
+        else if (box.into) {
+          // Out of its group, the item is put on the board in a free spot.
+          delete box.into;
+          const sp = findSpot(box.w, box.h);
+          box.x = sp.x;
+          box.y = sp.y;
+        }
+        commit();
+        draw();
+        watch();
+      }),
+      delegate(el, "click", "[data-pb-item-up], [data-pb-item-down]", (_e, t) => {
+        const box = picked();
+        if (!box?.into) return;
+        const list = boxes();
+        const mates = list.filter(b => b.into === box.into);
+        const i = mates.indexOf(box);
+        const other = mates[i + ("pbItemDown" in t.dataset ? 1 : -1)];
+        if (!other) return;
+        // The items follow each other in the order of the board's list, so the two swap places in it.
+        const a = list.indexOf(box);
+        const b = list.indexOf(other);
+        [list[a], list[b]] = [list[b]!, list[a]!];
+        commit();
+        draw();
+        watch();
+      }),
+      delegate(el, "click", "[data-pb-additem]", () => {
+        el.querySelector<HTMLElement>('.chip-add[data-pb-add="item"]')?.click();
       }),
       delegate(el, "change", "[data-pb-flag]", (_e, t) => {
         const box = picked();
@@ -774,7 +848,7 @@ export const pageboardPane: Pane = {
         const spot = findSpot(spec.w, spec.h);
         if (kind === "page") {
           // The next page starts below everything that is already there.
-          const bottom = list.reduce((m, b) => { const c = cardOf(b.id); return Math.max(m, b.y + (c ? c.offsetHeight : b.h)); }, 0);
+          const bottom = list.filter(b => !isChild(b)).reduce((m, b) => { const c = cardOf(b.id); return Math.max(m, b.y + (c ? c.offsetHeight : b.h)); }, 0);
           const y = Math.ceil((bottom + 80) / GRID) * GRID;
           box = { id, x: 40, y, w: 1120, h: spec.h, fixedH: true, fill: "soft", label: `Page ${list.filter(b => kindOf(b.id) === "page").length + 2}` };
         } else if (kind === "jump") {
@@ -782,6 +856,14 @@ export const pageboardPane: Pane = {
           box = { id, x: spot.x, y: spot.y, w: spec.w, h: spec.h, fill: "outline", label: "Scroll down", target: firstPage?.id ?? "top" };
         } else if (kind === "rail") {
           box = { id, x: BOARD_W - spec.w - 16, y: 120, w: spec.w, h: spec.h, fill: "none", dock: "right", look: "bar" };
+        } else if (kind === "item") {
+          // With a group (or an item in one) picked, the new item goes into that group.
+          const cur = picked();
+          const home = cur && kindOf(cur.id) === "group" ? cur.id : cur?.into;
+          box = { id, x: spot.x, y: spot.y, w: spec.w, h: spec.h, fill: "soft", mode: "link", label: "My link", icon: "auto" };
+          if (home && list.some(g => g.id === home)) box.into = home;
+        } else if (kind === "group") {
+          box = { id, x: spot.x, y: spot.y, w: spec.w, h: spec.h, fill: "none", flow: "col", gap: 10 };
         } else if (kind === "text") {
           box = { id, x: spot.x, y: spot.y, w: spec.w, h: spec.h, fill: "soft", label: "A heading", text: "Write something here." };
         } else if (kind === "image") {
@@ -800,6 +882,10 @@ export const pageboardPane: Pane = {
         const box = picked();
         if (!box) return;
         const list = boxes();
+        // The items of a group that is removed are put back on the board, one under the other.
+        if (kindOf(box.id) === "group") {
+          for (const kid of list.filter(b => b.into === box.id)) { delete kid.into; const sp = findSpot(kid.w, kid.h); kid.x = sp.x; kid.y = sp.y; }
+        }
         list.splice(list.indexOf(box), 1);
         // A button that went to this page goes to the top now.
         for (const b of list) if (b.target === box.id) b.target = "top";

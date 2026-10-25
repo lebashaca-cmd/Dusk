@@ -199,6 +199,16 @@ export interface BoardBox {
   size?: number;
   /** The colour of a piece's writing, rail or divider, like #aabbcc. */
   color?: string;
+  /** For an item: a link (a button that opens an address) or plain text. */
+  mode?: "link" | "text";
+  /** For an item: the id of the group it sits in. An item in a group has no place of its own on the board. */
+  into?: string;
+  /** For a group: how its items are laid out. */
+  flow?: "col" | "row" | "grid";
+  /** For a group: the space between its items, in pixels. */
+  gap?: number;
+  /** For an item: the little picture beside its words ("auto" picks one from the address, "none" shows no picture). */
+  icon?: string;
   /** Where the content sits in a piece that is taller than it. */
   valign?: "top" | "middle" | "bottom";
   /** A background colour of its own, and how solid it is (0 to 100). */
