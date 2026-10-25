@@ -90,6 +90,12 @@ const profileSchema = z.object({
       y: z.number().min(-2000).max(6000),
       w: z.number().min(60).max(3000),
       h: z.number().min(40).max(3000),
+      align: z.enum(["center", "left"]).optional(),
+      fill: z.enum(["soft", "solid", "outline", "glass", "none"]).optional(),
+      fit: z.enum(["scale", "fixed"]).optional(),
+      fixedH: z.boolean().optional(),
+      pad: z.number().int().min(0).max(60).optional(),
+      radius: z.number().int().min(0).max(80).optional(),
     })).max(12),
   }),
   music: z.object({

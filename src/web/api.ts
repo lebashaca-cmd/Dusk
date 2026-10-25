@@ -39,6 +39,8 @@ const send = <T>(method: string, url: string, body?: object | FormData) => reque
 
 export const api = {
   me: () => get<MeResponse>("/api/me"),
+  register: (email: string, username: string, password: string) => send<{ ok: boolean }>("POST", "/auth/register", { email, username, password }),
+  login: (identifier: string, password: string) => send<{ ok: boolean }>("POST", "/auth/login", { identifier, password }),
   stats: () => get<SiteStats>("/api/stats"),
   ping: (id: string) => send<void>("POST", "/api/ping", { id }),
   config: () => get<SiteConfig>("/api/config"),

@@ -39,6 +39,10 @@ export interface UserRecord {
   /** Where and when this account last logged in. Kept for security notices. Never shown on a page. */
   lastLoginIp?: string | null;
   lastLoginAt?: number;
+  /** Set when the account was made with an email and a password instead of Discord. Lowercase. */
+  email?: string;
+  /** scrypt hash of the password ("scrypt$salt$hash"). Never sent anywhere. Only on email accounts. */
+  passHash?: string;
 }
 
 export interface TemplateRecord {
@@ -172,6 +176,10 @@ class Database {
   userByName(username: string): UserRecord | undefined {
     const id = this.data.usernames[username];
     return id ? this.data.users[id] : undefined;
+  }
+
+  userByEmail(email: string): UserRecord | undefined {
+    return Object.values(this.data.users).find(u => u.email === email);
   }
 
   usernameTaken(username: string, exceptUserId?: string): boolean {

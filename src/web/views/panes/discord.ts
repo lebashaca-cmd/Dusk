@@ -16,7 +16,7 @@ export const discordPane: Pane = {
       el.innerHTML = [
         group("Your Discord account",
           `<div class="acct">${u.discordAvatarUrl ? `<img src="${esc(u.discordAvatarUrl)}" alt="" referrerpolicy="no-referrer">` : `<span class="wl">${esc(u.discordName.charAt(0).toUpperCase())}</span>`}
-            <div><b>${esc(u.discordName)}</b><small>Logged in with Discord${dev ? " (test login)" : ""}</small></div></div>`),
+            <div><b>${esc(u.discordName)}</b><small>${store.me!.discord ? `Logged in with Discord${dev ? " (test login)" : ""}` : "Logged in with email"}</small></div></div>`),
         group("Live status",
           `<div class="banner" id="status" role="status"></div>
            <button class="btn-ghost" type="button" id="retry" style="justify-content:center">Try again</button>
@@ -36,7 +36,7 @@ export const discordPane: Pane = {
       if (!s) return;
       const on = store.profile.discord.enabled;
       s.className = `banner ${on ? lanyard.status : ""}`.trim();
-      s.textContent = !on ? "Live status is off." : dev ? "Test logins have no real Discord account, so there is nothing to show." : lanyard.message || "Waiting…";
+      s.textContent = !store.me!.discord ? "This account was made with an email, so there is no Discord status to show." : !on ? "Live status is off." : dev ? "Test logins have no real Discord account, so there is nothing to show." : lanyard.message || "Waiting…";
     };
     draw();
     const offs = [

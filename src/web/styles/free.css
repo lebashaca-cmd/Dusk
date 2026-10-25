@@ -2,20 +2,16 @@
 
 .is-free .mount { max-width: none; width: 100%; flex: 1 1 auto; }
 .free-scale { position: relative; margin: 0 auto; }
-.free { position: relative; width: var(--bw); height: var(--bh); transform-origin: top left; }
+.free { position: relative; width: var(--bw); min-height: 400px; transform-origin: top left; }
 
-/* One piece of the page. Its place and size come from the owner's board. */
+/* One piece of the page. Its place and width come from the owner's board; it is as tall as what is in it. */
 .fbox {
   position: absolute;
   left: var(--x);
   top: var(--y);
   width: var(--w);
-  height: var(--h);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
+  height: var(--h, auto);
+  box-sizing: border-box;
   overflow: hidden;
   border-radius: var(--radius, var(--p-radius));
   text-align: center;
@@ -24,32 +20,25 @@
   background: color-mix(in srgb, var(--p-text) 4%, transparent);
   border: 1px solid color-mix(in srgb, var(--p-text) 12%, transparent);
 }
+/* A piece with a height of its own scrolls if what is inside is taller. */
+.fbox[data-fixed="true"] { overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--p-text) 28%, transparent) transparent; }
 
-/* The room inside the piece. The content is scaled to fit it, and never hangs out. */
-.fbox-fit {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  justify-content: safe center;
-  align-items: safe center;
+/* The room inside the piece. The content sits in it at its own size, lined up the way the piece says. */
+.fbox-in {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100%;
   padding: var(--pad, var(--fit-pad, 16px));
-  overflow: auto;
-  overscroll-behavior: contain;
-  border-radius: inherit;
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--p-text) 28%, transparent) transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: var(--box-items, center);
+  justify-content: center;
+  gap: 14px;
+  text-align: var(--box-align, center);
 }
-/* The holder is the size of the scaled content, so the piece scrolls over the content
-   and never over it. */
-.fbox-box { position: relative; flex: none; overflow: hidden; }
-.fbox-in { position: absolute; left: 0; top: 0; transform-origin: top left; text-align: var(--box-align, center); }
-
-/* A scrollbar of our own, so it sits inside the piece and never over the content. */
-.fbox-fit::-webkit-scrollbar { width: 8px; height: 8px; }
-.fbox-fit::-webkit-scrollbar-track { background: transparent; }
-.fbox-fit::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--p-text) 26%, transparent); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
-.fbox-fit::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--p-text) 40%, transparent); background-clip: padding-box; }
-.fbox-fit::-webkit-scrollbar-corner { background: transparent; }
+.fbox::-webkit-scrollbar { width: 8px; height: 8px; }
+.fbox::-webkit-scrollbar-track { background: transparent; }
+.fbox::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--p-text) 26%, transparent); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
 
 /* The look a piece can have on its own. The page's own setting is the one it starts with. */
 .is-free[data-card="solid"] .fbox { background: var(--p-bg2); border-color: color-mix(in srgb, var(--p-text) 10%, transparent); box-shadow: 0 20px 50px rgb(0 0 0 / calc(var(--p-shadow, 50) * 0.007)); }
@@ -80,22 +69,16 @@
 .fbox .plinks-wrap { width: 100%; }
 .fbox .pslot { width: 100%; }
 
-/* A piece with nothing in it yet says so, rather than sitting there empty. */
-.fbox .pslot:empty { display: flex; }
-.fbox .pslot:empty::after { content: ""; font-size: 12px; color: var(--p-dim); opacity: 0.55; text-align: center; }
-.fbox[data-widget="music"] .pslot:empty::after { content: "No song playing"; }
-.fbox[data-widget="discord"] .pslot:empty::after { content: "Discord is not connected"; }
+/* Music and Discord have nothing to show until something plays, so on a page they stay out of sight until then. */
+.fbox:has(.pslot:empty) { visibility: hidden; }
+.fbox .pslot:empty { min-height: 96px; }
 
 /* On a small screen the pieces stack in a column, because a board scaled to a third is unreadable. */
 .is-free.is-stacked .free { width: 100%; height: auto; display: flex; flex-direction: column; gap: 16px; }
-.is-free.is-stacked .fbox { position: static; display: block; width: 100%; height: auto; min-height: 120px; }
-.is-free.is-stacked .fbox[data-widget="views"] { min-height: 0; }
-/* Stacked, the pieces are as tall as their content, so nothing is scaled. */
-.is-free.is-stacked .fbox-fit { position: relative; inset: auto; display: block; }
-.is-free.is-stacked .fbox-box { position: static; }
-.is-free.is-stacked .fbox-in { position: static; }
+.is-free.is-stacked .fbox { position: static; width: 100%; height: auto; order: var(--o, 0); }
+.is-free.is-stacked .fbox:has(.pslot:empty) { display: none; }
 /* The bar at the top of a public page floats over the page, so the first piece starts below it. */
-.public .stage.is-free.is-stacked .scroll { padding-top: 76px; }
+.public .stage.is-free .scroll { padding-top: 84px; }
 
 /* The lyrics panel floats over the board instead of sitting beside it. */
 .lyr-panel.on-free { position: absolute; right: 16px; bottom: 16px; z-index: 30; width: min(320px, 42%); height: min(420px, 60%); max-width: none; min-width: 0; flex: none; }
@@ -113,26 +96,17 @@
 .pboard-zoom { margin-left: auto; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--dim); }
 .pboard-bar .btn-ghost { margin-left: 12px; }
 
-/* The board is scaled down to fit the pane, so all of it is in view at once. */
+/* The board is drawn as wide as the pane allows and grows downward; the pane scrolls. */
 .pboard-main { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 20px; margin: 0 22px 40px; }
 .pboard-scale { position: relative; flex: none; }
 
 /* The options of the piece that is picked. Beside the board when there is room, so picking a piece never moves the board. */
 .pboard-opts { flex: 1 1 100%; min-width: 0; }
 .pboard-main.beside .pboard-opts { flex: 0 0 300px; width: 300px; position: sticky; top: 0; }
+.pboard-opts-in { display: flex; flex-direction: column; gap: 14px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--glass); }
 .pboard-opts-empty b { font-size: 13px; color: var(--ink); }
 .pboard-opts-empty .note { margin: 0; }
-.pboard-opts-head { flex-wrap: wrap; }
-.pboard-opts-in {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 16px 18px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--glass);
-}
-.pboard-opts-head { display: flex; align-items: center; gap: 10px; }
+.pboard-opts-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .pboard-opts-name { font-size: 13px; font-weight: 600; color: var(--ink); }
 .pboard-opts-head .btn-ghost:last-child { margin-left: auto; }
 .pboard-opts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px 22px; }
@@ -143,70 +117,29 @@
 .pboard-opt input[type="range"] { width: 100%; accent-color: var(--accent); }
 
 .seg { display: flex; flex-wrap: wrap; gap: 6px; }
-.seg-btn {
-  background: var(--glass);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 5px 11px;
-  font-size: 12px;
-  color: var(--ink-2);
-  transition: all 0.2s;
-}
+.seg-btn { background: var(--glass); border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; font-size: 12px; color: var(--ink-2); transition: all 0.2s; }
 .seg-btn:hover { background: var(--glass-2); border-color: var(--line-2); color: var(--ink); }
 .seg-btn[aria-pressed="true"] { border-color: var(--accent); color: var(--ink); background: var(--glass-2); box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1); }
 
-/* The piece that is picked is ringed, so it is clear which one the options are for. */
-.pboard-canvas .fbox.sel { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* The board itself. It is the same thing visitors get, drawn with the same rules. */
+.pboard-canvas { position: absolute; left: 0; top: 0; width: 1200px; min-height: 400px; transform-origin: top left; border: 1px dashed var(--line); border-radius: 20px; overflow: hidden;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px); background-size: 40px 40px; }
+.pboard-canvas .fbox { cursor: grab; visibility: visible; user-select: none; touch-action: none; }
+.pboard-canvas .fbox.dragging { cursor: grabbing; z-index: 5; box-shadow: 0 24px 50px -18px rgba(0, 0, 0, 0.9); }
+.pboard-canvas .fbox:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Pieces are only a picture here: a click picks the piece, it never follows a link or presses a button. */
+.pboard-canvas .fbox-in { pointer-events: none; }
+.pboard-canvas .fbox.sel { outline: 2px solid var(--accent); outline-offset: 2px; z-index: 4; }
+.pboard-canvas .fbox[data-widget="music"] .pslot:empty::after { content: "Your song shows here while it plays"; }
+.pboard-canvas .fbox[data-widget="discord"] .pslot:empty::after { content: "Your Discord status shows here"; }
+.pboard-canvas .pslot:empty { display: grid; place-items: center; }
+.pboard-canvas .pslot:empty::after { font-size: 13px; color: var(--p-dim); text-align: center; padding: 0 12px; }
+.pboard-canvas .fbox:has(.pslot:empty) { visibility: visible; }
 
-.pboard-canvas {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 1200px;
-  height: 1000px;
-  transform-origin: top left;
-  border: 1px dashed var(--line);
-  border-radius: 20px;
-  overflow: hidden;
-}
-.pboard-canvas .fbox { cursor: grab; }
-.pboard-canvas .fbox.dragging { cursor: grabbing; z-index: 5; }
-
-/* The grips that move a piece, and the name on it. They only show while the pointer is near. */
-.pbgrip {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: calc(26px * var(--inv, 1));
-  height: calc(26px * var(--inv, 1));
-  display: grid;
-  place-items: center;
-  color: var(--faint);
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
-  opacity: 0;
-  transition: opacity 0.2s;
-  z-index: 2;
-}
+/* The grip that moves a piece, its name, and the corner that resizes it. They grow as the board is scaled down, so they stay easy to grab. */
+.pbgrip { position: absolute; left: 0; top: 0; width: calc(28px * var(--inv, 1)); height: calc(28px * var(--inv, 1)); display: grid; place-items: center; color: var(--p-dim); cursor: grab; touch-action: none; opacity: 0; transition: opacity 0.2s; z-index: 2; pointer-events: auto; }
 .pbgrip svg { width: calc(15px * var(--inv, 1)); height: calc(15px * var(--inv, 1)); }
-.pbtag {
-  position: absolute;
-  left: calc(30px * var(--inv, 1));
-  top: calc(5px * var(--inv, 1));
-  font-size: calc(11px * var(--inv, 1));
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--p-dim);
-  background: color-mix(in srgb, var(--p-bg) 78%, transparent);
-  padding: 3px 8px;
-  border-radius: 999px;
-  opacity: 0;
-  transition: opacity 0.2s;
-  pointer-events: none;
-  z-index: 2;
-}
-.pboard-canvas .fbox:hover .pbgrip, .pboard-canvas .fbox:hover .pbtag, .pboard-canvas .fbox:focus-visible .pbgrip, .pboard-canvas .fbox:focus-visible .pbtag { opacity: 1; }
-.pboard-canvas .wresize { width: calc(20px * var(--inv, 1)); height: calc(20px * var(--inv, 1)); opacity: 0; transition: opacity 0.2s; z-index: 2; }
-.pboard-canvas .fbox:hover .wresize { opacity: 0.55; }
+.pbtag { position: absolute; left: calc(32px * var(--inv, 1)); top: calc(5px * var(--inv, 1)); font-size: calc(11px * var(--inv, 1)); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--p-dim); background: color-mix(in srgb, var(--p-bg) 78%, transparent); padding: 3px 8px; border-radius: 999px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 2; }
+.pboard-canvas .wresize { position: absolute; right: 0; bottom: 0; width: calc(22px * var(--inv, 1)); height: calc(22px * var(--inv, 1)); opacity: 0; transition: opacity 0.2s; z-index: 2; cursor: nwse-resize; touch-action: none; pointer-events: auto; }
+.pboard-canvas .fbox:hover .pbgrip, .pboard-canvas .fbox:hover .pbtag, .pboard-canvas .fbox:focus-visible .pbgrip, .pboard-canvas .fbox:focus-visible .pbtag, .pboard-canvas .fbox.sel .pbgrip, .pboard-canvas .fbox.sel .pbtag { opacity: 1; }
+.pboard-canvas .fbox:hover .wresize, .pboard-canvas .fbox.sel .wresize { opacity: 0.7; }

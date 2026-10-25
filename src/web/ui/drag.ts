@@ -111,9 +111,10 @@ export function makeSortable(list: HTMLElement, onEnd: () => void): () => void {
  *
  * `scale` says how much smaller the board looks than it is, because a board that is scaled
  * down to fit the screen still measures its pieces in board pixels. `onChange` runs while
- * the card is being dragged, so whatever is inside it can keep up.
+ * the card is being dragged, so whatever is inside it can keep up. `room` says how big the board is
+ * when that is not its size on screen.
  */
-export function makeMover(card: HTMLElement, board: HTMLElement, onEnd: () => void, scale: () => number = () => 1, onChange: () => void = () => {}): () => void {
+export function makeMover(card: HTMLElement, board: HTMLElement, onEnd: () => void, scale: () => number = () => 1, onChange: () => void = () => {}, room?: () => { w: number; h: number }): () => void {
   const handle = card.querySelector<HTMLElement>("[data-move-handle]") ?? card;
   let pointer = -1;
   let startX = 0;
@@ -136,8 +137,10 @@ export function makeMover(card: HTMLElement, board: HTMLElement, onEnd: () => vo
   const move = (e: PointerEvent): void => {
     if (e.pointerId !== pointer) return;
     const k = scale();
-    const maxX = Math.max(0, board.clientWidth - card.offsetWidth);
-    const maxY = Math.max(0, board.clientHeight - card.offsetHeight);
+    // `room` is how much board there is to move in. Without it, the board's own size is used.
+    const space = room ? room() : { w: board.clientWidth, h: board.clientHeight };
+    const maxX = Math.max(0, space.w - card.offsetWidth);
+    const maxY = Math.max(0, space.h - card.offsetHeight);
     const x = Math.max(0, Math.min(maxX, snap(left + (e.clientX - startX) / k)));
     const y = Math.max(0, Math.min(maxY, snap(top + (e.clientY - startY) / k)));
     card.style.left = `${x}px`;

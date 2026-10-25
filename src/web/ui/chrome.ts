@@ -27,7 +27,7 @@ export function siteNav(o: NavOptions): string {
     <div class="nav-r">
       ${o.extra ?? ""}
       ${link("/community", "Community", "community")}
-      ${o.loggedIn ? link("/dashboard", "Dashboard", "dashboard") : `<a class="btn-text" href="/auth/discord">Log in</a>`}
+      ${o.loggedIn ? link("/dashboard", "Dashboard", "dashboard") : `<a class="btn-text" href="/auth/discord" data-login="login">Log in</a>`}
     </div>
   </nav>`;
 }

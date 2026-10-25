@@ -63,7 +63,8 @@ const onError: ErrorRequestHandler = (err, req, res, _next) => {
     status = err.code === "LIMIT_FILE_SIZE" ? 413 : 400;
     message = err.code === "LIMIT_FILE_SIZE" ? "That file is too large." : "The upload didn't work. Try again.";
   } else console.error(err);
-  if (req.path.startsWith("/api")) res.status(status).json({ error: message });
+  // The sign-in box talks JSON to /auth/register and /auth/login; the Discord steps are plain page loads.
+  if (req.path.startsWith("/api") || req.path === "/auth/register" || req.path === "/auth/login" || req.originalUrl.startsWith("/auth/register") || req.originalUrl.startsWith("/auth/login")) res.status(status).json({ error: message });
   else res.status(status).type("text").send(message);
 };
 app.use(onError);

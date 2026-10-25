@@ -96,18 +96,20 @@ export const BOX_ALIGNS: readonly BoxAlign[] = ["center", "left"];
 /** The ways the content of a piece can be fitted into it. */
 export const BOX_FITS: readonly BoxFit[] = ["scale", "fixed"];
 
-/** The size of the board, in pixels. The page is scaled to fit the screen. */
+/** The width of the board, in pixels. The page is scaled to fit the screen's width and scrolls down. */
 export const BOARD_W = 1200;
-export const BOARD_H = 1000;
+/** The height a board has before anything is on it. It grows to hold whatever is placed on it. */
+export const BOARD_H = 700;
 
 /** A tidy page to start from, so switching to the experimental layout shows something. */
 export function defaultBoard(): BoardBox[] {
+  // Pieces are as tall as what is in them, so they are placed with room to grow.
   return [
-    { id: "profile", x: 390, y: 40, w: 420, h: 300 },
-    { id: "links", x: 390, y: 360, w: 420, h: 560 },
+    { id: "profile", x: 390, y: 40, w: 420, h: 340 },
+    { id: "links", x: 390, y: 420, w: 420, h: 400 },
     { id: "music", x: 40, y: 60, w: 330, h: 200 },
     { id: "discord", x: 830, y: 60, w: 330, h: 200 },
-    { id: "views", x: 500, y: 930, w: 200, h: 60 },
+    { id: "views", x: 40, y: 300, w: 200, h: 70 },
   ];
 }
 
@@ -220,6 +222,7 @@ export function normalizeBoard(board: unknown): BoardBox[] {
     if (box.align === "center" || box.align === "left") piece.align = box.align;
     if (box.fill && BOX_FILLS.includes(box.fill)) piece.fill = box.fill;
     if (box.fit && BOX_FITS.includes(box.fit)) piece.fit = box.fit;
+    if (box.fixedH === true) piece.fixedH = true;
     if (typeof box.pad === "number" && Number.isFinite(box.pad)) piece.pad = Math.min(60, Math.max(0, Math.round(box.pad)));
     if (typeof box.radius === "number" && Number.isFinite(box.radius)) piece.radius = Math.min(80, Math.max(0, Math.round(box.radius)));
     out.push(piece);

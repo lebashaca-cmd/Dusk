@@ -7,10 +7,11 @@ import { Stage } from "../render/stage";
 import { store } from "../state";
 import { SKY, siteFooter, siteNav } from "../ui/chrome";
 import { icon } from "../ui/icons";
+import { openLogin } from "../ui/login";
 import { esc, must } from "../util/dom";
 
 const FEATURES: ReadonlyArray<{ icon: string; title: string; text: string }> = [
-  { icon: "discord", title: "Discord login", text: "One click. We read your name and your picture, and nothing else." },
+  { icon: "discord", title: "Easy login", text: "Sign up with an email, or log in with Discord in one click and we read your name and picture, and nothing else." },
   { icon: "gamepad", title: "Live status", text: "Your Discord status, the game you are playing and your Spotify song update as they change." },
   { icon: "music", title: "Your own music", text: "Upload MP3s and type the song and artist. The cover comes from the file, the lyrics from LRCLIB." },
   { icon: "play", title: "Lyrics that follow along", text: "Synced lyrics scroll with the song, in a side panel or in a Dynamic Island above the page." },
@@ -22,15 +23,15 @@ const FEATURES: ReadonlyArray<{ icon: string; title: string; text: string }> = [
 
 const STEPS: ReadonlyArray<{ title: string; text: string }> = [
   { title: "Pick a name", text: "Type the name you want above. It becomes your link, and it is yours as long as you keep it." },
-  { title: "Log in with Discord", text: "One click. Your Discord picture and name fill the page in, and your live status can follow." },
+  { title: "Sign up", text: "Use an email and a password, or Discord: with Discord your picture and name fill the page in, and your live status can follow." },
   { title: "Build your page", text: "Add links, upload a song, pick a theme, and share your link wherever you like." },
 ];
 
 const FAQ: ReadonlyArray<{ q: string; a: string }> = [
-  { q: "Why do I log in with Discord?", a: "It proves the name is yours, gives your page your Discord picture and name, and lets us show your live status and your server roles." },
+  { q: "Do I need Discord?", a: "No. You can sign up with an email, a username and a password. Logging in with Discord adds your Discord picture and name, your live status and your server roles. Accounts made with an email have no Discord status, and there is no password reset yet, so keep your password safe." },
   { q: "How does the live status work?", a: "It uses Lanyard, a free service. Join the Lanyard Discord server with the same account, then turn on live status in the dashboard." },
   { q: "Where do the lyrics come from?", a: "From LRCLIB, a free open lyrics database. If it has no lyrics for a song, the page says so instead of guessing." },
-  { q: "What do you store about me?", a: "Your Discord name and picture, what you put on your page, and your IP address and the time you signed up. The IP and sign-up time are kept for abuse prevention and are never shown on your page." },
+  { q: "What do you store about me?", a: "Your email (if you used one) and a scrambled version of your password, or your Discord name and picture, what you put on your page, and your IP address and the time you signed up. The IP and sign-up time are kept for abuse prevention and are never shown on your page." },
   { q: "Can I see who looked at my page?", a: "You can see how many people opened it, which days they came, and which links they clicked. You cannot see who they are, and the numbers are only ever about your own page." },
   { q: "What can I upload?", a: `MP3 files up to ${Math.round(LIMITS.audioBytes / 1024 / 1024)} MB, and up to ${LIMITS.tracks} songs per page.` },
   { q: "Can I have more than one page?", a: `Yes. Owners and developers can make up to ${"several"} pages on one account, each with its own links, songs and style.` },
@@ -168,7 +169,7 @@ export function mountHome(root: HTMLElement): () => void {
         <label class="claim-field"><span class="pre">${esc(location.host)}/</span><input id="name" name="name" placeholder="yourname" maxlength="20" spellcheck="false" autocapitalize="none" aria-label="Username"></label>
         <button class="btn-primary" id="go" type="submit">Claim</button>
       </form>
-      <p class="hint" id="hint" role="status" aria-live="polite">${esc(notice) || "Pick a name, then continue with Discord."}</p>`;
+      <p class="hint" id="hint" role="status" aria-live="polite">${esc(notice) || "Pick a name, then create your account."}</p>`;
 
   const ticker = TICKER.map(t => `<span>${esc(t)}</span>`).join("");
 
@@ -185,7 +186,7 @@ export function mountHome(root: HTMLElement): () => void {
             <p class="lede">One page for your links, your Discord status and your music — with lyrics that follow the song, and a look you actually chose.</p>
             ${action}
             <ul class="hero-points">
-              <li>${icon("discord")}Discord login</li>
+              <li>${icon("discord")}Email or Discord login</li>
               <li>${icon("gamepad")}Live presence</li>
               <li>${icon("music")}Synced lyrics</li>
               <li>${icon("chart")}Page insights</li>
@@ -359,7 +360,7 @@ export function mountHome(root: HTMLElement): () => void {
     if (input.value !== name) input.value = name;
     ok = false;
     window.clearTimeout(timer);
-    if (!name) { say("Pick a name, then continue with Discord."); return; }
+    if (!name) { say("Pick a name, then create your account."); return; }
     if (checkUsernameFormat(name) === "format") { say(USERNAME_HELP, "err"); return; }
     say("Checking…");
     const mine = ++seq;
@@ -377,8 +378,8 @@ export function mountHome(root: HTMLElement): () => void {
     const name = cleanUsername(input.value);
     if (!name) { input.focus(); say("Type the name you want first.", "err"); return; }
     if (!ok) { say(checkUsernameFormat(name) ? USERNAME_HELP : "Wait for the name check, or try another name.", "err"); return; }
-    go.disabled = true;
-    location.href = `/auth/discord?claim=${encodeURIComponent(name)}`;
+    // The sign-in box opens with the name filled in, and Discord is under it for anyone who prefers that.
+    openLogin({ mode: "signup", username: name });
   });
 
   void api.config().then(cfg => {

@@ -27,6 +27,11 @@ export function customAvatarUrl(u: UserRecord): string | null {
   return u.avatarFile ? `/media/avatar/${u.id}?v=${u.avatarVersion}` : null;
 }
 
+/** Accounts made with an email have no Discord ID, so there is no live Discord status for them. */
+export function isDiscordAccount(u: UserRecord): boolean {
+  return /^\d{15,25}$/.test(ownerOf(u)) || ownerOf(u).startsWith("dev-");
+}
+
 export function toMe(u: UserRecord): MeResponse {
   return {
     user: {
@@ -45,6 +50,7 @@ export function toMe(u: UserRecord): MeResponse {
     views: u.views,
     roles: u.roles,
     guildEnabled: guildConfigured,
+    discord: isDiscordAccount(u),
     vip: isVip(u),
     lyricsProviders: providerInfo(),
   };
@@ -57,7 +63,7 @@ export function toPublic(u: UserRecord): RenderModel {
     profile: limitProfile(u.profile, isVip(u)),
     avatarUrl: customAvatarUrl(u),
     discordAvatarUrl: discordAvatarUrl(ownerOf(u), u.discordAvatar),
-    discordId: u.profile.discord.enabled ? ownerOf(u) : null,
+    discordId: u.profile.discord.enabled && isDiscordAccount(u) ? ownerOf(u) : null,
     tracks: u.profile.music.enabled ? db.tracksOf(u.id).map(toTrack) : [],
     views: u.views,
     roles: u.roles.filter(r => !u.profile.hiddenRoles.includes(r.id)),

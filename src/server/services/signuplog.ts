@@ -5,7 +5,7 @@ import { db, type UserRecord } from "../db";
 export function signupEntry(u: UserRecord) {
   return {
     username: u.username,
-    discordUsername: u.discordHandle ?? u.discordName,
+    discordUsername: u.discordHandle ?? (u.email ? "(email sign-up, no Discord)" : u.discordName),
     ip: u.signupIp ?? null,
     createdAt: new Date(u.createdAt).toISOString(),
   };

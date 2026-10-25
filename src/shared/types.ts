@@ -165,8 +165,10 @@ export interface BoardBox {
   align?: BoxAlign;
   /** How the piece is filled in. */
   fill?: BoxFill;
-  /** How the content is fitted: scaled to the piece, or left at its own size. */
+  /** Old setting from when content was scaled to fit. Kept so saved boards still load; it does nothing now. */
   fit?: BoxFit;
+  /** When true the piece is exactly `h` tall. Otherwise it is as tall as what is inside it. */
+  fixedH?: boolean;
   /** The room inside the piece, in pixels. */
   pad?: number;
   /** The roundness of the piece's corners, in pixels. */
@@ -330,6 +332,8 @@ export interface MeResponse {
   roles: RoleTag[];
   /** Whether this site is tied to a Discord server (so roles and joining apply). */
   guildEnabled: boolean;
+  /** False for an account made with an email: it has no Discord status or Discord roles. */
+  discord: boolean;
   /** VIP members can use the Dynamic Island, the premium backgrounds and picture backgrounds. */
   vip: boolean;
   /** Which lyrics services this server can use, and whether each one is set up. */

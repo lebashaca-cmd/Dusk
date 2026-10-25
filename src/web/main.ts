@@ -5,6 +5,7 @@ import { mountPublic } from "./views/public";
 import { api } from "./api";
 import { startRouter, type Route } from "./router";
 import { store } from "./state";
+import { wireLoginLinks } from "./ui/login";
 import { must } from "./util/dom";
 
 const root = must("#app");
@@ -38,5 +39,6 @@ function startCheckIns(): void {
 }
 
 startCheckIns();
+wireLoginLinks();
 await store.load();
 startRouter(show);

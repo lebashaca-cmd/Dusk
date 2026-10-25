@@ -8,7 +8,7 @@ import { copyText } from "../ui/toast";
 import { delegate } from "../util/dom";
 import { GridField, ParticleField } from "./background";
 import { bioLines, cardHTML } from "./card";
-import { fitBoxes, fitFree, freeHTML } from "./free";
+import { fitFree, freeHTML } from "./free";
 import { IslandPanel } from "./island";
 import { LyricPanel, panelSignature } from "./lyricpanel";
 import { nowCardHTML, tickNowCard } from "./nowcard";
@@ -55,6 +55,7 @@ export class Stage {
   private nowPlaying = new Map<Source, NowPlaying>();
   private tickTimer = 0;
   private resize: ResizeObserver | null = null;
+  private boxes: ResizeObserver | null = null;
   private tilt = { x: 0, y: 0 };
   private tiltTo = { x: 0, y: 0 };
   private tiltRaf = 0;
@@ -101,14 +102,13 @@ export class Stage {
     this.cleanups.push(player.subscribe(() => this.renderSlot()));
     this.cleanups.push(onLyricsLoaded(() => this.renderSlot()));
     this.tickTimer = window.setInterval(() => this.tick(), 250);
-    // The free-form board is scaled to the space it has, so it is fitted again on every resize.
-    // The pieces are fitted as well, because they are measured against the space they are in.
+    // The free-form board is scaled to the width it has, so it is fitted again on every resize. The
+    // pieces grow and shrink with what is in them (a song starts, the bio is typed), and the board
+    // is as tall as its lowest piece, so it is fitted again when any piece changes size.
     if (typeof ResizeObserver !== "undefined") {
-      this.resize = new ResizeObserver(() => {
-        fitFree(this.el);
-        fitBoxes(this.mount);
-      });
+      this.resize = new ResizeObserver(() => fitFree(this.el));
       this.resize.observe(this.el);
+      this.boxes = new ResizeObserver(() => fitFree(this.el));
     }
 
     this.update(model);
@@ -132,6 +132,8 @@ export class Stage {
     this.updateDot();
     this.renderSlot();
     fitFree(this.el);
+    this.boxes?.disconnect();
+    if (free) for (const box of this.mount.querySelectorAll(".fbox-in")) this.boxes?.observe(box);
     if (p.typewriter) this.stopTyping = startTypewriter(this.mount.querySelector<HTMLElement>(".bio-text"), bioLines(p.bio));
 
     if (p.effects.entrance !== this.entrance) {
@@ -162,6 +164,8 @@ export class Stage {
     this.island?.destroy();
     this.resize?.disconnect();
     this.resize = null;
+    this.boxes?.disconnect();
+    this.boxes = null;
     this.cleanups.forEach(fn => fn());
     player.setQueue([], { loop: false, volume: this.model.profile.music.volume });
     lanyard.ensure(null);
@@ -230,8 +234,8 @@ export class Stage {
         this.slotTimer = window.setTimeout(() => slot.classList.remove("anim"), 900);
       }
     }
-    // The content of a piece is drawn at its own size, so it is scaled to fit the piece.
-    if (changed) fitBoxes(this.mount);
+    // A song or a presence card changes how tall its piece is.
+    if (changed) fitFree(this.el);
     this.updateDot();
     this.renderPanel();
     this.tick();

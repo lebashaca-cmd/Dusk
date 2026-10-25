@@ -23,7 +23,7 @@ export const profileRouter = Router();
 /** Re-read the person's roles from the Discord server. A failure keeps the roles we already have. */
 async function refreshRoles(user: ReturnType<typeof currentUser>): Promise<void> {
   const owner = ownerOf(user);
-  if (!guildConfigured || owner.startsWith("dev-")) return;
+  if (!guildConfigured || owner.startsWith("dev-") || !/^\d{15,25}$/.test(owner)) return;
   try {
     const roles = await memberRoles(owner);
     for (const page of db.pagesOf(owner)) { page.roles = roles ?? []; page.rolesAt = Date.now(); }
