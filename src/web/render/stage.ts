@@ -103,11 +103,16 @@ export class Stage {
     // shows which page is on screen.
     const scroller = el.querySelector<HTMLElement>(".scroll");
     if (scroller) {
-      const stop = (): void => cancelAnimationFrame(this.scrollAnim);
-      scroller.addEventListener("wheel", stop, { passive: true });
+      // Touch and the keyboard scroll the usual way and take over from any glide in progress.
+      const stop = (): void => this.stopScroll();
       scroller.addEventListener("touchstart", stop, { passive: true });
       scroller.addEventListener("keydown", stop);
-      scroller.addEventListener("scroll", () => this.syncRail(), { passive: true });
+      // The wheel and the trackpad give the page some weight: it glides to where you scrolled.
+      scroller.addEventListener("wheel", e => this.onWheel(e, scroller), { passive: false });
+      scroller.addEventListener("scroll", () => {
+        if (!this.scrolling) this.pos = scroller.scrollTop;
+        this.syncRail();
+      }, { passive: true });
     }
     // A button on the free-form page scrolls to the page it points at.
     this.cleanups.push(delegate(this.el, "click", "[data-jump]", (_e, t) => this.jump(t.dataset.jump ?? "top")));
@@ -132,20 +137,77 @@ export class Stage {
   }
 
   private scrollAnim = 0;
+  /** Whether a glide or a button's scroll is moving the page right now. */
+  private scrolling = false;
+  /** Where the page is, and where the wheel is taking it, in pixels. */
+  private pos = 0;
+  private goal = 0;
+  /** When the last button scroll started, so the tail of the click's own wheel events do not stop it. */
+  private pressedAt = 0;
 
-  /** Scroll smoothly, down or up, slowing in and out. */
+  private stopScroll(): void {
+    cancelAnimationFrame(this.scrollAnim);
+    this.scrolling = false;
+  }
+
+  /** The wheel and the trackpad: the page eases toward where you scrolled, like it has a weight. */
+  private onWheel(e: WheelEvent, scroller: HTMLElement): void {
+    if (e.ctrlKey || e.defaultPrevented || e.deltaY === 0 && e.deltaX !== 0) return;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const max = scroller.scrollHeight - scroller.clientHeight;
+    if (max <= 0) return;
+    // A piece that scrolls on its own (a tall piece with a fixed height) keeps the wheel while it can use it.
+    for (let n = e.target instanceof Element ? e.target : null; n && n !== scroller; n = n.parentElement) {
+      const o = getComputedStyle(n).overflowY;
+      if ((o === "auto" || o === "scroll") && n.scrollHeight > n.clientHeight + 1) {
+        const room = e.deltaY < 0 ? n.scrollTop > 0 : n.scrollTop + n.clientHeight < n.scrollHeight - 1;
+        if (room) return;
+      }
+    }
+    // A button's scroll is not interrupted by the last of the wheel events that came before the click.
+    if (this.scrolling && performance.now() - this.pressedAt < 350) { e.preventDefault(); return; }
+    const unit = e.deltaMode === 1 ? 18 : e.deltaMode === 2 ? scroller.clientHeight : 1;
+    if (!this.scrolling) { this.pos = scroller.scrollTop; this.goal = this.pos; }
+    this.goal = Math.max(0, Math.min(max, this.goal + e.deltaY * unit));
+    e.preventDefault();
+    if (this.scrolling && this.glide) return;
+    this.glide = true;
+    this.scrolling = true;
+    cancelAnimationFrame(this.scrollAnim);
+    let last = performance.now();
+    const step = (now: number): void => {
+      const dt = Math.min(64, now - last);
+      last = now;
+      // Easing toward the goal: it starts fast and settles slowly, which is what gives it weight.
+      this.pos += (this.goal - this.pos) * (1 - Math.exp(-dt / 150));
+      if (Math.abs(this.goal - this.pos) < 0.4) this.pos = this.goal;
+      scroller.scrollTop = this.pos;
+      if (this.pos === this.goal) { this.scrolling = false; this.glide = false; return; }
+      this.scrollAnim = requestAnimationFrame(step);
+    };
+    this.scrollAnim = requestAnimationFrame(step);
+  }
+  private glide = false;
+
+  /** Scroll smoothly, down or up, slowing in and out. A button asked for it, so it always moves smoothly. */
   private smoothTo(scroller: HTMLElement, target: number): void {
     cancelAnimationFrame(this.scrollAnim);
+    this.glide = false;
     const from = scroller.scrollTop;
     const to = Math.max(0, Math.min(target, scroller.scrollHeight - scroller.clientHeight));
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches || Math.abs(to - from) < 2) { scroller.scrollTop = to; return; }
-    const dur = Math.min(1200, 480 + Math.abs(to - from) * 0.3);
+    if (Math.abs(to - from) < 2) { scroller.scrollTop = to; this.scrolling = false; this.pos = to; return; }
+    const dur = Math.min(1300, 600 + Math.abs(to - from) * 0.3);
     const t0 = performance.now();
+    this.scrolling = true;
+    this.pressedAt = t0;
     const step = (now: number): void => {
       const t = Math.min(1, (now - t0) / dur);
       const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
       scroller.scrollTop = from + (to - from) * e;
+      this.pos = scroller.scrollTop;
+      this.goal = this.pos;
       if (t < 1) this.scrollAnim = requestAnimationFrame(step);
+      else this.scrolling = false;
     };
     this.scrollAnim = requestAnimationFrame(step);
   }
