@@ -199,6 +199,28 @@ export interface BoardBox {
   size?: number;
   /** The colour of a piece's writing, rail or divider, like #aabbcc. */
   color?: string;
+  /** Where the content sits in a piece that is taller than it. */
+  valign?: "top" | "middle" | "bottom";
+  /** A background colour of its own, and how solid it is (0 to 100). */
+  bg?: string;
+  bga?: number;
+  /** The border's line style and colour. */
+  bstyle?: "solid" | "dashed" | "dotted" | "double";
+  bc?: string;
+  /** A glow around the piece, 0 to 100. */
+  glow?: number;
+  /** A tilt, in degrees. */
+  rot?: number;
+  /** How big everything inside is drawn, as a percentage. */
+  zoom?: number;
+  /** What happens when the pointer is over it. */
+  hover?: "none" | "lift" | "glow" | "grow";
+  /** How it arrives when the page opens. */
+  anim?: "none" | "fade" | "rise" | "zoom" | "slide";
+  /** Floats gently up and down. */
+  float?: boolean;
+  /** Left out when the pieces are stacked on a phone. */
+  hideMobile?: boolean;
 }
 
 export interface PageSettings {

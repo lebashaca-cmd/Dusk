@@ -413,6 +413,7 @@ export class Stage {
     let changed = false;
     for (const slot of this.mount.querySelectorAll<HTMLElement>(".pslot")) {
       const kind = slot.dataset.slot ?? "main";
+      if (kind === "lyrics") continue;
       const markup = this.slotHTML(kind, d);
       if (markup === slot.dataset.markup) continue;
       slot.dataset.markup = markup;
@@ -476,8 +477,13 @@ export class Stage {
   private renderPanel(): void {
     const p = this.model.profile;
 
-    // The side panel: only for the song whose lyrics are open, and only in the "panel" style.
-    const panelNp = this.openLyrics && this.lyricStyle(this.openLyrics) === "panel" ? this.nowPlaying.get(this.openLyrics) : undefined;
+    // A Lyrics piece on the board holds the lyrics itself, for whatever song is playing, so nothing floats.
+    const free = p.page.layout === "experimental";
+    const holder = free ? this.mount.querySelector<HTMLElement>('.pslot[data-slot="lyrics"]') : null;
+    const source: Source | null = holder
+      ? (this.nowPlaying.has("spotify") ? "spotify" : this.nowPlaying.has("upload") ? "upload" : null)
+      : this.openLyrics && this.lyricStyle(this.openLyrics) === "panel" ? this.openLyrics : null;
+    const panelNp = source ? this.nowPlaying.get(source) : undefined;
     if (!panelNp) {
       this.panel?.el.remove();
       this.panel = null;
@@ -487,38 +493,39 @@ export class Stage {
         this.panel?.el.remove();
         this.panel = new LyricPanel(panelNp, signature, () => this.toggleLyrics(this.openLyrics));
       }
-      // On the free-form page the panel floats over the board; on the usual page it
-      // sits beside the card.
-      const free = p.page.layout === "experimental";
-      this.panel.el.classList.toggle("on-free", free);
-      const host = free ? this.el : this.wrap;
+      // In a Lyrics piece the panel fills it. Otherwise, on the free-form page the panel floats over the
+      // board, and on the usual page it sits beside the card.
+      this.panel.el.classList.toggle("in-piece", Boolean(holder));
+      this.panel.el.classList.toggle("on-free", free && !holder);
+      const host = holder ?? (free ? this.el : this.wrap);
       if (this.panel.el.parentElement !== host) host.append(this.panel.el);
+      if (holder) fitFree(this.el);
     }
 
     // The island: always there while a song is on, and opens to show its lyrics.
-    const source = (["upload", "spotify"] as Source[]).find(x => this.nowPlaying.has(x) && this.lyricStyle(x) === "island");
-    const np = source ? this.nowPlaying.get(source) : undefined;
-    if (!source || !np) {
+    const islandSource = holder ? undefined : (["upload", "spotify"] as Source[]).find(x => this.nowPlaying.has(x) && this.lyricStyle(x) === "island");
+    const np = islandSource ? this.nowPlaying.get(islandSource) : undefined;
+    if (!islandSource || !np) {
       this.island?.destroy();
       this.island = null;
       this.islandSource = null;
       this.el.classList.remove("has-island");
       return;
     }
-    const showLyrics = source === "upload" ? p.music.showLyrics : p.discord.showLyrics;
-    if (!this.island || this.islandSource !== source) {
+    const showLyrics = islandSource === "upload" ? p.music.showLyrics : p.discord.showLyrics;
+    if (!this.island || this.islandSource !== islandSource) {
       this.island?.destroy();
-      this.islandSource = source;
+      this.islandSource = islandSource;
       this.island = new IslandPanel(np, {
         showLyrics,
-        onToggle: open => { this.openLyrics = open ? source : null; this.lyricsDecided = true; this.renderPanel(); },
+        onToggle: open => { this.openLyrics = open ? islandSource : null; this.lyricsDecided = true; this.renderPanel(); },
       });
       this.el.append(this.island.el);
     } else {
       this.island.update(np, showLyrics);
     }
     this.el.classList.add("has-island");
-    this.island.setOpen(this.openLyrics === source);
+    this.island.setOpen(this.openLyrics === islandSource);
   }
 
   private toggleLyrics(source: Source | null): void {

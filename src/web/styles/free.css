@@ -20,7 +20,9 @@
   color: var(--p-text);
   font-family: var(--p-font, var(--font));
   background: color-mix(in srgb, var(--p-text) 4%, transparent);
-  border: var(--bw-px, 1px) solid color-mix(in srgb, var(--p-text) 12%, transparent);
+  border: var(--bw-px, 1px) var(--bs, solid) color-mix(in srgb, var(--p-text) 12%, transparent);
+  rotate: var(--rot, 0deg);
+  animation: var(--an, none), var(--af, none);
 }
 /* A piece with a height of its own scrolls if what is inside is taller. */
 .fbox[data-fixed="true"] { overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--p-text) 28%, transparent) transparent; }
@@ -34,9 +36,10 @@
   display: flex;
   flex-direction: column;
   align-items: var(--box-items, center);
-  justify-content: center;
+  justify-content: var(--jc, center);
   gap: 14px;
   text-align: var(--box-align, center);
+  zoom: var(--zm, 1);
 }
 .fbox::-webkit-scrollbar { width: 8px; height: 8px; }
 .fbox::-webkit-scrollbar-track { background: transparent; }
@@ -217,3 +220,68 @@
 .pboard-colorrow { display: flex; align-items: center; gap: 10px; }
 .pboard-colorrow input[type="color"] { width: 38px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: none; }
 textarea.pboard-text { min-height: 84px; resize: vertical; }
+
+/* ---------- more things a piece can have ---------- */
+.fbox[data-valign="top"] { --jc: flex-start; }
+.fbox[data-valign="middle"] { --jc: center; }
+.fbox[data-valign="bottom"] { --jc: flex-end; }
+.is-free .fbox[data-cbg] { background: color-mix(in srgb, var(--pb) var(--pba, 100%), transparent); }
+.is-free .fbox[data-cbc] { border-color: var(--bc); }
+.is-free .fbox[data-glowp] { filter: drop-shadow(0 0 calc(var(--gl) * 0.35px) color-mix(in srgb, var(--p-accent) calc(30% + var(--gl) * 0.7%), transparent)); }
+
+/* What happens under the pointer, and how a piece arrives. */
+.fbox[data-hover] { transition: translate 0.3s cubic-bezier(0.22, 1, 0.36, 1), scale 0.3s cubic-bezier(0.22, 1, 0.36, 1), filter 0.3s; }
+.fbox[data-hover="lift"]:hover { translate: 0 -8px; }
+.fbox[data-hover="grow"]:hover { scale: 1.04; }
+.fbox[data-hover="glow"]:hover { filter: drop-shadow(0 0 18px color-mix(in srgb, var(--p-accent) 70%, transparent)); }
+.fbox[data-anim="fade"] { --an: ent-fade 0.8s ease backwards; }
+.fbox[data-anim="rise"] { --an: ent-rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.fbox[data-anim="zoom"] { --an: ent-zoom 0.8s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.fbox[data-anim="slide"] { --an: ent-slide 0.8s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.fbox[data-float] { --af: fbox-float 6s ease-in-out infinite alternate; }
+@keyframes fbox-float { from { translate: 0 0; } to { translate: 0 -10px; } }
+.is-free.is-stacked .fbox[data-hm] { display: none; }
+/* In the editor the pieces stay put: their effects are only for the page. */
+.pboard-canvas .fbox { translate: none !important; scale: none !important; --an: none !important; --af: none !important; }
+
+/* The lyrics, inside a piece of the board. */
+.lyr-panel.in-piece { position: relative; flex: none; width: 100%; max-width: none; min-width: 0; height: var(--lyr-h, 440px); box-shadow: none; animation: none; }
+.lyr-panel.in-piece [data-close] { display: none; }
+.pboard-canvas .fbox[data-widget="lyrics"] .pslot:empty::after { content: "Lyrics show here while a song plays"; }
+.pboard-canvas .fbox[data-widget="lyrics"] .pslot:empty { min-height: 200px; }
+
+/* ---------- grouped options and the full screen ---------- */
+.pboard-grp { border: 1px solid var(--line); border-radius: 12px; background: var(--glass); }
+.pboard-grp > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 10px 12px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); user-select: none; }
+.pboard-grp > summary::-webkit-details-marker { display: none; }
+.pboard-grp > summary::after { content: ""; margin-left: auto; width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg) translateY(-2px); transition: transform 0.2s; }
+.pboard-grp[open] > summary::after { transform: rotate(-135deg); }
+.pboard-grp > summary:hover { color: var(--ink); }
+.pboard-grp-in { display: flex; flex-direction: column; gap: 14px; padding: 2px 12px 14px; }
+.pboard-nums { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.pboard-nums label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--dim); }
+.pboard-nums input { width: 100%; box-sizing: border-box; background: var(--glass); border: 1px solid var(--line); border-radius: 8px; padding: 6px 7px; color: var(--ink); font: inherit; font-size: 12px; }
+.pboard-opts-in { max-height: calc(100vh - 140px); overflow: auto; }
+.pboard-switch { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-2); }
+
+.pboard-wrap.is-full { position: fixed; inset: 0; z-index: 400; overflow: auto; background: #050505; gap: 0; }
+.pboard-wrap.is-full .pboard-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.pboard-wrap.is-full .pboard-bg .scroll { display: none; }
+.pboard-wrap.is-full .pboard-bar { position: sticky; top: 0; z-index: 30; padding: 10px 14px; background: color-mix(in srgb, #000 68%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+.pboard-wrap.is-full .pboard-note { display: none; }
+.pboard-wrap.is-full .pboard-main { position: relative; z-index: 1; margin: 0; gap: 0; display: block; }
+.pboard-wrap.is-full .pboard-canvas { border: 0; border-radius: 0; background-image: none; overflow: visible; }
+.pboard-wrap.is-full .pboard-opts { position: fixed; right: 12px; top: 64px; width: 310px; z-index: 40; }
+.pboard-wrap.is-full .pboard-main.beside .pboard-opts { position: fixed; top: 64px; width: 310px; }
+.pboard-wrap.is-full .pboard-opts-in { background: color-mix(in srgb, #0c0c0c 92%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); max-height: calc(100vh - 84px); }
+.pboard-wrap.is-full .pboard-opts-empty { display: none; }
+.pboard-wrap.is-full .pboard-canvas .fbox { outline-offset: 2px; }
+.pboard-wrap.is-full .pboard-canvas .fbox:hover { outline: 1px dashed color-mix(in srgb, var(--p-text) 40%, transparent); }
+.pboard-bg { display: none; }
+.pboard-wrap.is-full .pboard-bg { display: block; }
+.pboard-full-btn { margin-left: 12px; }
+.pboard-bg .stage { position: absolute; inset: 0; }
+.pboard-bg .stage > :not(.fx-img):not(.fx-vid):not(.fx-bg):not(.fx-aurora):not(.fx-canvas):not(.fx-dim) { display: none !important; }
+.pboard-opts .seg { border-radius: 14px; }
+.pboard-wrap.is-full .pboard-canvas.stage { background-color: transparent; }
+.fbox[data-widget="lyrics"] .fbox-in { padding: var(--pad, 0); }

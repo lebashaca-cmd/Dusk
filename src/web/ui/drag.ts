@@ -114,21 +114,24 @@ export function makeSortable(list: HTMLElement, onEnd: () => void): () => void {
  * the card is being dragged, so whatever is inside it can keep up. `room` says how big the board is
  * when that is not its size on screen.
  */
-export function makeMover(card: HTMLElement, board: HTMLElement, onEnd: () => void, scale: () => number = () => 1, onChange: () => void = () => {}, room?: () => { w: number; h: number }): () => void {
+export function makeMover(card: HTMLElement, board: HTMLElement, onEnd: () => void, scale: () => number = () => 1, onChange: () => void = () => {}, room?: () => { w: number; h: number }, shift?: () => number): () => void {
   const handle = card.querySelector<HTMLElement>("[data-move-handle]") ?? card;
   let pointer = -1;
   let startX = 0;
   let startY = 0;
   let left = 0;
   let top = 0;
+  let sh = 0;
 
   const down = (e: PointerEvent): void => {
     if (e.button !== 0) return;
     if (e.target instanceof Element && e.target.closest("button")) return;
+    // `shift` is how far the card is drawn from its place on the board (a wide screen moves it over).
+    sh = shift ? shift() : 0;
     pointer = e.pointerId;
     startX = e.clientX;
     startY = e.clientY;
-    left = card.offsetLeft;
+    left = card.offsetLeft - sh;
     top = card.offsetTop;
     handle.setPointerCapture(e.pointerId);
     e.preventDefault();
@@ -143,7 +146,7 @@ export function makeMover(card: HTMLElement, board: HTMLElement, onEnd: () => vo
     const maxY = Math.max(0, space.h - card.offsetHeight);
     const x = Math.max(0, Math.min(maxX, snap(left + (e.clientX - startX) / k)));
     const y = Math.max(0, Math.min(maxY, snap(top + (e.clientY - startY) / k)));
-    card.style.left = `${x}px`;
+    card.style.left = `${x + sh}px`;
     card.style.top = `${y}px`;
     card.classList.add("dragging");
     onChange();

@@ -28,6 +28,7 @@ export function widgetHTML(id: string, m: RenderModel, box?: BoardBox): string {
     case "jump": return `<span class="fjump" role="button" tabindex="0" data-dir="${jumpUp(m.profile.page.board, box) ? "up" : "down"}" data-jump="${esc(box?.target ?? "top")}"><span>${esc(box?.label || "Scroll down")}</span><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></span>`;
     case "profile": return `<div class="fhead">${shareHTML(m)}${headHTML(m)}</div>`;
     case "links": return linksHTML(m.profile);
+    case "lyrics": return `<div class="pslot" data-slot="lyrics"></div>`;
     case "music": return `<div class="pslot" data-slot="music"></div>`;
     case "discord": return `<div class="pslot" data-slot="discord"></div>`;
     case "views": return viewsHTML(m);
@@ -90,6 +91,14 @@ export function boxAttrs(b: BoardBox): string {
   if (b.fill) bits.push(`data-fill="${esc(b.fill)}"`);
   if (b.fixedH) bits.push(`data-fixed="true"`);
   if (b.look) bits.push(`data-look="${esc(b.look)}"`);
+  if (b.valign) bits.push(`data-valign="${esc(b.valign)}"`);
+  if (b.bg) bits.push(`data-cbg="1"`);
+  if (b.bc) bits.push(`data-cbc="1"`);
+  if (b.glow) bits.push(`data-glowp="1"`);
+  if (b.hover && b.hover !== "none") bits.push(`data-hover="${esc(b.hover)}"`);
+  if (b.anim && b.anim !== "none") bits.push(`data-anim="${esc(b.anim)}"`);
+  if (b.float) bits.push(`data-float="1"`);
+  if (b.hideMobile) bits.push(`data-hm="1"`);
   return bits.join(" ");
 }
 
@@ -109,8 +118,23 @@ export function applyBoxLook(el: HTMLElement, b: BoardBox): void {
   set("--z", String(layerOf(b)));
   set("--pc", b.color ?? null);
   set("--ps", typeof b.size === "number" ? `${b.size}px` : null);
-  el.dataset.look = b.look ?? "";
-  if (!b.look) delete el.dataset.look;
+  const flag = (name: string, v: string | false | undefined): void => { if (v) el.dataset[name] = v; else delete el.dataset[name]; };
+  flag("look", b.look);
+  flag("valign", b.valign);
+  flag("cbg", b.bg ? "1" : undefined);
+  flag("cbc", b.bc ? "1" : undefined);
+  flag("glowp", b.glow ? "1" : undefined);
+  flag("hover", b.hover && b.hover !== "none" ? b.hover : undefined);
+  flag("anim", b.anim && b.anim !== "none" ? b.anim : undefined);
+  flag("float", b.float ? "1" : undefined);
+  flag("hm", b.hideMobile ? "1" : undefined);
+  set("--pb", b.bg ?? null);
+  set("--pba", typeof b.bga === "number" ? `${b.bga}%` : null);
+  set("--bs", b.bstyle ?? null);
+  set("--bc", b.bc ?? null);
+  set("--gl", typeof b.glow === "number" ? String(b.glow) : null);
+  set("--rot", typeof b.rot === "number" ? `${b.rot}deg` : null);
+  set("--zm", typeof b.zoom === "number" ? String(b.zoom / 100) : null);
 }
 
 /** The layer a piece is on: pages sit behind everything else unless the owner says otherwise. */
@@ -129,6 +153,13 @@ export function boxVars(b: BoardBox): string {
   if (typeof b.shadow === "number") bits.push(`--sh:${b.shadow / 100}`);
   bits.push(`--z:${layerOf(b)}`);
   if (b.color) bits.push(`--pc:${b.color}`);
+  if (b.bg) bits.push(`--pb:${b.bg}`);
+  if (typeof b.bga === "number") bits.push(`--pba:${b.bga}%`);
+  if (b.bstyle) bits.push(`--bs:${b.bstyle}`);
+  if (b.bc) bits.push(`--bc:${b.bc}`);
+  if (typeof b.glow === "number") bits.push(`--gl:${b.glow}`);
+  if (typeof b.rot === "number") bits.push(`--rot:${b.rot}deg`);
+  if (typeof b.zoom === "number") bits.push(`--zm:${b.zoom / 100}`);
   if (typeof b.size === "number") bits.push(`--ps:${b.size}px`);
   return bits.join(";");
 }
@@ -153,6 +184,17 @@ export function boardHeight(canvas: HTMLElement, least = BOARD_H): number {
     bottom = Math.max(bottom, box.offsetTop + box.offsetHeight);
   }
   return Math.max(least, Math.ceil(bottom + 40));
+}
+
+/**
+ * Where a piece goes when the board is wider than it was made: pieces on the left stay left, pieces on the
+ * right stay right and the ones in the middle stay in the middle. A piece that spans the board stretches.
+ */
+export function anchorShift(x: number, w: number, extra: number): { ex: number; ew: number } {
+  if (extra <= 0) return { ex: 0, ew: 0 };
+  if (x <= 24 && x + w >= BOARD_W - 24) return { ex: 0, ew: extra };
+  const mid = x + w / 2;
+  return { ex: mid < BOARD_W / 3 ? 0 : mid > (BOARD_W * 2) / 3 ? extra : extra / 2, ew: 0 };
 }
 
 /** How big the board is drawn: as wide as the space allows, never bigger than it is. */
@@ -196,11 +238,9 @@ export function fitFree(stage: HTMLElement): void {
   for (const b of canvas.querySelectorAll<HTMLElement>(".fbox")) {
     const x = parseFloat(b.style.getPropertyValue("--x")) || 0;
     const w = parseFloat(b.style.getPropertyValue("--w")) || 0;
-    const full = x <= 24 && x + w >= BOARD_W - 24;
-    const mid = x + w / 2;
-    const ex = full ? 0 : mid < BOARD_W / 3 ? 0 : mid > (BOARD_W * 2) / 3 ? extra : extra / 2;
+    const { ex, ew } = anchorShift(x, w, extra);
     b.style.setProperty("--ex", `${ex}px`);
-    b.style.setProperty("--ew", full ? `${extra}px` : "0px");
+    b.style.setProperty("--ew", `${ew}px`);
   }
   const h = boardHeight(canvas);
   canvas.style.height = `${h}px`;

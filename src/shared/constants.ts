@@ -86,6 +86,7 @@ export const PAGE_WIDGETS = [
   { id: "music", label: "Music", w: 330, h: 200 },
   { id: "discord", label: "Discord", w: 330, h: 200 },
   { id: "views", label: "Views", w: 200, h: 70 },
+  { id: "lyrics", label: "Lyrics", w: 360, h: 460 },
 ] as const satisfies ReadonlyArray<{ id: string; label: string; w: number; h: number }>;
 
 export type PageWidgetId = (typeof PAGE_WIDGETS)[number]["id"];
@@ -265,6 +266,19 @@ export function normalizeBoard(board: unknown): BoardBox[] {
     if (box.dock === "here" || box.dock === "left" || box.dock === "right") piece.dock = box.dock;
     if (box.look === "bar" || box.look === "dot" || box.look === "cover" || box.look === "contain") piece.look = box.look;
     const size = nn(box.size, 1, 12); if (size !== undefined) piece.size = size;
+    if (box.valign === "top" || box.valign === "middle" || box.valign === "bottom") piece.valign = box.valign;
+    const hx = (v: unknown): string | undefined => typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v) ? v : undefined;
+    const bg = hx(box.bg); if (bg) piece.bg = bg;
+    const bc = hx(box.bc); if (bc) piece.bc = bc;
+    const bga = nn(box.bga, 0, 100); if (bga !== undefined) piece.bga = bga;
+    if (box.bstyle === "solid" || box.bstyle === "dashed" || box.bstyle === "dotted" || box.bstyle === "double") piece.bstyle = box.bstyle;
+    const glow = nn(box.glow, 0, 100); if (glow !== undefined) piece.glow = glow;
+    const rot = nn(box.rot, -15, 15); if (rot !== undefined) piece.rot = rot;
+    const zoom = nn(box.zoom, 60, 160); if (zoom !== undefined) piece.zoom = zoom;
+    if (box.hover === "none" || box.hover === "lift" || box.hover === "glow" || box.hover === "grow") piece.hover = box.hover;
+    if (box.anim === "none" || box.anim === "fade" || box.anim === "rise" || box.anim === "zoom" || box.anim === "slide") piece.anim = box.anim;
+    if (box.float === true) piece.float = true;
+    if (box.hideMobile === true) piece.hideMobile = true;
     if (typeof box.color === "string" && /^#[0-9a-fA-F]{6}$/.test(box.color)) piece.color = box.color;
     if (typeof box.target === "string" && /^(top|page:\d{1,3})$/.test(box.target)) piece.target = box.target;
     out.push(piece);

@@ -1,6 +1,7 @@
 import { BOARD_H, BOARD_W, BOX_ALIGNS, BOX_FILLS, defaultBoard, kindOf, MAX_PIECES, PAGE_KINDS, PAGE_WIDGETS } from "../../../shared/constants";
 import type { BoardBox, BoxAlign, BoxFill, RenderModel } from "../../../shared/types";
-import { applyBoxLook, boardHeight, boardScale, boxInner, layerOf, pieceLabel, widgetHTML } from "../../render/free";
+import { anchorShift, applyBoxLook, boardHeight, boardScale, boxInner, layerOf, pieceLabel, widgetHTML } from "../../render/free";
+import { Stage } from "../../render/stage";
 import { applyTheme } from "../../render/theme";
 import { store } from "../../state";
 import { GRID, makeMover, makeResizer } from "../../ui/drag";
@@ -19,7 +20,10 @@ const ALIGN_LABELS: Record<BoxAlign, string> = { center: "Centre", left: "Left" 
 const FILL_LABELS: Record<BoxFill, string> = { soft: "Soft", solid: "Solid", outline: "Outline", glass: "Glass", none: "None" };
 
 /** Which setting each slider changes. */
-const SLIDER_KEYS: Record<string, keyof BoardBox> = { sz: "size", h: "h", pad: "pad", radius: "radius", op: "opacity", bl: "blur", bd: "borderW", sh: "shadow" };
+const SLIDER_KEYS: Record<string, keyof BoardBox> = { sz: "size", h: "h", pad: "pad", radius: "radius", op: "opacity", bl: "blur", bd: "borderW", sh: "shadow", gl: "glow", rot: "rot", zm: "zoom", bga: "bga" };
+
+/** The groups of options that are open. They stay open from one piece to the next. */
+const OPEN = new Set<string>(["content", "place"]);
 
 /** The room inside a piece, when the owner has not said otherwise. */
 const DEFAULT_PAD = 16;
@@ -45,11 +49,12 @@ export const pageboardPane: Pane = {
   vip: true,
   wide: true,
   mount(el) {
-    el.innerHTML = `<div class="pboard-wrap">
+    el.innerHTML = `<div class="pboard-wrap" data-pb-wrap><div class="pboard-bg" data-pb-bg></div>
       <div class="pboard-bar">
         <div class="pboard-chips" role="group" aria-label="Pieces of the page"></div>
         <span class="pboard-zoom" data-pb-zoom></span>
         <button class="btn-ghost" type="button" data-pb-reset>Put it back</button>
+        <button class="btn-ghost pboard-full-btn" type="button" data-pb-full>Full screen</button>
       </div>
       <p class="note pboard-note" data-pb-note></p>
       <div class="pboard-main" data-pb-main>
@@ -67,6 +72,9 @@ export const pageboardPane: Pane = {
     const note = must<HTMLElement>("[data-pb-note]", el);
     const opts = must<HTMLElement>("[data-pb-opts]", el);
     const main = must<HTMLElement>("[data-pb-main]", el);
+    const wrap = must<HTMLElement>("[data-pb-wrap]", el);
+    const bgHost = must<HTMLElement>("[data-pb-bg]", el);
+    const fullBtn = must<HTMLElement>("[data-pb-full]", el);
     const cleanups: Array<() => void> = [];
 
     /** The piece whose options are open, if any. */
@@ -75,6 +83,12 @@ export const pageboardPane: Pane = {
     let dragEnded = 0;
     /** How big the board is drawn: as wide as the pane allows. */
     let scale = 1;
+    /** Full screen shows the page the way a visitor's screen does: as wide as the screen. */
+    let full = false;
+    let bgStage: Stage | null = null;
+    /** How wide the board is drawn, and how much wider that is than the board was made. */
+    let bw = BOARD_W;
+    let extra = 0;
 
     /** The boxes on the board. The profile keeps them, so they are the ones visitors get. */
     const boxes = (): BoardBox[] => {
@@ -92,16 +106,40 @@ export const pageboardPane: Pane = {
       scaleBox.style.height = `${Math.round(h * scale)}px`;
     };
 
-    /** Draw the board as wide as the pane allows. The options keep their room beside it, so picking a piece never changes its size. */
+    /** Put a piece where its box says, with the shift a wide screen gives it. */
+    const layout = (box: BoardBox): void => {
+      const card = cardOf(box.id);
+      if (!card) return;
+      const { ex, ew } = anchorShift(box.x, box.w, extra);
+      card.style.left = `${box.x + ex}px`;
+      card.style.top = `${box.y}px`;
+      card.style.width = `${box.w + ew}px`;
+    };
+
+    /** Draw the board as wide as the pane allows. The options keep their room beside it, so picking a piece never changes its size.
+     *  In full screen the board is as wide as the screen, the way a visitor sees it. */
     const fit = (): void => {
-      const room = el.clientWidth - 44;
-      const beside = room >= 940;
-      main.classList.toggle("beside", beside);
-      scale = boardScale(beside ? room - SIDE - GAP : room);
+      if (full) {
+        const avail = Math.max(320, wrap.clientWidth);
+        main.classList.remove("beside");
+        scale = avail > BOARD_W ? 1 : boardScale(avail);
+        bw = avail > BOARD_W ? avail : BOARD_W;
+      } else {
+        const room = el.clientWidth - 44;
+        const beside = room >= 940;
+        main.classList.toggle("beside", beside);
+        scale = boardScale(beside ? room - SIDE - GAP : room);
+        bw = BOARD_W;
+      }
+      const next = bw - BOARD_W;
+      const moved = next !== extra;
+      extra = next;
+      canvas.style.width = `${bw}px`;
       canvas.style.transform = `scale(${scale})`;
       canvas.style.setProperty("--inv", String(Math.min(2.2, 1 / scale)));
-      scaleBox.style.width = `${Math.round(BOARD_W * scale)}px`;
-      zoom.textContent = `${Math.round(scale * 100)}%`;
+      scaleBox.style.width = `${Math.round(bw * scale)}px`;
+      zoom.textContent = full ? `${Math.round(bw * scale)}px wide` : `${Math.round(scale * 100)}%`;
+      if (moved) for (const b of boxes()) layout(b);
       grow();
     };
 
@@ -129,23 +167,25 @@ export const pageboardPane: Pane = {
       card.tabIndex = 0;
       card.dataset.kind = kindOf(box.id);
       card.setAttribute("aria-label", `${pieceLabel(box)}. Use the arrow keys to move it.`);
-      card.style.left = `${box.x}px`;
-      card.style.top = `${box.y}px`;
-      card.style.width = `${box.w}px`;
       applyBoxLook(card, box);
       if (box.fixedH) card.style.height = `${box.h}px`;
       if (box.id === selected) card.classList.add("sel");
       const body = model ? widgetHTML(box.id, model, box) : "";
       card.innerHTML = `${boxInner(body)}<span class="pbgrip" data-move-handle aria-hidden="true">${GRIP}</span><span class="pbtag">${esc(pieceLabel(box))}</span><span class="wresize" data-resize-handle aria-hidden="true"></span>`;
       canvas.append(card);
+      layout(box);
 
+      // The piece keeps the shift it had when the drag started, so it does not jump as it passes a third of the board.
+      let shiftAtStart = 0;
       cleanups.push(makeMover(card, canvas, () => {
-        if (card.offsetLeft === box.x && card.offsetTop === box.y) return;
+        const x = card.offsetLeft - shiftAtStart;
+        if (x === box.x && card.offsetTop === box.y) { layout(box); return; }
         dragEnded = performance.now();
-        box.x = card.offsetLeft;
+        box.x = x;
         box.y = card.offsetTop;
+        layout(box);
         store.profileChanged();
-      }, () => scale, grow, () => ({ w: BOARD_W, h: MAX_Y })));
+      }, () => scale, grow, () => ({ w: BOARD_W, h: MAX_Y }), () => (shiftAtStart = anchorShift(box.x, box.w, extra).ex)));
 
       // Pulling the corner makes the piece wider. If the height was pulled too, the piece keeps that height.
       let startH = 0;
@@ -153,15 +193,16 @@ export const pageboardPane: Pane = {
       grip?.addEventListener("pointerdown", () => { startH = card.offsetHeight; }, true);
       cleanups.push(makeResizer(card, () => {
         const dragged = card.offsetHeight;
-        const width = Math.max(20, card.offsetWidth);
+        const width = Math.max(20, card.offsetWidth - anchorShift(box.x, box.w, extra).ew);
         const heightMoved = Math.abs(dragged - startH) > 6;
-        if (width === box.w && !heightMoved) { card.style.height = box.fixedH ? `${box.h}px` : ""; return; }
+        if (width === box.w && !heightMoved) { card.style.height = box.fixedH ? `${box.h}px` : ""; layout(box); return; }
         dragEnded = performance.now();
         box.w = width;
         if (heightMoved) { box.fixedH = true; box.h = Math.max(16, dragged); }
         card.style.height = box.fixedH ? `${box.h}px` : "";
+        layout(box);
         store.profileChanged();
-      }, () => scale, grow, () => ({ w: BOARD_W - card.offsetLeft, h: 3000 })));
+      }, () => scale, grow, () => ({ w: BOARD_W - box.x + anchorShift(box.x, box.w, extra).ew, h: 3000 })));
 
       // The arrow keys move a piece too, so this is not mouse-only.
       card.addEventListener("keydown", e => {
@@ -170,12 +211,11 @@ export const pageboardPane: Pane = {
         const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
         if (!dx && !dy) return;
         e.preventDefault();
-        const x = Math.max(0, Math.min(BOARD_W - card.offsetWidth, card.offsetLeft + dx));
-        const y = Math.max(0, Math.min(MAX_Y, card.offsetTop + dy));
-        card.style.left = `${x}px`;
-        card.style.top = `${y}px`;
+        const x = Math.max(0, Math.min(BOARD_W - box.w, box.x + dx));
+        const y = Math.max(0, Math.min(MAX_Y, box.y + dy));
         box.x = x;
         box.y = y;
+        layout(box);
         grow();
         store.profileChanged();
       });
@@ -225,17 +265,28 @@ export const pageboardPane: Pane = {
 
       const textIn = (name: string, label: string, value: string, ph: string, max = 60): string =>
         `<label class="pboard-opt"><span>${esc(label)}</span><input type="text" class="pboard-text" data-pb-${name} maxlength="${max}" placeholder="${esc(ph)}" value="${esc(value)}"></label>`;
-      const colorIn = `<div class="pboard-opt"><span>Colour</span><div class="pboard-colorrow"><input type="color" data-pb-color value="${esc(box.color ?? "#ffffff")}" aria-label="Colour"><button type="button" class="seg-btn" data-pb-color-clear>Use the page colour</button></div></div>`;
+      const colorRow = (label: string, attr: string, value: string | undefined, clear: string, fallback: string, clearLabel: string): string =>
+        `<div class="pboard-opt"><span>${esc(label)}</span><div class="pboard-colorrow"><input type="color" data-pb-${attr} value="${esc(value ?? fallback)}" aria-label="${esc(label)}"><button type="button" class="seg-btn" data-pb-${clear}${value ? "" : " disabled"}>${esc(clearLabel)}</button></div></div>`;
+      const colorIn = colorRow("Colour", "color", box.color, "color-clear", "#ffffff", "Use the page colour");
+      const marks = kind === "rail" || kind === "divider";
+      const setSeg = (key: string, value: string, label: string, on: boolean): string =>
+        `<button type="button" class="seg-btn" data-pb-set="${key}:${value}" aria-pressed="${on}">${esc(label)}</button>`;
+      const flag = (key: string, label: string, on: boolean): string =>
+        `<label class="pboard-switch"><input type="checkbox" data-pb-flag="${key}"${on ? " checked" : ""}> ${esc(label)}</label>`;
+      const num = (key: string, label: string, value: number, min: number, max: number): string =>
+        `<label><span>${esc(label)}</span><input type="number" data-pb-num="${key}" min="${min}" max="${max}" step="1" value="${Math.round(value)}"></label>`;
+      const group = (id: string, title: string, body: string): string =>
+        body ? `<details class="pboard-grp" data-grp="${id}"${OPEN.has(id) ? " open" : ""}><summary>${esc(title)}</summary><div class="pboard-grp-in">${body}</div></details>` : "";
       const targets = `<label class="pboard-opt"><span>Scrolls to</span><select class="pboard-text" data-pb-target>
                <option value="top"${target === "top" ? " selected" : ""}>The top of the page</option>
                ${pages.map(pg => `<option value="${esc(pg.id)}"${target === pg.id ? " selected" : ""}>${esc(pieceLabel(pg))}</option>`).join("")}
              </select></label>`;
       let words = "";
       if (kind === "page") {
-        words = `${textIn("label", "Title of this page", box.label ?? "", "No title")}${colorIn}
+        words = `${textIn("label", "Title of this page", box.label ?? "", "No title")}
            <p class="note">A page is a panel of your board. Put pieces on top of it, then add a Button or a Scroll rail to move between pages.</p>`;
       } else if (kind === "jump") {
-        words = `${textIn("label", "Button text", box.label ?? "", "Scroll down")}${targets}${colorIn}`;
+        words = `${textIn("label", "Button text", box.label ?? "", "Scroll down")}${targets}`;
       } else if (kind === "rail") {
         const dock = box.dock ?? "here";
         words = `<div class="pboard-opt"><span>Where it sits</span><div class="seg" role="group" aria-label="Where it sits">${seg("dock", "right", "Right of the screen", dock === "right")}${seg("dock", "left", "Left of the screen", dock === "left")}${seg("dock", "here", "Here on the board", dock === "here")}</div></div>
@@ -244,13 +295,57 @@ export const pageboardPane: Pane = {
            <p class="note">The rail has one mark for the top and one for each page. The page you are on is shown long. On the screen it stays in place as you scroll.</p>`;
       } else if (kind === "text") {
         words = `${textIn("label", "Heading", box.label ?? "", "No heading")}
-           <label class="pboard-opt"><span>Text</span><textarea class="pboard-text" data-pb-text maxlength="600" placeholder="Write something">${esc(box.text ?? "")}</textarea></label>${colorIn}`;
+           <label class="pboard-opt"><span>Text</span><textarea class="pboard-text" data-pb-text maxlength="600" placeholder="Write something">${esc(box.text ?? "")}</textarea></label>`;
       } else if (kind === "image") {
         words = `${textIn("url", "Picture or video address", box.url ?? "", "https://…", 500)}<button class="btn-ghost" type="button" data-pb-pick style="justify-content:center">Or choose a file from your device</button>${textIn("label", "Describe it (for screen readers)", box.label ?? "", "A short description")}
            <div class="pboard-opt"><span>Fills the piece</span><div class="seg" role="group" aria-label="Fills the piece">${seg("look", "cover", "Cover", box.look !== "contain")}${seg("look", "contain", "Fit inside", box.look === "contain")}</div></div>`;
       } else if (kind === "divider") {
         words = `${slider("sz", "Thickness", box.size ?? 2, 1, 12, "px")}${colorIn}`;
+      } else if (kind === "lyrics") {
+        words = `<p class="note">The lyrics of the song that is playing show here, instead of floating over the page. Nothing shows until a song plays.</p>`;
+      } else if (kind === "music" || kind === "discord") {
+        words = `<p class="note">This shows when ${kind === "music" ? "one of your songs is playing" : "Discord has something to show"}. Until then it is hidden on your page.</p>`;
       }
+
+      const nums = `<div class="pboard-nums">${num("x", "Left", box.x, 0, BOARD_W)}${num("y", "Top", box.y, 0, MAX_Y)}${num("w", "Width", box.w, 20, 3000)}${num("h", "Height", box.h, 16, 3000)}</div>`;
+      const vAlign = box.valign ?? "middle";
+
+      const groups = [
+        group("content", "Content", words),
+        group("place", "Position and size", `
+          <div class="pboard-opt"><span>Put it at</span><div class="seg" role="group" aria-label="Put it at">${act("at-left", "Left edge")}${act("at-center", "Centre")}${act("at-right", "Right edge")}${act("at-top", "Top edge")}${act("at-full", "Full width")}</div></div>
+          ${nums}
+          <div class="pboard-opt"><span>Height</span><div class="seg" role="group" aria-label="Height">${seg("height", "auto", "Fit the content", !box.fixedH)}${seg("height", "fixed", "Fixed", Boolean(box.fixedH))}</div></div>
+          ${box.fixedH ? slider("h", "Piece height", Math.min(1600, box.h), 16, 1600, "px", 8) : ""}
+          <div class="pboard-opt"><span>Line up</span><div class="seg" role="group" aria-label="Line up">${BOX_ALIGNS.map(a => seg("align", a, ALIGN_LABELS[a], a === align)).join("")}</div></div>
+          <div class="pboard-opt"><span>Up and down</span><div class="seg" role="group" aria-label="Up and down">${setSeg("valign", "top", "Top", vAlign === "top")}${setSeg("valign", "middle", "Middle", vAlign === "middle")}${setSeg("valign", "bottom", "Bottom", vAlign === "bottom")}</div></div>`),
+        group("fill", "Fill and colour", `
+          <div class="pboard-opt"><span>Fill</span><div class="seg" role="group" aria-label="Fill">${BOX_FILLS.map(f => seg("fill", f, FILL_LABELS[f], f === fill)).join("")}</div></div>
+          ${colorRow("Background colour", "bgc", box.bg, "bgc-clear", "#111111", "Remove it")}
+          ${box.bg ? slider("bga", "How solid it is", box.bga ?? 100, 0, 100, "%") : ""}
+          ${slider("op", "See-through", box.opacity ?? 100, 20, 100, "%")}
+          ${slider("bl", "Blur behind", box.blur ?? 0, 0, 40, "px")}`),
+        group("border", "Border and shadow", `
+          ${slider("bd", "Border", box.borderW ?? 1, 0, 8, "px")}
+          <div class="pboard-opt"><span>Border line</span><div class="seg" role="group" aria-label="Border line">${(["solid", "dashed", "dotted", "double"] as const).map(b => setSeg("bstyle", b, b[0]!.toUpperCase() + b.slice(1), (box.bstyle ?? "solid") === b)).join("")}</div></div>
+          ${colorRow("Border colour", "bcc", box.bc, "bcc-clear", "#ffffff", "Use the page colour")}
+          ${slider("sh", "Shadow", box.shadow ?? 0, 0, 100, "%")}
+          ${slider("gl", "Glow", box.glow ?? 0, 0, 100, "%")}`),
+        group("shape", "Shape and space", `
+          ${slider("radius", "Corners", radius, 0, 48, "px")}
+          ${slider("pad", "Inside space", pad, 0, 48, "px")}
+          ${slider("rot", "Tilt", box.rot ?? 0, -15, 15, "°")}`),
+        group("text", "Text", `
+          ${marks ? "" : colorIn.replace("Colour", "Text colour").replace('aria-label="Colour"', 'aria-label="Text colour"')}
+          ${slider("zm", "Size of everything inside", box.zoom ?? 100, 60, 160, "%", 5)}`),
+        group("effects", "Effects", `
+          <div class="pboard-opt"><span>When the pointer is over it</span><div class="seg" role="group" aria-label="Hover">${(["none", "lift", "grow", "glow"] as const).map(h => setSeg("hover", h, h === "none" ? "Nothing" : h[0]!.toUpperCase() + h.slice(1), (box.hover ?? "none") === h)).join("")}</div></div>
+          <div class="pboard-opt"><span>How it arrives</span><div class="seg" role="group" aria-label="Arrival">${(["none", "fade", "rise", "zoom", "slide"] as const).map(a => setSeg("anim", a, a === "none" ? "Nothing" : a[0]!.toUpperCase() + a.slice(1), (box.anim ?? "none") === a)).join("")}</div></div>
+          ${flag("float", "Floats gently up and down", Boolean(box.float))}`),
+        group("layer", "Layer and phones", `
+          <div class="pboard-opt"><span>Layer <em>${layer}</em></span><div class="seg" role="group" aria-label="Layer">${act("back", "Send back")}${act("forward", "Bring forward")}</div></div>
+          ${flag("hideMobile", "Leave it out on phones", Boolean(box.hideMobile))}`),
+      ].join("");
 
       opts.innerHTML = `<div class="pboard-opts-in">
         <div class="pboard-opts-head">
@@ -258,38 +353,9 @@ export const pageboardPane: Pane = {
           <button class="btn-ghost" type="button" data-pb-match>Reset look</button>
           <button class="btn-ghost" type="button" data-pb-close>Done</button>
         </div>
-        ${words}
-        <div class="pboard-opts-grid">
-          <div class="pboard-opt">
-            <span>Place on the board</span>
-            <div class="seg" role="group" aria-label="Place on the board">${act("at-left", "Left edge")}${act("at-center", "Centre")}${act("at-right", "Right edge")}${act("at-top", "Top edge")}${act("at-full", "Full width")}</div>
-          </div>
-          <div class="pboard-opt">
-            <span>Alignment</span>
-            <div class="seg" role="group" aria-label="Alignment">${BOX_ALIGNS.map(a => seg("align", a, ALIGN_LABELS[a], a === align)).join("")}</div>
-          </div>
-          <div class="pboard-opt">
-            <span>Fill</span>
-            <div class="seg" role="group" aria-label="Fill">${BOX_FILLS.map(f => seg("fill", f, FILL_LABELS[f], f === fill)).join("")}</div>
-          </div>
-          <div class="pboard-opt">
-            <span>Height</span>
-            <div class="seg" role="group" aria-label="Height">${seg("height", "auto", "Fit the content", !box.fixedH)}${seg("height", "fixed", "Fixed", Boolean(box.fixedH))}</div>
-          </div>
-          ${box.fixedH ? slider("h", "Piece height", Math.min(1600, box.h), 16, 1600, "px", 8) : ""}
-          <div class="pboard-opt">
-            <span>Layer <em>${layer}</em></span>
-            <div class="seg" role="group" aria-label="Layer">${act("back", "Send back")}${act("forward", "Bring forward")}</div>
-          </div>
-          ${slider("op", "See-through", box.opacity ?? 100, 20, 100, "%")}
-          ${slider("bl", "Blur behind", box.blur ?? 0, 0, 40, "px")}
-          ${slider("bd", "Border", box.borderW ?? 1, 0, 8, "px")}
-          ${slider("sh", "Shadow", box.shadow ?? 0, 0, 100, "%")}
-          ${slider("pad", "Inside space", pad, 0, 48, "px")}
-          ${slider("radius", "Corners", radius, 0, 48, "px")}
-        </div>
-        <p class="note">What is inside a piece is never shrunk: it is laid out at its own size, the same as on the usual page.</p>
-        ${MULTI.has(kind) ? `<button class="btn-ghost danger" type="button" data-pb-remove>Remove this ${esc((PAGE_KINDS.find(k => k.kind === kind)?.label ?? "piece").toLowerCase())}</button>` : ""}
+        ${groups}
+        <p class="note">What is inside a piece is laid out at its own size, the same as on the usual page.</p>
+        ${MULTI.has(kind) ? `<div class="seg"><button class="seg-btn" type="button" data-pb-copy>Make a copy</button><button class="btn-ghost danger" type="button" data-pb-remove>Remove this ${esc((PAGE_KINDS.find(k => k.kind === kind)?.label ?? "piece").toLowerCase())}</button></div>` : ""}
       </div>`;
     };
 
@@ -332,7 +398,7 @@ export const pageboardPane: Pane = {
     const redraw = (): void => {
       if (holding) { late = true; return; }
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => { draw(); watch(); }, 0);
+      timer = window.setTimeout(() => { draw(); watch(); if (bgStage && store.model) bgStage.update(store.model); }, 0);
     };
     const hold = (): void => { holding = true; };
     const release = (): void => {
@@ -378,7 +444,50 @@ export const pageboardPane: Pane = {
       drawOpts();
     };
 
+    /** Full screen: the board as wide as the screen, on top of the page's own background. */
+    const setFull = (on: boolean): void => {
+      if (on === full) return;
+      full = on;
+      wrap.classList.toggle("is-full", on);
+      fullBtn.textContent = on ? "Exit full screen" : "Full screen";
+      if (on) {
+        const model = store.model;
+        if (model) { bgStage = new Stage(model); bgHost.append(bgStage.el); }
+        wrap.scrollTop = 0;
+        void wrap.requestFullscreen?.().catch(() => {});
+      } else {
+        bgStage?.destroy();
+        bgStage = null;
+        wrap.dataset.fsReady = "";
+        if (document.fullscreenElement === wrap) void document.exitFullscreen().catch(() => {});
+      }
+      fit();
+      for (const b of boxes()) layout(b);
+      grow();
+    };
+    const onFullChange = (): void => { if (full && !document.fullscreenElement && wrap.dataset.fsReady === "1") setFull(false); };
+    const onKey = (e: KeyboardEvent): void => { if (e.key === "Escape" && full) setFull(false); };
+    const onWinResize = (): void => { if (full) fit(); };
+    const onFsChange = (): void => {
+      if (document.fullscreenElement === wrap) wrap.dataset.fsReady = "1";
+      onFullChange();
+    };
+    document.addEventListener("fullscreenchange", onFsChange);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onWinResize);
+
     const offs = [
+      delegate(el, "click", "[data-pb-full]", () => setFull(!full)),
+      // Which groups of options are open stays the same from one piece to the next.
+      (() => {
+        const onToggle = (e: Event): void => {
+          const d = e.target;
+          if (!(d instanceof HTMLDetailsElement) || !d.dataset.grp) return;
+          if (d.open) OPEN.add(d.dataset.grp); else OPEN.delete(d.dataset.grp);
+        };
+        opts.addEventListener("toggle", onToggle, true);
+        return () => opts.removeEventListener("toggle", onToggle, true);
+      })(),
       delegate(el, "click", "[data-pb-piece]", (_e, t) => {
         const id = t.dataset.pbPiece ?? "";
         const list = boxes();
@@ -433,6 +542,7 @@ export const pageboardPane: Pane = {
         delete box.borderW;
         delete box.shadow;
         delete box.z;
+        for (const k of ["valign", "bg", "bga", "bstyle", "bc", "glow", "rot", "zoom", "hover", "anim", "float", "hideMobile", "color"] as const) delete box[k];
         change(box, {});
         commit();
         drawOpts();
@@ -486,16 +596,15 @@ export const pageboardPane: Pane = {
         const card = box ? cardOf(box.id) : null;
         if (!box || !card) return;
         const d = t.dataset;
-        const w = card.offsetWidth;
-        if ("pbAtFull" in d) { box.x = 0; box.w = BOARD_W; card.style.width = `${BOARD_W}px`; }
+        if ("pbAtFull" in d) { box.x = 0; box.w = BOARD_W; }
         else if ("pbAtLeft" in d) box.x = 0;
-        else if ("pbAtRight" in d) box.x = BOARD_W - w;
-        else if ("pbAtCenter" in d) box.x = Math.round((BOARD_W - w) / 2);
+        else if ("pbAtRight" in d) box.x = BOARD_W - box.w;
+        else if ("pbAtCenter" in d) box.x = Math.round((BOARD_W - box.w) / 2);
         else if ("pbAtTop" in d) box.y = 0;
-        card.style.left = `${box.x}px`;
-        card.style.top = `${box.y}px`;
+        layout(box);
         grow();
         commit();
+        drawOpts();
       }),
       // Which piece is in front.
       delegate(el, "click", "[data-pb-back], [data-pb-forward]", (_e, t) => {
@@ -515,7 +624,7 @@ export const pageboardPane: Pane = {
         refresh(box);
         if (kindOf(box.id) === "page") for (const r of boxes()) if (kindOf(r.id) === "rail") refresh(r);
       }),
-      delegate(el, "change", "[data-pb-label]", () => { commit(); drawOpts(); }),
+      delegate(el, "change", "[data-pb-label]", () => { commit(); }),
       delegate(el, "change", "[data-pb-target]", (_e, t) => {
         const box = picked();
         if (!box) return;
@@ -589,6 +698,68 @@ export const pageboardPane: Pane = {
         commit();
       }),
 
+      // Exact numbers for where a piece is and how big it is.
+      delegate(el, "change", "[data-pb-num]", (_e, t) => {
+        const box = picked();
+        const input = t as HTMLInputElement;
+        const key = input.dataset.pbNum;
+        if (!box || !key || input.value === "") return;
+        const n = Math.round(Number(input.value));
+        if (!Number.isFinite(n)) return;
+        if (key === "x") box.x = Math.max(0, Math.min(BOARD_W - box.w, n));
+        else if (key === "y") box.y = Math.max(0, Math.min(MAX_Y, n));
+        else if (key === "w") box.w = Math.max(20, Math.min(3000, n));
+        let redraw = false;
+        if (key === "h") { redraw = !box.fixedH; box.h = Math.max(16, Math.min(3000, n)); box.fixedH = true; }
+        change(box, {});
+        layout(box);
+        input.value = String(key === "x" ? box.x : key === "y" ? box.y : key === "w" ? box.w : box.h);
+        commit();
+        // Redrawing the options would throw away the button that is being pressed, so it only happens when it has to.
+        if (redraw) drawOpts();
+      }),
+      // Choices that set one thing: up and down, border line, hover, how it arrives.
+      delegate(el, "click", "[data-pb-set]", (_e, t) => {
+        const box = picked();
+        const [key, value] = (t.dataset.pbSet ?? "").split(":");
+        if (!box || !key || !value) return;
+        (box as unknown as Record<string, unknown>)[key] = value;
+        change(box, {});
+        commit();
+        drawOpts();
+      }),
+      delegate(el, "change", "[data-pb-flag]", (_e, t) => {
+        const box = picked();
+        const key = (t as HTMLInputElement).dataset.pbFlag;
+        if (!box || !key) return;
+        const on = (t as HTMLInputElement).checked;
+        const rec = box as unknown as Record<string, unknown>;
+        if (on) rec[key] = true; else delete rec[key];
+        change(box, {});
+        commit();
+      }),
+      delegate(el, "input", "[data-pb-bgc]", (_e, t) => { const box = picked(); if (box) change(box, { bg: (t as HTMLInputElement).value }); }),
+      delegate(el, "change", "[data-pb-bgc]", () => { commit(); drawOpts(); }),
+      delegate(el, "click", "[data-pb-bgc-clear]", () => { const box = picked(); if (!box) return; delete box.bg; delete box.bga; change(box, {}); commit(); drawOpts(); }),
+      delegate(el, "input", "[data-pb-bcc]", (_e, t) => { const box = picked(); if (box) change(box, { bc: (t as HTMLInputElement).value }); }),
+      delegate(el, "change", "[data-pb-bcc]", () => { commit(); drawOpts(); }),
+      delegate(el, "click", "[data-pb-bcc-clear]", () => { const box = picked(); if (!box) return; delete box.bc; change(box, {}); commit(); drawOpts(); }),
+      delegate(el, "click", "[data-pb-copy]", () => {
+        const box = picked();
+        if (!box) return;
+        const list = boxes();
+        if (list.length >= MAX_PIECES) { toast("That is the most pieces a board can hold."); return; }
+        const kind = kindOf(box.id);
+        let n = 2;
+        while (list.some(b => b.id === `${kind}:${n}`)) n++;
+        const copy: BoardBox = { ...box, id: `${kind}:${n}`, x: Math.min(BOARD_W - box.w, box.x + 24), y: box.y + 24 };
+        list.push(copy);
+        selected = copy.id;
+        commit();
+        draw();
+        watch();
+      }),
+
       // Another page, or another button.
       delegate(el, "click", "[data-pb-add]", (_e, t) => {
         const kind = t.dataset.pbAdd ?? "";
@@ -647,6 +818,10 @@ export const pageboardPane: Pane = {
       window.removeEventListener("pointerup", release);
       window.removeEventListener("pointercancel", release);
       off();
+      document.removeEventListener("fullscreenchange", onFsChange);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onWinResize);
+      if (full) setFull(false);
       offs.forEach(fn => fn());
       for (const fn of cleanups.splice(0)) fn();
     };
