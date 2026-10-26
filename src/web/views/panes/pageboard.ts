@@ -192,16 +192,24 @@ export const pageboardPane: Pane = {
       grip?.addEventListener("pointerdown", () => { startH = card.offsetHeight; }, true);
       cleanups.push(makeResizer(card, () => {
         const dragged = card.offsetHeight;
-        const width = Math.max(20, card.offsetWidth - anchorShift(box.x, box.w, extra).ew);
+        const now = anchorShift(box.x, box.w, extra);
+        let width = Math.max(20, card.offsetWidth - now.ew);
         const heightMoved = Math.abs(dragged - startH) > 6;
-        if (width === box.w && !heightMoved) { card.style.height = box.fixedH ? `${box.h}px` : ""; layout(box); return; }
+        // On a wide screen the corner can be pulled all the way to the edge of the screen. The piece then stretches to it.
+        const atEdge = extra > 0 && card.offsetLeft + card.offsetWidth >= bw - 2;
+        if (atEdge) {
+          const left = Math.max(0, Math.round((card.offsetLeft) / GRID) * GRID);
+          if (BOARD_W - left > BOARD_W / 2) { box.x = Math.min(left, BOARD_W - 20); width = BOARD_W - box.x; }
+          else width = Math.min(width, BOARD_W - box.x);
+        }
+        if (width === box.w && !heightMoved && !atEdge) { card.style.height = box.fixedH ? `${box.h}px` : ""; layout(box); return; }
         dragEnded = performance.now();
         box.w = width;
         if (heightMoved) { box.fixedH = true; box.h = Math.max(16, dragged); }
         card.style.height = box.fixedH ? `${box.h}px` : "";
         layout(box);
         store.profileChanged();
-      }, () => scale, grow, () => ({ w: BOARD_W - box.x + anchorShift(box.x, box.w, extra).ew, h: 3000 })));
+      }, () => scale, grow, () => ({ w: Math.max(20, bw - card.offsetLeft), h: 3000 })));
 
       // The arrow keys move a piece too, so this is not mouse-only.
       card.addEventListener("keydown", e => {

@@ -231,6 +231,8 @@ export function boardHeight(canvas: HTMLElement, least = BOARD_H): number {
 export function anchorShift(x: number, w: number, extra: number): { ex: number; ew: number } {
   if (extra <= 0) return { ex: 0, ew: 0 };
   if (x <= 24 && x + w >= BOARD_W - 24) return { ex: 0, ew: extra };
+  // A wide piece that reaches the right edge keeps its left side and stretches to the edge of a wide screen.
+  if (x + w >= BOARD_W - 24 && w > BOARD_W / 2) return { ex: 0, ew: extra };
   const mid = x + w / 2;
   return { ex: mid < BOARD_W / 3 ? 0 : mid > (BOARD_W * 2) / 3 ? extra : extra / 2, ew: 0 };
 }
