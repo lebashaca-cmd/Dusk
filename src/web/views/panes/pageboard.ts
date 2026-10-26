@@ -224,15 +224,47 @@ export const pageboardPane: Pane = {
       });
     };
 
-    /** The buttons that add and remove pieces, and the ones that add another page or button. */
+    /** The menus that add and remove pieces. Each one is a drop down, so the bar stays tidy. */
     const drawChips = (): void => {
       const list = boxes();
-      const usual = PAGE_WIDGETS.map(w => {
-        const on = list.some(b => b.id === w.id);
-        return `<button class="chip${on ? " on" : ""}" type="button" data-pb-piece="${esc(w.id)}" aria-pressed="${on}">${on ? "✓" : "+"} ${esc(w.label)}</button>`;
-      }).join("");
-      const more = PAGE_KINDS.map(k => `<button class="chip chip-add" type="button" data-pb-add="${k.kind}">+ ${esc(k.label)}</button>`).join("");
-      chips.innerHTML = `${usual}<span class="pboard-sep" aria-hidden="true"></span>${more}`;
+      const labelOfWidget = (id: string): string => PAGE_WIDGETS.find(w => w.id === id)?.label ?? id;
+      const labelOfKind = (k: string): string => PAGE_KINDS.find(x => x.kind === k)?.label ?? k;
+      /** A piece you have one of: pressing it puts it on the board or takes it off. */
+      const toggle = (id: string): string => {
+        const on = list.some(b => b.id === id);
+        return `<button class="pboard-dd-i${on ? " on" : ""}" type="button" data-pb-piece="${esc(id)}" aria-pressed="${on}"><i>${on ? "✓" : "+"}</i>${esc(labelOfWidget(id))}</button>`;
+      };
+      /** A piece you can have many of: pressing it adds another. */
+      const add = (k: string): string => `<button class="pboard-dd-i" type="button" data-pb-add="${k}"><i>+</i>${esc(labelOfKind(k))}</button>`;
+      const menus: Array<[string, string]> = [
+        ["Page", [toggle("profile"), toggle("links"), toggle("views")].join("")],
+        ["Music", [toggle("music"), toggle("lyrics"), toggle("discord")].join("")],
+        ["Content", [add("text"), add("image"), add("item"), add("group"), add("divider")].join("")],
+        ["Move around", [add("page"), add("jump"), add("rail")].join("")],
+      ];
+      chips.innerHTML = menus.map(([name, items]) => `<details class="pboard-dd" data-dd><summary class="chip">${esc(name)}<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></summary><div class="pboard-dd-list">${items}</div></details>`).join("");
+    };
+
+    /** The middle of what you can see of the board, as a place for a new piece of this size. */
+    const centreSpot = (w: number, h: number): { x: number; y: number } => {
+      const r = canvas.getBoundingClientRect();
+      const left = Math.max(r.left, 0);
+      const right = Math.min(r.right, window.innerWidth);
+      const top = Math.max(r.top, 0);
+      const bottom = Math.min(r.bottom, window.innerHeight);
+      const cx = right > left ? (left + right) / 2 : (r.left + r.right) / 2;
+      const cy = bottom > top ? (top + bottom) / 2 : r.top;
+      // A piece in the middle of the board is shifted by half of what a wide screen adds, so that is taken back out.
+      const x = (cx - r.left) / scale - extra / 2 - w / 2;
+      const y = (cy - r.top) / scale - h / 2;
+      let px = Math.max(0, Math.min(BOARD_W - w, Math.round(x / GRID) * GRID));
+      let py = Math.max(0, Math.min(MAX_Y - h, Math.round(y / GRID) * GRID));
+      // Pieces added one after another step down and across a little, so one never hides another exactly.
+      for (let n = 0; n < 12 && tops().some(b => Math.abs(b.x - px) < 16 && Math.abs(b.y - py) < 16); n++) {
+        px = Math.min(BOARD_W - w, px + 24);
+        py = Math.min(MAX_Y - h, py + 24);
+      }
+      return { x: px, y: py };
     };
 
     /** A word about whether this board is the one being shown. */
@@ -243,10 +275,57 @@ export const pageboardPane: Pane = {
     };
 
     /** The options of the piece that is picked. */
-    const drawOpts = (): void => {
+    /**
+     * Put new markup in the options panel without losing where the person was: the panel and every
+     * scrolling box around it keep their scroll, and the panel keeps its height while it is rebuilt, so the
+     * page cannot shrink and jump to the top. A different piece starts at the top.
+     */
+    let optsFor = "";
+    const setOpts = (html: string, who: string): void => {
+      const same = who === optsFor;
+      optsFor = who;
+      const inner = opts.firstElementChild as HTMLElement | null;
+      const innerTop = inner?.scrollTop ?? 0;
+      const held: Array<{ node: Element; top: number }> = [];
+      if (same) {
+        for (let n: Element | null = opts.parentElement; n; n = n.parentElement) {
+          const o = getComputedStyle(n).overflowY;
+          if ((o === "auto" || o === "scroll") && n.scrollHeight > n.clientHeight) held.push({ node: n, top: n.scrollTop });
+        }
+        const root = document.scrollingElement;
+        if (root) held.push({ node: root, top: root.scrollTop });
+        opts.style.minHeight = `${opts.offsetHeight}px`;
+      }
+      opts.innerHTML = html;
+      if (same) {
+        const next = opts.firstElementChild as HTMLElement | null;
+        if (next) next.scrollTop = innerTop;
+        for (const h of held) h.node.scrollTop = h.top;
+        opts.style.minHeight = "";
+        for (const h of held) h.node.scrollTop = h.top;
+      }
+    };
+
+    /** Run a redraw of the options without the panel, or the page around it, jumping back to the top. */
+    const keepScroll = (redraw: () => void): void => {
+      const saved: Array<[Element, number]> = [];
+      for (let n: Element | null = opts; n; n = n.parentElement) {
+        if (n.scrollHeight > n.clientHeight) saved.push([n, n.scrollTop]);
+      }
+      const inner = opts.querySelector<HTMLElement>(".pboard-opts-in");
+      const innerTop = inner ? inner.scrollTop : 0;
+      const winY = window.scrollY;
+      redraw();
+      const again = opts.querySelector<HTMLElement>(".pboard-opts-in");
+      if (again) again.scrollTop = innerTop;
+      for (const [n, top] of saved) n.scrollTop = top;
+      if (window.scrollY !== winY) window.scrollTo({ top: winY });
+    };
+    const drawOpts = (): void => keepScroll(drawOptsNow);
+    const drawOptsNow = (): void => {
       const box = picked();
       if (!box) {
-        opts.innerHTML = `<div class="pboard-opts-in pboard-opts-empty"><b>Pieces</b><p class="note">Click a piece on the board to change how it looks: its place, fill, see-through, blur, border, shadow, layer, inside space and corners. Drag a piece by its grip to move it, and pull its corner to resize it.</p><p class="note"><b>Page</b> adds another screen to your page. <b>Button</b> adds a button that scrolls to one.</p></div>`;
+        setOpts(`<div class="pboard-opts-in pboard-opts-empty"><b>Pieces</b><p class="note">Click a piece on the board to change how it looks: its place, fill, see-through, blur, border, shadow, layer, inside space and corners. Drag a piece by its grip to move it, and pull its corner to resize it.</p><p class="note"><b>Page</b> adds another screen to your page. <b>Button</b> adds a button that scrolls to one.</p></div>`, "");
         return;
       }
       const p = store.profile;
@@ -369,20 +448,22 @@ export const pageboardPane: Pane = {
           ${flag("hideMobile", "Leave it out on phones", Boolean(box.hideMobile))}`),
       ].join("");
 
-      opts.innerHTML = `<div class="pboard-opts-in">
+      setOpts(`<div class="pboard-opts-in">
         <div class="pboard-opts-head">
           <span class="pboard-opts-name">${esc(pieceLabel(box))}</span>
           <button class="btn-ghost" type="button" data-pb-match>Reset look</button>
+          <button class="btn-ghost pboard-side-btn" type="button" data-pb-side title="Move these options to the other side of the screen">⇆</button>
           <button class="btn-ghost" type="button" data-pb-close>Done</button>
         </div>
         ${groups}
         <p class="note">What is inside a piece is laid out at its own size, the same as on the usual page.</p>
         ${MULTI.has(kind) ? `<div class="seg"><button class="seg-btn" type="button" data-pb-copy>Make a copy</button><button class="btn-ghost danger" type="button" data-pb-remove>Remove this ${esc((PAGE_KINDS.find(k => k.kind === kind)?.label ?? "piece").toLowerCase())}</button></div>` : ""}
-      </div>`;
+      </div>`, box.id);
     };
 
     /** Draw everything. */
-    const draw = (): void => {
+    const draw = (): void => keepScroll(drawNow);
+    const drawNow = (): void => {
       for (const fn of cleanups.splice(0)) fn();
       canvas.innerHTML = "";
       const model = store.model;
@@ -492,7 +573,12 @@ export const pageboardPane: Pane = {
       grow();
     };
     const onFullChange = (): void => { if (full && !document.fullscreenElement && wrap.dataset.fsReady === "1") setFull(false); };
-    const onKey = (e: KeyboardEvent): void => { if (e.key === "Escape" && full) setFull(false); };
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== "Escape") return;
+      // Escape closes an open menu first, and leaves full screen the next time.
+      if (el.querySelector("details[data-dd][open]")) { closeMenus(); return; }
+      if (full) setFull(false);
+    };
     const onWinResize = (): void => { if (full) fit(); };
     const onFsChange = (): void => {
       if (document.fullscreenElement === wrap) wrap.dataset.fsReady = "1";
@@ -501,6 +587,18 @@ export const pageboardPane: Pane = {
     document.addEventListener("fullscreenchange", onFsChange);
     document.addEventListener("keydown", onKey);
     window.addEventListener("resize", onWinResize);
+
+    /** Close every drop down. */
+    const closeMenus = (except?: Element | null): void => {
+      for (const d of el.querySelectorAll<HTMLDetailsElement>("details[data-dd]")) if (d !== except) d.open = false;
+    };
+    const onDocClick = (e: MouseEvent): void => {
+      const t = e.target instanceof Element ? e.target : null;
+      if (!t?.closest("details[data-dd]")) closeMenus();
+    };
+    document.addEventListener("click", onDocClick);
+    // Opening one menu closes the others.
+    el.addEventListener("toggle", e => { const d = e.target; if (d instanceof HTMLDetailsElement && d.open && d.hasAttribute("data-dd")) closeMenus(d); }, true);
 
     const offs = [
       delegate(el, "click", "[data-pb-full]", () => setFull(!full)),
@@ -525,9 +623,11 @@ export const pageboardPane: Pane = {
         } else {
           const piece = PAGE_WIDGETS.find(w => w.id === id);
           if (!piece) return;
-          const spot = findSpot(piece.w, piece.h);
+          const spot = centreSpot(piece.w, piece.h);
           list.push({ id, x: spot.x, y: spot.y, w: piece.w, h: piece.h });
+          selected = id;
         }
+        closeMenus();
         commit();
         draw();
         watch();
@@ -545,6 +645,10 @@ export const pageboardPane: Pane = {
         draw();
       }),
 
+      // Clicking an empty part of the board puts the options away.
+      delegate(el, "click", ".pboard-canvas", (e, t) => {
+        if (e.target === t && selected) pick(null);
+      }),
       // Clicking a piece opens its options.
       delegate(el, "click", ".pboard-canvas .fbox", (e, t) => {
         e.preventDefault();
@@ -553,6 +657,7 @@ export const pageboardPane: Pane = {
         if (id) pick(selected === id ? null : id);
       }),
       delegate(el, "click", "[data-pb-close]", () => pick(null)),
+      delegate(el, "click", "[data-pb-side]", () => { wrap.dataset.side = wrap.dataset.side === "left" ? "right" : "left"; }),
       // The piece goes back to the look of the page.
       delegate(el, "click", "[data-pb-match]", () => {
         const box = picked();
@@ -800,7 +905,7 @@ export const pageboardPane: Pane = {
         watch();
       }),
       delegate(el, "click", "[data-pb-additem]", () => {
-        el.querySelector<HTMLElement>('.chip-add[data-pb-add="item"]')?.click();
+        el.querySelector<HTMLElement>('[data-pb-add="item"]')?.click();
       }),
       delegate(el, "change", "[data-pb-flag]", (_e, t) => {
         const box = picked();
@@ -845,7 +950,8 @@ export const pageboardPane: Pane = {
         while (list.some(b => b.id === `${kind}:${n}`)) n++;
         const id = `${kind}:${n}`;
         let box: BoardBox;
-        const spot = findSpot(spec.w, spec.h);
+        const spot = centreSpot(spec.w, spec.h);
+        closeMenus();
         if (kind === "page") {
           // The next page starts below everything that is already there.
           const bottom = list.filter(b => !isChild(b)).reduce((m, b) => { const c = cardOf(b.id); return Math.max(m, b.y + (c ? c.offsetHeight : b.h)); }, 0);
@@ -906,6 +1012,7 @@ export const pageboardPane: Pane = {
       off();
       document.removeEventListener("fullscreenchange", onFsChange);
       document.removeEventListener("keydown", onKey);
+      document.removeEventListener("click", onDocClick);
       window.removeEventListener("resize", onWinResize);
       if (full) setFull(false);
       offs.forEach(fn => fn());

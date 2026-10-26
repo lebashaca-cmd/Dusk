@@ -267,13 +267,17 @@ textarea.pboard-text { min-height: 84px; resize: vertical; }
 .pboard-wrap.is-full { position: fixed; inset: 0; z-index: 400; overflow: auto; background: #050505; gap: 0; }
 .pboard-wrap.is-full .pboard-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
 .pboard-wrap.is-full .pboard-bg .scroll { display: none; }
-.pboard-wrap.is-full .pboard-bar { position: sticky; top: 0; z-index: 30; padding: 10px 14px; background: color-mix(in srgb, #000 68%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+/* The controls float at the bottom, so nothing sits over the top of the board. */
+.pboard-wrap.is-full .pboard-bar { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 50; max-width: calc(100vw - 28px); flex-wrap: nowrap; overflow-x: auto; padding: 8px 12px; border-radius: 999px; background: color-mix(in srgb, #000 74%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line-2); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55); scrollbar-width: none; }
+.pboard-wrap.is-full .pboard-bar::-webkit-scrollbar { display: none; }
+.pboard-wrap.is-full .pboard-chips { flex-wrap: nowrap; }
+.pboard-wrap.is-full .pboard-chips .chip, .pboard-wrap.is-full .pboard-bar .btn-ghost { white-space: nowrap; flex: none; }
 .pboard-wrap.is-full .pboard-note { display: none; }
 .pboard-wrap.is-full .pboard-main { position: relative; z-index: 1; margin: 0; gap: 0; display: block; }
 .pboard-wrap.is-full .pboard-canvas { border: 0; border-radius: 0; background-image: none; overflow: visible; }
-.pboard-wrap.is-full .pboard-opts { position: fixed; right: 12px; top: 64px; width: 310px; z-index: 40; }
-.pboard-wrap.is-full .pboard-main.beside .pboard-opts { position: fixed; top: 64px; width: 310px; }
-.pboard-wrap.is-full .pboard-opts-in { background: color-mix(in srgb, #0c0c0c 92%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); max-height: calc(100vh - 84px); }
+.pboard-wrap.is-full .pboard-opts { position: fixed; right: 12px; top: 12px; width: 310px; z-index: 40; }
+.pboard-wrap.is-full .pboard-main.beside .pboard-opts { position: fixed; top: 12px; width: 310px; }
+.pboard-wrap.is-full .pboard-opts-in { background: color-mix(in srgb, #0c0c0c 92%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); max-height: calc(100vh - 92px); overflow-y: auto; overscroll-behavior: contain; }
 .pboard-wrap.is-full .pboard-opts-empty { display: none; }
 .pboard-wrap.is-full .pboard-canvas .fbox { outline-offset: 2px; }
 .pboard-wrap.is-full .pboard-canvas .fbox:hover { outline: 1px dashed color-mix(in srgb, var(--p-text) 40%, transparent); }
@@ -325,3 +329,29 @@ a.fitem.is-text { text-decoration: underline; text-underline-offset: 3px; }
 .pboard-canvas .fgi.sel { outline: 2px solid var(--accent); outline-offset: 2px; }
 .is-free.is-stacked .fgroup[data-flow="row"] { flex-direction: column; }
 .pboard-nums input[data-pb-num] { width: 100%; }
+
+/* ---------- the drop down menus of the board's bar ---------- */
+.pboard-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pboard-dd { position: relative; }
+.pboard-dd > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; user-select: none; }
+.pboard-dd > summary::-webkit-details-marker { display: none; }
+.pboard-dd > summary svg { width: 13px; height: 13px; transition: transform 0.2s; }
+.pboard-dd[open] > summary svg { transform: rotate(180deg); }
+.pboard-dd[open] > summary { border-color: var(--line-2); background: var(--glass-2); color: var(--ink); }
+.pboard-dd-list { position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; min-width: 190px; display: flex; flex-direction: column; gap: 2px; padding: 6px; border: 1px solid var(--line-2); border-radius: 14px; background: color-mix(in srgb, #0c0c0c 96%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6); }
+.pboard-dd-i { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 9px; background: none; color: var(--ink-2); font: inherit; font-size: 13px; text-align: left; cursor: pointer; white-space: nowrap; }
+.pboard-dd-i i { font-style: normal; width: 14px; text-align: center; color: var(--dim); }
+.pboard-dd-i:hover { background: var(--glass-2); color: var(--ink); }
+.pboard-dd-i.on { color: var(--ink); }
+.pboard-dd-i.on i { color: var(--accent); }
+/* In full screen the bar is at the bottom, so the menus open upward. It no longer scrolls sideways, which would have cut them off. */
+.pboard-wrap.is-full .pboard-bar { overflow: visible; flex-wrap: wrap; justify-content: center; }
+.pboard-wrap.is-full .pboard-chips { flex-wrap: wrap; }
+.pboard-wrap.is-full .pboard-dd-list { top: auto; bottom: calc(100% + 10px); }
+.pboard-side-btn { display: none; }
+.pboard-wrap.is-full .pboard-side-btn { display: inline-flex; }
+.pboard-wrap.is-full[data-side="left"] .pboard-opts, .pboard-wrap.is-full[data-side="left"] .pboard-main.beside .pboard-opts { left: 12px; right: auto; }
+.pboard-wrap.is-full .pboard-bar { border-radius: 22px; }
+.pboard-wrap.is-full .pboard-bar, .pboard-wrap.is-full .pboard-chips { flex-wrap: nowrap; }
+.pboard-wrap.is-full .pboard-bar > * { flex: none; }
+.pboard-wrap.is-full .pboard-zoom { margin-left: 8px; }
