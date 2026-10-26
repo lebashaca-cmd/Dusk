@@ -363,3 +363,8 @@ a.fitem.is-text { text-decoration: underline; text-underline-offset: 3px; }
 .pboard-wrap:not(.is-full) .pboard-opts-grid { grid-template-columns: 1fr; }
 .pboard-wrap:not(.is-full) .pboard-side-btn { display: inline-flex; }
 .pboard-wrap:not(.is-full)[data-side="left"] .pboard-opts { left: 16px; right: auto; }
+
+/* The options box floats over the board. Only the box itself catches the pointer, never the empty strip around or behind it, so it can never block a piece. */
+.pboard-wrap .pboard-opts { pointer-events: none; }
+.pboard-wrap .pboard-opts-in { pointer-events: auto; }
+.pboard-wrap .pboard-opts:empty, .pboard-wrap.is-full .pboard-opts:has(.pboard-opts-empty), .pboard-wrap:not(.is-full) .pboard-opts:has(.pboard-opts-empty) { width: 0; }
