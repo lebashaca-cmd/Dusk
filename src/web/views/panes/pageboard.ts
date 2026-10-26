@@ -4,14 +4,13 @@ import { anchorShift, applyBoxLook, boardHeight, boardScale, boxInner, layerOf, 
 import { Stage } from "../../render/stage";
 import { applyTheme } from "../../render/theme";
 import { store } from "../../state";
-import { GRID, makeMover, makeResizer } from "../../ui/drag";
+import { GRID, HANDLES, attachMoves } from "./pbmove";
 import { chooseMedia } from "../../ui/media";
 import { toast } from "../../ui/toast";
 import { delegate, esc, must } from "../../util/dom";
 import type { Pane } from "./fields";
 
 /** The grip you hold to move a piece. */
-const GRIP = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>`;
 
 /** Pieces you can have more than one of. */
 const MULTI = new Set<string>(PAGE_KINDS.map(k => k.kind));
@@ -77,7 +76,6 @@ export const pageboardPane: Pane = {
     /** The piece whose options are open, if any. */
     let selected: string | null = null;
     /** When a drag or a resize last finished, so the click that ends it is not taken as a pick. */
-    let dragEnded = 0;
     /** How big the board is drawn: as wide as the pane allows. */
     let scale = 1;
     /** Full screen shows the page the way a visitor's screen does: as wide as the screen. */
@@ -104,13 +102,28 @@ export const pageboardPane: Pane = {
       const h = boardHeight(canvas, BOARD_H) + SLACK;
       canvas.style.height = `${h}px`;
       scaleBox.style.height = `${Math.round(h * scale)}px`;
+      syncFrame();
     };
+
+    /** The frame with the handles, drawn over the piece that is picked. It is not inside the piece, so the piece can never clip it. */
+    let frame: HTMLElement | null = null;
+    function syncFrame(): void {
+      if (!frame || !frame.isConnected) return;
+      const card = selected ? cardOf(selected) : null;
+      frame.hidden = !card;
+      if (!card) return;
+      frame.dataset.for = selected ?? "";
+      frame.style.left = `${card.offsetLeft}px`;
+      frame.style.top = `${card.offsetTop}px`;
+      frame.style.width = `${card.offsetWidth}px`;
+      frame.style.height = `${card.offsetHeight}px`;
+    }
 
     /** Put a piece where its box says, with the shift a wide screen gives it. */
     const layout = (box: BoardBox): void => {
       const card = cardOf(box.id);
       if (!card) return;
-      const { ex, ew } = anchorShift(box.x, box.w, extra);
+      const { ex, ew } = anchorShift(box.x, box.w, extra, box.anc);
       card.style.left = `${box.x + ex}px`;
       card.style.top = `${box.y}px`;
       card.style.width = `${box.w + ew}px`;
@@ -170,46 +183,9 @@ export const pageboardPane: Pane = {
       if (box.fixedH) card.style.height = `${box.h}px`;
       if (box.id === selected) card.classList.add("sel");
       const body = model ? widgetHTML(box.id, model, box) : "";
-      card.innerHTML = `${boxInner(body)}<span class="pbgrip" data-move-handle aria-hidden="true">${GRIP}</span><span class="pbtag">${esc(pieceLabel(box))}</span><span class="wresize" data-resize-handle aria-hidden="true"></span>`;
+      card.innerHTML = `${boxInner(body)}<span class="pbtag">${esc(pieceLabel(box))}</span>`;
       canvas.append(card);
       layout(box);
-
-      // The piece keeps the shift it had when the drag started, so it does not jump as it passes a third of the board.
-      let shiftAtStart = 0;
-      cleanups.push(makeMover(card, canvas, () => {
-        const x = card.offsetLeft - shiftAtStart;
-        if (x === box.x && card.offsetTop === box.y) { layout(box); return; }
-        dragEnded = performance.now();
-        box.x = x;
-        box.y = card.offsetTop;
-        layout(box);
-        store.profileChanged();
-      }, () => scale, grow, () => ({ w: BOARD_W, h: MAX_Y }), () => (shiftAtStart = anchorShift(box.x, box.w, extra).ex)));
-
-      // Pulling the corner makes the piece wider. If the height was pulled too, the piece keeps that height.
-      let startH = 0;
-      const grip = card.querySelector<HTMLElement>("[data-resize-handle]");
-      grip?.addEventListener("pointerdown", () => { startH = card.offsetHeight; }, true);
-      cleanups.push(makeResizer(card, () => {
-        const dragged = card.offsetHeight;
-        const now = anchorShift(box.x, box.w, extra);
-        let width = Math.max(20, card.offsetWidth - now.ew);
-        const heightMoved = Math.abs(dragged - startH) > 6;
-        // On a wide screen the corner can be pulled all the way to the edge of the screen. The piece then stretches to it.
-        const atEdge = extra > 0 && card.offsetLeft + card.offsetWidth >= bw - 2;
-        if (atEdge) {
-          const left = Math.max(0, Math.round((card.offsetLeft) / GRID) * GRID);
-          if (BOARD_W - left > BOARD_W / 2) { box.x = Math.min(left, BOARD_W - 20); width = BOARD_W - box.x; }
-          else width = Math.min(width, BOARD_W - box.x);
-        }
-        if (width === box.w && !heightMoved && !atEdge) { card.style.height = box.fixedH ? `${box.h}px` : ""; layout(box); return; }
-        dragEnded = performance.now();
-        box.w = width;
-        if (heightMoved) { box.fixedH = true; box.h = Math.max(16, dragged); }
-        card.style.height = box.fixedH ? `${box.h}px` : "";
-        layout(box);
-        store.profileChanged();
-      }, () => scale, grow, () => ({ w: Math.max(20, bw - card.offsetLeft), h: 3000 })));
 
       // The arrow keys move a piece too, so this is not mouse-only.
       card.addEventListener("keydown", e => {
@@ -274,7 +250,7 @@ export const pageboardPane: Pane = {
     /** A word about whether this board is the one being shown. */
     const drawNote = (): void => {
       note.innerHTML = store.profile.page.layout === "experimental"
-        ? "This is the board your visitors see. Drag a piece by its grip to move it, pull its corner to resize it, and click it to change how it looks. On a phone the pieces are stacked in a column."
+        ? "This is the board your visitors see. Drag a piece to move it, pull its edges or corners to resize it, and click it to change how it looks. Lines show when it lines up with something. Hold Alt to move without snapping, and press Esc to put it back. On a phone the pieces are stacked in a column."
         : `Your page is set to <b>Regular</b>, so this board is not shown yet. <button class="btn-ghost" type="button" data-pb-experimental>Use the experimental layout</button>`;
     };
 
@@ -329,7 +305,7 @@ export const pageboardPane: Pane = {
     const drawOptsNow = (): void => {
       const box = picked();
       if (!box) {
-        setOpts(`<div class="pboard-opts-in pboard-opts-empty"><b>Pieces</b><p class="note">Click a piece on the board to change how it looks: its place, fill, see-through, blur, border, shadow, layer, inside space and corners. Drag a piece by its grip to move it, and pull its corner to resize it.</p><p class="note"><b>Page</b> adds another screen to your page. <b>Button</b> adds a button that scrolls to one.</p></div>`, "");
+        setOpts(`<div class="pboard-opts-in pboard-opts-empty"><b>Pieces</b><p class="note">Click a piece on the board to change how it looks: its place, fill, see-through, blur, border, shadow, layer, inside space and corners. Drag a piece to move it, and pull its edges or corners to resize it.</p><p class="note"><b>Page</b> adds another screen to your page. <b>Button</b> adds a button that scrolls to one.</p></div>`, "");
         return;
       }
       const p = store.profile;
@@ -473,6 +449,12 @@ export const pageboardPane: Pane = {
       const model = store.model;
       if (model) applyTheme(canvas, model);
       for (const box of tops()) place(box, model);
+      frame = document.createElement("div");
+      frame.className = "pb-frame";
+      frame.hidden = true;
+      frame.innerHTML = HANDLES.map(h => `<span class="pbh" data-h="${h}" aria-hidden="true"></span>`).join("");
+      canvas.append(frame);
+      syncFrame();
       drawChips();
       drawNote();
       drawOpts();
@@ -549,9 +531,14 @@ export const pageboardPane: Pane = {
       grow();
     };
     const commit = (): void => { store.profileChanged(); };
+    /** Whether the owner moved the options to a side themselves. Until then they go to the side away from the piece. */
+    let sideChosen = false;
     const pick = (id: string | null): void => {
       selected = id;
+      const at = id ? cardOf(id)?.getBoundingClientRect() : null;
+      if (at && !sideChosen) wrap.dataset.side = (at.left + at.right) / 2 > window.innerWidth / 2 ? "left" : "right";
       for (const card of canvas.querySelectorAll<HTMLElement>(".fbox")) card.classList.toggle("sel", card.dataset.widget === selected);
+      syncFrame();
       drawOpts();
     };
 
@@ -604,6 +591,34 @@ export const pageboardPane: Pane = {
     // Opening one menu closes the others.
     el.addEventListener("toggle", e => { const d = e.target; if (d instanceof HTMLDetailsElement && d.open && d.hasAttribute("data-dd")) closeMenus(d); }, true);
 
+    /** Moving and resizing. One handler for the whole board, so a redraw never leaves a drag half done. */
+    const scrollParent = (): HTMLElement | null => {
+      for (let n: HTMLElement | null = canvas.parentElement; n; n = n.parentElement) {
+        const o = getComputedStyle(n).overflowY;
+        if ((o === "auto" || o === "scroll") && n.scrollHeight > n.clientHeight) return n;
+      }
+      return document.scrollingElement as HTMLElement | null;
+    };
+    const detachMoves = attachMoves({
+      canvas,
+      scale: () => scale,
+      width: () => bw,
+      boxes: tops,
+      cardOf,
+      scroller: scrollParent,
+      tick: grow,
+      tap: id => pick(selected === id ? null : id),
+      commit: (box, changed) => {
+        const card = cardOf(box.id);
+        if (card) card.style.height = box.fixedH ? `${box.h}px` : "";
+        layout(box);
+        grow();
+        if (!changed) return;
+        pick(box.id);
+        store.profileChanged();
+      },
+    });
+
     const offs = [
       delegate(el, "click", "[data-pb-full]", () => setFull(!full)),
       // Which groups of options are open stays the same from one piece to the next.
@@ -628,7 +643,7 @@ export const pageboardPane: Pane = {
           const piece = PAGE_WIDGETS.find(w => w.id === id);
           if (!piece) return;
           const spot = centreSpot(piece.w, piece.h);
-          list.push({ id, x: spot.x, y: spot.y, w: piece.w, h: piece.h });
+          list.push({ id, x: spot.x, anc: "c", y: spot.y, w: piece.w, h: piece.h });
           selected = id;
         }
         closeMenus();
@@ -653,15 +668,8 @@ export const pageboardPane: Pane = {
       delegate(el, "click", ".pboard-canvas", (e, t) => {
         if (e.target === t && selected) pick(null);
       }),
-      // Clicking a piece opens its options.
-      delegate(el, "click", ".pboard-canvas .fbox", (e, t) => {
-        e.preventDefault();
-        if (performance.now() - dragEnded < 300) return;
-        const id = t.dataset.widget ?? "";
-        if (id) pick(selected === id ? null : id);
-      }),
       delegate(el, "click", "[data-pb-close]", () => pick(null)),
-      delegate(el, "click", "[data-pb-side]", () => { wrap.dataset.side = wrap.dataset.side === "left" ? "right" : "left"; }),
+      delegate(el, "click", "[data-pb-side]", () => { sideChosen = true; wrap.dataset.side = wrap.dataset.side === "left" ? "right" : "left"; }),
       // The piece goes back to the look of the page.
       delegate(el, "click", "[data-pb-match]", () => {
         const box = picked();
@@ -732,10 +740,10 @@ export const pageboardPane: Pane = {
         const card = box ? cardOf(box.id) : null;
         if (!box || !card) return;
         const d = t.dataset;
-        if ("pbAtFull" in d) { box.x = 0; box.w = BOARD_W; }
-        else if ("pbAtLeft" in d) box.x = 0;
-        else if ("pbAtRight" in d) box.x = BOARD_W - box.w;
-        else if ("pbAtCenter" in d) box.x = Math.round((BOARD_W - box.w) / 2);
+        if ("pbAtFull" in d) { box.x = 0; box.w = BOARD_W; box.anc = "s"; }
+        else if ("pbAtLeft" in d) { box.x = 0; box.anc = "l"; }
+        else if ("pbAtRight" in d) { box.x = BOARD_W - box.w; box.anc = "r"; }
+        else if ("pbAtCenter" in d) { box.x = Math.round((BOARD_W - box.w) / 2); box.anc = "c"; }
         else if ("pbAtTop" in d) box.y = 0;
         layout(box);
         grow();
@@ -963,23 +971,23 @@ export const pageboardPane: Pane = {
           box = { id, x: 40, y, w: 1120, h: spec.h, fixedH: true, fill: "soft", label: `Page ${list.filter(b => kindOf(b.id) === "page").length + 2}` };
         } else if (kind === "jump") {
           const firstPage = list.find(b => kindOf(b.id) === "page");
-          box = { id, x: spot.x, y: spot.y, w: spec.w, h: spec.h, fill: "outline", label: "Scroll down", target: firstPage?.id ?? "top" };
+          box = { id, x: spot.x, anc: "c", y: spot.y, w: spec.w, h: spec.h, fill: "outline", label: "Scroll down", target: firstPage?.id ?? "top" };
         } else if (kind === "rail") {
           box = { id, x: BOARD_W - spec.w - 16, y: 120, w: spec.w, h: spec.h, fill: "none", dock: "right", look: "bar" };
         } else if (kind === "item") {
           // With a group (or an item in one) picked, the new item goes into that group.
           const cur = picked();
           const home = cur && kindOf(cur.id) === "group" ? cur.id : cur?.into;
-          box = { id, x: spot.x, y: spot.y, w: spec.w, h: spec.h, fill: "soft", mode: "link", label: "My link", icon: "auto" };
+          box = { id, x: spot.x, anc: "c", y: spot.y, w: spec.w, h: spec.h, fill: "soft", mode: "link", label: "My link", icon: "auto" };
           if (home && list.some(g => g.id === home)) box.into = home;
         } else if (kind === "group") {
-          box = { id, x: spot.x, y: spot.y, w: spec.w, h: spec.h, fill: "none", flow: "col", gap: 10 };
+          box = { id, x: spot.x, anc: "c", y: spot.y, w: spec.w, h: spec.h, fill: "none", flow: "col", gap: 10 };
         } else if (kind === "text") {
-          box = { id, x: spot.x, y: spot.y, w: spec.w, h: spec.h, fill: "soft", label: "A heading", text: "Write something here." };
+          box = { id, x: spot.x, anc: "c", y: spot.y, w: spec.w, h: spec.h, fill: "soft", label: "A heading", text: "Write something here." };
         } else if (kind === "image") {
-          box = { id, x: spot.x, y: spot.y, w: spec.w, h: spec.h, fixedH: true, fill: "none", pad: 0, look: "cover" };
+          box = { id, x: spot.x, anc: "c", y: spot.y, w: spec.w, h: spec.h, fixedH: true, fill: "none", pad: 0, look: "cover" };
         } else {
-          box = { id, x: spot.x, y: spot.y, w: spec.w, h: spec.h, fill: "none", size: 2 };
+          box = { id, x: spot.x, anc: "c", y: spot.y, w: spec.w, h: spec.h, fill: "none", size: 2 };
         }
         list.push(box);
         selected = id;
@@ -1020,6 +1028,7 @@ export const pageboardPane: Pane = {
       window.removeEventListener("resize", onWinResize);
       if (full) setFull(false);
       offs.forEach(fn => fn());
+      detachMoves();
       for (const fn of cleanups.splice(0)) fn();
     };
   },

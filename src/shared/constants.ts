@@ -248,6 +248,7 @@ export function normalizeBoard(board: unknown): BoardBox[] {
     if (![box.x, box.y, box.w, box.h].every(n => typeof n === "number" && Number.isFinite(n))) continue;
     if (out.some(o => o.id === box.id)) continue;
     const piece: BoardBox = { id: box.id, x: box.x!, y: box.y!, w: Math.max(20, box.w!), h: Math.max(16, box.h!) };
+    if (box.anc === "l" || box.anc === "c" || box.anc === "r" || box.anc === "s") piece.anc = box.anc;
     // The look of a piece is kept only when it is one of the choices.
     if (box.align === "center" || box.align === "left") piece.align = box.align;
     if (box.fill && BOX_FILLS.includes(box.fill)) piece.fill = box.fill;

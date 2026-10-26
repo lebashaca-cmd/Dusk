@@ -186,6 +186,7 @@ export function boxVars(b: BoardBox): string {
   if (typeof b.blur === "number") bits.push(`--bl:${b.blur}px`);
   if (typeof b.borderW === "number") bits.push(`--bw-px:${b.borderW}px`);
   if (typeof b.shadow === "number") bits.push(`--sh:${b.shadow / 100}`);
+  if (b.anc) bits.push(`--anc:${b.anc}`);
   bits.push(`--z:${layerOf(b)}`);
   if (b.color) bits.push(`--pc:${b.color}`);
   if (b.bg) bits.push(`--pb:${b.bg}`);
@@ -228,11 +229,15 @@ export function boardHeight(canvas: HTMLElement, least = BOARD_H): number {
  * Where a piece goes when the board is wider than it was made: pieces on the left stay left, pieces on the
  * right stay right and the ones in the middle stay in the middle. A piece that spans the board stretches.
  */
-export function anchorShift(x: number, w: number, extra: number): { ex: number; ew: number } {
+export function anchorShift(x: number, w: number, extra: number, anc?: string): { ex: number; ew: number } {
   if (extra <= 0) return { ex: 0, ew: 0 };
+  // The side the owner put the piece on is used as it is.
+  if (anc === "s") return { ex: 0, ew: extra };
+  if (anc === "l") return { ex: 0, ew: 0 };
+  if (anc === "c") return { ex: extra / 2, ew: 0 };
+  if (anc === "r") return { ex: extra, ew: 0 };
+  // Boards saved before that are read the old way, by where the piece sits.
   if (x <= 24 && x + w >= BOARD_W - 24) return { ex: 0, ew: extra };
-  // A wide piece that reaches the right edge keeps its left side and stretches to the edge of a wide screen.
-  if (x + w >= BOARD_W - 24 && w > BOARD_W / 2) return { ex: 0, ew: extra };
   const mid = x + w / 2;
   return { ex: mid < BOARD_W / 3 ? 0 : mid > (BOARD_W * 2) / 3 ? extra : extra / 2, ew: 0 };
 }
@@ -278,7 +283,7 @@ export function fitFree(stage: HTMLElement): void {
   for (const b of canvas.querySelectorAll<HTMLElement>(":scope > .fbox")) {
     const x = parseFloat(b.style.getPropertyValue("--x")) || 0;
     const w = parseFloat(b.style.getPropertyValue("--w")) || 0;
-    const { ex, ew } = anchorShift(x, w, extra);
+    const { ex, ew } = anchorShift(x, w, extra, b.style.getPropertyValue("--anc").trim());
     b.style.setProperty("--ex", `${ex}px`);
     b.style.setProperty("--ew", `${ew}px`);
   }

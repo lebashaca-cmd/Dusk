@@ -161,6 +161,8 @@ export interface BoardBox {
   /** How big it is. */
   w: number;
   h: number;
+  /** On a screen wider than the board: which side the piece holds on to. l, c and r keep its size and stay left, middle or right. s keeps its left side and stretches to the right edge. */
+  anc?: "l" | "c" | "r" | "s";
   /** How the piece is lined up inside its box. */
   align?: BoxAlign;
   /** How the piece is filled in. */
