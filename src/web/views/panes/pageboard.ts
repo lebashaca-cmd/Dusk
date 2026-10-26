@@ -29,9 +29,6 @@ const OPEN = new Set<string>(["content", "place"]);
 const DEFAULT_PAD = 16;
 /** How much room is kept below the lowest piece, so there is always somewhere to drag one. */
 const SLACK = 160;
-/** The options sit this wide beside the board, when the pane is wide enough. */
-const SIDE = 300;
-const GAP = 20;
 /** The farthest down a piece can be put. */
 const MAX_Y = 4000;
 
@@ -129,9 +126,8 @@ export const pageboardPane: Pane = {
         bw = avail > BOARD_W ? avail : BOARD_W;
       } else {
         const room = el.clientWidth - 44;
-        const beside = room >= 940;
-        main.classList.toggle("beside", beside);
-        scale = boardScale(beside ? room - SIDE - GAP : room);
+        main.classList.remove("beside");
+        scale = boardScale(room);
         bw = BOARD_W;
       }
       const next = bw - BOARD_W;
