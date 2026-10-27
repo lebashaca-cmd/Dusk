@@ -67,7 +67,7 @@ export const PAGE_LAYOUTS = ["regular", "experimental"] as const;
 export type PageLayout = (typeof PAGE_LAYOUTS)[number];
 
 /** Where the lyrics come from. */
-export const LYRIC_PROVIDERS = ["lrclib", "polaris", "polarisMono", "genius"] as const;
+export const LYRIC_PROVIDERS = ["lrclib", "genius", "spicy", "musixmatch", "petit"] as const;
 export type LyricProvider = (typeof LYRIC_PROVIDERS)[number];
 
 /** Backgrounds only VIP members can pick. */
@@ -151,6 +151,13 @@ export type BoxFill = "soft" | "solid" | "outline" | "glass" | "none";
 /** How the content of a piece is fitted into it. */
 export type BoxFit = "scale" | "fixed";
 
+/** One entry of a games or music list: a name, a small line under it (a rating or an artist) and a cover. */
+export interface ListEntry {
+  n: string;
+  s?: string;
+  c?: string;
+}
+
 /** One piece of the page, and where it sits on the free-form board. */
 export interface BoardBox {
   /** Which piece this is, e.g. "profile" or "links". */
@@ -226,11 +233,55 @@ export interface BoardBox {
   /** How big everything inside is drawn, as a percentage. */
   zoom?: number;
   /** What happens when the pointer is over it. */
-  hover?: "none" | "lift" | "glow" | "grow";
-  /** How it arrives when the page opens. */
-  anim?: "none" | "fade" | "rise" | "zoom" | "slide";
-  /** Floats gently up and down. */
+  hover?: "none" | "lift" | "grow" | "shrink" | "tilt" | "spin" | "glow" | "bright";
+  /** How it arrives. */
+  anim?: "none" | "fade" | "rise" | "drop" | "zoom" | "pop" | "left" | "right" | "flip" | "blur" | "spin" | "slide";
+  /** How long the arrival takes, in milliseconds. */
+  animMs?: number;
+  /** How long to wait before it arrives, in milliseconds. */
+  animDelay?: number;
+  /** Whether it arrives when the page opens, or when the visitor scrolls to it. */
+  animOn?: "load" | "view";
+  /** A movement it keeps doing. */
+  loop?: "none" | "float" | "pulse" | "breathe" | "sway" | "bounce" | "spin" | "wobble" | "swing";
+  /** How long one round of the movement takes, in milliseconds. */
+  loopMs?: number;
+  /** How it drifts against the scroll, as a percentage of how far the page scrolled. Negative goes the other way. */
+  par?: number;
+  /** Old setting: floats gently up and down. It is the same as the float movement. */
   float?: boolean;
+  /** Kept where it is: it cannot be moved or resized on the board until it is unlocked. */
+  locked?: boolean;
+  /** Pulling a corner keeps the shape of the piece. */
+  ratio?: boolean;
+  /** The profile piece: the words shown as the name instead of the profile's, its size, weight, colour, spacing, case and style. */
+  ntext?: string;
+  nsz?: number;
+  nwt?: 400 | 500 | 600 | 700 | 800;
+  ncol?: string;
+  ntr?: number;
+  ncase?: "normal" | "upper" | "lower";
+  nfx?: "plain" | "glow" | "gradient";
+  /** The profile piece: what is shown under the name. */
+  handle?: "site" | "discord" | "none";
+  /** The profile piece: show the Discord banner, how tall it is, and whether the picture is left out. */
+  banner?: boolean;
+  bnh?: number;
+  noav?: boolean;
+  /** The profile piece: how big the picture is, in pixels. */
+  avs?: number;
+  /** A colour theme for the piece (one of the named ones, or "custom" with two colours of its own), and how strong it is. */
+  theme?: string;
+  tc1?: string;
+  tc2?: string;
+  tha?: number;
+  /** An effect that plays over the piece, and how much of it there is. */
+  fx?: "none" | "sparkles" | "snow" | "embers" | "rain" | "bubbles" | "stars" | "confetti";
+  fxn?: number;
+  /** For a games or music list: the entries, and how the cards look. */
+  items?: ListEntry[];
+  cardW?: number;
+  dots?: boolean;
   /** Left out when the pieces are stacked on a phone. */
   hideMobile?: boolean;
 }
@@ -368,6 +419,10 @@ export interface UserInfo {
   username: string;
   discordName: string;
   discordAvatarUrl: string | null;
+  /** The Discord username, and the banner when the account has one. Only the owner gets these here. */
+  discordTag: string | null;
+  discordBannerUrl: string | null;
+  discordAccent: string | null;
 }
 
 export interface PageInfo {
@@ -416,6 +471,10 @@ export interface RenderModel {
   profile: Profile;
   avatarUrl: string | null;
   discordAvatarUrl: string | null;
+  /** The Discord username and banner. Only set when the profile piece is set to show them. */
+  discordTag?: string | null;
+  discordBannerUrl?: string | null;
+  discordAccent?: string | null;
   /** Only set when the owner turned on live Discord status. */
   discordId: string | null;
   tracks: Track[];

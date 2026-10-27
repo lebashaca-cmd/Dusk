@@ -116,6 +116,7 @@ export function attachMoves(host: MoveHost): () => void {
     l: number; t: number; r: number; b: number;
     guides: HTMLElement | null; read: HTMLElement | null;
     vertical: boolean; hitX: number[]; hitY: number[];
+    locked: boolean; shift: boolean;
   } = null;
 
   const topCard = (t: EventTarget | null): HTMLElement | null => {
@@ -260,6 +261,17 @@ export function attachMoves(host: MoveHost): () => void {
         if (snap) t += snapTo([t], d.ys, d.hitY, true);
         t = Math.min(b - MIN_H, Math.max(0, t));
       }
+      // Pulling a corner with Shift held, or on a piece that keeps its shape, scales the piece from the opposite corner.
+      if ((d.shift || d.box.ratio) && dir.length === 2) {
+        const w0 = d.r0 - d.l0;
+        const h0 = d.b0 - d.t0;
+        const sx = (r - l) / w0;
+        const sy = (b - t) / h0;
+        const s = Math.max(MIN_W / w0, MIN_H / h0, Math.abs(sx - 1) > Math.abs(sy - 1) ? sx : sy);
+        if (dir.includes("e")) r = d.l0 + w0 * s; else l = d.r0 - w0 * s;
+        if (dir.includes("s")) b = d.t0 + h0 * s; else t = d.b0 - h0 * s;
+        l = Math.max(0, l); r = Math.min(bw, r); t = Math.max(0, t);
+      }
       d.vertical = d.vertical || dir.includes("n") || dir.includes("s");
       d.hitX = d.hitX.filter(x => Math.abs((dir.includes("e") ? r : l) - x) < 0.6);
       d.hitY = d.hitY.filter(y => Math.abs((dir.includes("s") ? b : t) - y) < 0.6);
@@ -311,6 +323,8 @@ export function attachMoves(host: MoveHost): () => void {
     d.cx = e.clientX;
     d.cy = e.clientY;
     d.free = e.altKey;
+    d.shift = e.shiftKey;
+    if (d.locked) return;
     if (!d.started) {
       if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < START) return;
       d.started = true;
@@ -345,7 +359,7 @@ export function attachMoves(host: MoveHost): () => void {
     const id = card.dataset.widget ?? "";
     const box = host.boxes().find(b => b.id === id);
     if (!box) return;
-    const dir = (handle?.dataset.h as Dir | undefined) ?? null;
+    const dir = box.locked ? null : (handle?.dataset.h as Dir | undefined) ?? null;
     const p = toBoard(e.clientX, e.clientY);
     const l0 = card.offsetLeft;
     const t0 = card.offsetTop;
@@ -359,6 +373,7 @@ export function attachMoves(host: MoveHost): () => void {
       id, tapId: target.closest<HTMLElement>(".fbox")?.dataset.widget ?? id, card, box, dir, pointer: e.pointerId, sx: e.clientX, sy: e.clientY, started: false,
       grabX, grabY, l0, t0, r0, b0, xs, ys, cx: e.clientX, cy: e.clientY, free: e.altKey,
       l: l0, t: t0, r: r0, b: b0, guides: null, read: null, vertical: false, hitX: [], hitY: [],
+      locked: Boolean(box.locked), shift: e.shiftKey,
     };
     card.focus({ preventScroll: true });
     try { card.setPointerCapture(e.pointerId); } catch { /* the window listeners still hear it */ }

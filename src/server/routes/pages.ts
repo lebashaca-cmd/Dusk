@@ -32,6 +32,8 @@ pagesRouter.post("/", rateLimit(60_000, 10), (req, res) => {
     username: wanted,
     discordName: current.discordName,
     discordHandle: current.discordHandle,
+    discordBanner: current.discordBanner,
+    discordAccent: current.discordAccent,
     discordAvatar: current.discordAvatar,
     profile: defaultProfile(current.discordName),
     roles: current.roles,

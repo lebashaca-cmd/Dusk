@@ -1,6 +1,6 @@
 import {
   LYRIC_PROVIDERS, PAGE_LAYOUTS, VIP_BG_TYPES,
-  type BgType, type BoardBox, type BoxAlign, type BoxFill, type BoxFit, type FontKey, type IconName, type LyricProvider, type PageSettings, type PresenceStatus, type Profile, type ProfileColors, type ThemeName,
+  type BgType, type BoardBox, type BoxAlign, type BoxFill, type BoxFit, type FontKey, type IconName, type ListEntry, type LyricProvider, type PageSettings, type PresenceStatus, type Profile, type ProfileColors, type ThemeName,
 } from "./types";
 
 export const LIMITS = {
@@ -104,6 +104,8 @@ export const PAGE_KINDS = [
   { kind: "divider", label: "Divider", w: 400, h: 24 },
   { kind: "item", label: "Link or text", w: 300, h: 64 },
   { kind: "group", label: "Group", w: 340, h: 200 },
+  { kind: "games", label: "Games", w: 620, h: 330 },
+  { kind: "listen", label: "Music I listen to", w: 620, h: 330 },
 ] as const satisfies ReadonlyArray<{ kind: string; label: string; w: number; h: number }>;
 
 /** The kind of piece an id is: "page:2" is a "page", "links" is "links". */
@@ -112,13 +114,27 @@ export const kindOf = (id: string): string => id.split(":")[0] ?? id;
 /** Whether an id names a piece that exists: one of the usual pieces, or a copy of a page or a button. */
 export function knownPiece(id: string): boolean {
   if (PAGE_WIDGETS.some(w => w.id === id)) return true;
-  return /^(page|jump|rail|text|image|divider|item|group):\d{1,3}$/.test(id);
+  return /^(page|jump|rail|text|image|divider|item|group|games|listen):\d{1,3}$/.test(id);
 }
 
 /** The most pieces a board can hold. */
 export const MAX_PIECES = 24;
 
 /** The ways a piece can be filled in. */
+/** How a piece can arrive, what it can keep doing, and what it does under the pointer. */
+/** The colour themes a piece can have: two colours that blend across it. */
+export const PIECE_THEMES: Record<string, readonly [string, string]> = {
+  dusk: ["#7c3aed", "#db2777"], ocean: ["#0ea5e9", "#1d4ed8"], ember: ["#f97316", "#dc2626"], forest: ["#22c55e", "#065f46"],
+  rose: ["#fb7185", "#be185d"], gold: ["#facc15", "#d97706"], mint: ["#2dd4bf", "#0891b2"], aurora: ["#22d3ee", "#a855f7"],
+  sunset: ["#fbbf24", "#ec4899"], mono: ["#e5e5e5", "#525252"],
+};
+/** The effects that can play over a piece. */
+export const PIECE_FX = ["none", "sparkles", "snow", "embers", "rain", "bubbles", "stars", "confetti"] as const;
+/** The most entries one games or music list holds. */
+export const MAX_LIST = 20;
+export const BOX_ANIMS = ["none", "fade", "rise", "drop", "zoom", "pop", "left", "right", "flip", "blur", "spin", "slide"] as const;
+export const BOX_LOOPS = ["none", "float", "pulse", "breathe", "sway", "bounce", "spin", "wobble", "swing"] as const;
+export const BOX_HOVERS = ["none", "lift", "grow", "shrink", "tilt", "spin", "glow", "bright"] as const;
 export const BOX_FILLS: readonly BoxFill[] = ["soft", "solid", "outline", "glass", "none"];
 
 /** The ways a piece can be lined up inside its box. */
@@ -147,9 +163,10 @@ export function defaultBoard(): BoardBox[] {
 /** The names the settings use for the lyrics services. */
 export const LYRIC_PROVIDER_NAMES: Record<LyricProvider, string> = {
   lrclib: "LRCLIB",
-  polaris: "Polaris",
-  polarisMono: "Polaris Mono",
   genius: "Genius",
+  spicy: "Spicy Lyrics",
+  musixmatch: "Musixmatch",
+  petit: "PetitLyrics",
 };
 
 /** A new account starts with a clean page: nothing but the person's Discord name. */
@@ -283,8 +300,50 @@ export function normalizeBoard(board: unknown): BoardBox[] {
     const glow = nn(box.glow, 0, 100); if (glow !== undefined) piece.glow = glow;
     const rot = nn(box.rot, -15, 15); if (rot !== undefined) piece.rot = rot;
     const zoom = nn(box.zoom, 60, 160); if (zoom !== undefined) piece.zoom = zoom;
-    if (box.hover === "none" || box.hover === "lift" || box.hover === "glow" || box.hover === "grow") piece.hover = box.hover;
-    if (box.anim === "none" || box.anim === "fade" || box.anim === "rise" || box.anim === "zoom" || box.anim === "slide") piece.anim = box.anim;
+    if (box.hover && (BOX_HOVERS as readonly string[]).includes(box.hover)) piece.hover = box.hover;
+    if (box.anim && (BOX_ANIMS as readonly string[]).includes(box.anim)) piece.anim = box.anim;
+    if (box.loop && (BOX_LOOPS as readonly string[]).includes(box.loop)) piece.loop = box.loop;
+    if (box.animOn === "load" || box.animOn === "view") piece.animOn = box.animOn;
+    const animMs = nn(box.animMs, 200, 3000); if (animMs !== undefined) piece.animMs = animMs;
+    const animDelay = nn(box.animDelay, 0, 3000); if (animDelay !== undefined) piece.animDelay = animDelay;
+    const loopMs = nn(box.loopMs, 600, 12000); if (loopMs !== undefined) piece.loopMs = loopMs;
+    const par = nn(box.par, -60, 60); if (par !== undefined) piece.par = par;
+    if (box.locked === true) piece.locked = true;
+    if (box.ratio === true) piece.ratio = true;
+    const clip = (v: unknown, n: number): string | undefined => typeof v === "string" && v.trim() ? v.slice(0, n) : undefined;
+    const ntext = clip(box.ntext, 40); if (ntext) piece.ntext = ntext;
+    const nsz = nn(box.nsz, 14, 96); if (nsz !== undefined) piece.nsz = nsz;
+    if (box.nwt === 400 || box.nwt === 500 || box.nwt === 600 || box.nwt === 700 || box.nwt === 800) piece.nwt = box.nwt;
+    const ncol = hx(box.ncol); if (ncol) piece.ncol = ncol;
+    const ntr = nn(box.ntr, -6, 20); if (ntr !== undefined) piece.ntr = ntr;
+    if (box.ncase === "normal" || box.ncase === "upper" || box.ncase === "lower") piece.ncase = box.ncase;
+    if (box.nfx === "plain" || box.nfx === "glow" || box.nfx === "gradient") piece.nfx = box.nfx;
+    if (box.handle === "site" || box.handle === "discord" || box.handle === "none") piece.handle = box.handle;
+    if (box.banner === true) piece.banner = true;
+    const bnh = nn(box.bnh, 60, 260); if (bnh !== undefined) piece.bnh = bnh;
+    if (box.noav === true) piece.noav = true;
+    const avs = nn(box.avs, 40, 220); if (avs !== undefined) piece.avs = avs;
+    if (typeof box.theme === "string" && (box.theme === "custom" || box.theme in PIECE_THEMES)) piece.theme = box.theme;
+    const tc1 = hx(box.tc1); if (tc1) piece.tc1 = tc1;
+    const tc2 = hx(box.tc2); if (tc2) piece.tc2 = tc2;
+    const tha = nn(box.tha, 10, 90); if (tha !== undefined) piece.tha = tha;
+    if (box.fx && (PIECE_FX as readonly string[]).includes(box.fx)) piece.fx = box.fx as BoardBox["fx"];
+    const fxn = nn(box.fxn, 5, 80); if (fxn !== undefined) piece.fxn = fxn;
+    const cardW = nn(box.cardW, 110, 320); if (cardW !== undefined) piece.cardW = cardW;
+    if (box.dots === false) piece.dots = false;
+    if (Array.isArray(box.items) && (kindOf(box.id) === "games" || kindOf(box.id) === "listen")) {
+      const own = /^\/media\/file\/[A-Za-z0-9_-]{1,40}\/m-[a-f0-9]{16}\.(jpg|png|webp|gif)$/;
+      piece.items = (box.items as unknown[]).slice(0, MAX_LIST).flatMap((raw): ListEntry[] => {
+        const it = raw as Partial<ListEntry>;
+        const n = clip(it?.n, 60);
+        if (!n) return [];
+        const e: ListEntry = { n };
+        const s = clip(it.s, 40); if (s) e.s = s;
+        const c = typeof it.c === "string" ? it.c.trim().slice(0, 500) : "";
+        if (c && (/^https:\/\/\S+$/i.test(c) || own.test(c))) e.c = c;
+        return [e];
+      });
+    }
     if (box.float === true) piece.float = true;
     if (box.hideMobile === true) piece.hideMobile = true;
     if (typeof box.color === "string" && /^#[0-9a-fA-F]{6}$/.test(box.color)) piece.color = box.color;

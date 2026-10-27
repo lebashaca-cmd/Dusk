@@ -1,8 +1,10 @@
-import { BOARD_H, BOARD_W, BOX_ALIGNS, BOX_FILLS, defaultBoard, kindOf, MAX_PIECES, PAGE_KINDS, PAGE_WIDGETS } from "../../../shared/constants";
+import { BOARD_H, BOARD_W, BOX_ALIGNS, BOX_ANIMS, BOX_FILLS, BOX_HOVERS, BOX_LOOPS, defaultBoard, MAX_LIST, PIECE_FX, PIECE_THEMES, kindOf, MAX_PIECES, PAGE_KINDS, PAGE_WIDGETS } from "../../../shared/constants";
 import { ICON_NAMES, type BoardBox, type BoxAlign, type BoxFill, type RenderModel } from "../../../shared/types";
-import { anchorShift, applyBoxLook, boardHeight, boardScale, boxInner, layerOf, pieceLabel, widgetHTML } from "../../render/free";
+import { anchorShift, applyBoxLook, boardHeight, boardScale, boxInner, layerOf, loopOf, pieceLabel, widgetHTML } from "../../render/free";
+import { watchLists } from "../../render/motion";
 import { Stage } from "../../render/stage";
 import { applyTheme } from "../../render/theme";
+import { api } from "../../api";
 import { store } from "../../state";
 import { GRID, HANDLES, attachMoves } from "./pbmove";
 import { chooseMedia } from "../../ui/media";
@@ -19,7 +21,7 @@ const ALIGN_LABELS: Record<BoxAlign, string> = { center: "Centre", left: "Left" 
 const FILL_LABELS: Record<BoxFill, string> = { soft: "Soft", solid: "Solid", outline: "Outline", glass: "Glass", none: "None" };
 
 /** Which setting each slider changes. */
-const SLIDER_KEYS: Record<string, keyof BoardBox> = { sz: "size", h: "h", pad: "pad", radius: "radius", op: "opacity", bl: "blur", bd: "borderW", sh: "shadow", gl: "glow", rot: "rot", zm: "zoom", bga: "bga", gp: "gap" };
+const SLIDER_KEYS: Record<string, keyof BoardBox> = { sz: "size", h: "h", pad: "pad", radius: "radius", op: "opacity", bl: "blur", bd: "borderW", sh: "shadow", gl: "glow", ns: "nsz", nt: "ntr", av: "avs", bn: "bnh", th: "tha", fn: "fxn", cw: "cardW", rot: "rot", zm: "zoom", bga: "bga", gp: "gap", am: "animMs", ad: "animDelay", lm: "loopMs", pr: "par" };
 
 /** The groups of options that are open. They stay open from one piece to the next. */
 const OPEN = new Set<string>(["content", "place"]);
@@ -113,6 +115,7 @@ export const pageboardPane: Pane = {
       frame.hidden = !card;
       if (!card) return;
       frame.dataset.for = selected ?? "";
+      frame.classList.toggle("locked", Boolean(boxes().find(b => b.id === selected)?.locked));
       frame.style.left = `${card.offsetLeft}px`;
       frame.style.top = `${card.offsetTop}px`;
       frame.style.width = `${card.offsetWidth}px`;
@@ -180,10 +183,11 @@ export const pageboardPane: Pane = {
       card.dataset.kind = kindOf(box.id);
       card.setAttribute("aria-label", `${pieceLabel(box)}. Use the arrow keys to move it.`);
       applyBoxLook(card, box);
+      card.classList.toggle("is-locked", Boolean(box.locked));
       if (box.fixedH) card.style.height = `${box.h}px`;
       if (box.id === selected) card.classList.add("sel");
       const body = model ? widgetHTML(box.id, model, box) : "";
-      card.innerHTML = `${boxInner(body)}<span class="pbtag">${esc(pieceLabel(box))}</span>`;
+      card.innerHTML = `${boxInner(body, box)}<span class="pbtag">${esc(pieceLabel(box))}</span>`;
       canvas.append(card);
       layout(box);
 
@@ -220,6 +224,7 @@ export const pageboardPane: Pane = {
         ["Page", [toggle("profile"), toggle("links"), toggle("views")].join("")],
         ["Music", [toggle("music"), toggle("lyrics"), toggle("discord")].join("")],
         ["Content", [add("text"), add("image"), add("item"), add("group"), add("divider")].join("")],
+        ["About me", [add("games"), add("listen")].join("")],
         ["Move around", [add("page"), add("jump"), add("rail")].join("")],
       ];
       chips.innerHTML = menus.map(([name, items]) => `<details class="pboard-dd" data-dd><summary class="chip">${esc(name)}<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></summary><div class="pboard-dd-list">${items}</div></details>`).join("");
@@ -301,6 +306,27 @@ export const pageboardPane: Pane = {
       for (const [n, top] of saved) n.scrollTop = top;
       if (window.scrollY !== winY) window.scrollTo({ top: winY });
     };
+    /** The cover search of a games or music list: what was found, and which entry it is for (none: a new entry). */
+    let hits: Array<{ name: string; sub?: string; cover: string; thumb: string }> = [];
+    let hitNote = "";
+    let findIdx: number | null = null;
+    let findQ = "";
+    const doFind = async (): Promise<void> => {
+      const box = picked();
+      if (!box) return;
+      const q = findQ.trim();
+      hits = [];
+      if (q.length < 2) { hitNote = "Type at least two letters."; drawOpts(); return; }
+      hitNote = "Searching…";
+      drawOpts();
+      try {
+        hits = (await api.covers(kindOf(box.id) === "listen" ? "music" : "game", q)).results;
+        hitNote = hits.length ? "" : "Nothing found. Add it without searching, then give it a cover of your own.";
+      } catch (e) {
+        hitNote = e instanceof Error ? e.message : "The search failed.";
+      }
+      drawOpts();
+    };
     const drawOpts = (): void => keepScroll(drawOptsNow);
     const drawOptsNow = (): void => {
       const box = picked();
@@ -363,6 +389,42 @@ export const pageboardPane: Pane = {
            <div class="pboard-opt"><span>Fills the piece</span><div class="seg" role="group" aria-label="Fills the piece">${seg("look", "cover", "Cover", box.look !== "contain")}${seg("look", "contain", "Fit inside", box.look === "contain")}</div></div>`;
       } else if (kind === "divider") {
         words = `${slider("sz", "Thickness", box.size ?? 2, 1, 12, "px")}${colorIn}`;
+      } else if (kind === "profile") {
+        const me = store.me;
+        const missingTag = box.handle === "discord" && !me?.user.discordTag;
+        words = `${textIn("str-ntext", "Name shown", box.ntext ?? "", store.profile.name || "Your name", 40)}
+           <div class="pboard-opt"><span>Under the name</span><div class="seg" role="group" aria-label="Under the name">${setSeg("handle", "site", "Your page name", (box.handle ?? "site") === "site")}${setSeg("handle", "discord", "Discord tag", box.handle === "discord")}${setSeg("handle", "none", "Nothing", box.handle === "none")}</div></div>
+           ${missingTag ? `<p class="note">Your Discord username isn't known for this page. Log in with Discord to bring it in.</p>` : ""}
+           ${flag("banner", "Show my Discord banner", Boolean(box.banner))}
+           ${box.banner ? `${slider("bn", "Banner height", box.bnh ?? 110, 60, 260, "px", 5)}${me?.user.discordBannerUrl || me?.user.discordAccent ? "" : `<p class="note">This account has no Discord banner or colour yet, so nothing shows. If you just added one, log in with Discord again.</p>`}` : ""}
+           ${flag("noav", "Hide the picture", Boolean(box.noav))}
+           ${box.noav ? "" : slider("av", "Picture size", box.avs ?? 96, 40, 220, "px", 4)}`;
+      } else if (kind === "games" || kind === "listen") {
+        const items = box.items ?? [];
+        const noun = kind === "games" ? "game" : "song or album";
+        const hitsHTML = hits.length
+          ? `<div class="pboard-hits">${hits.map((h, i) => `<button type="button" class="pboard-hit" data-pb-hit="${i}"><span class="pboard-hit-art" style="background-image:url(${esc(h.thumb)})"></span><span><b>${esc(h.name)}</b>${h.sub ? `<small>${esc(h.sub)}</small>` : ""}</span></button>`).join("")}</div>`
+          : hitNote ? `<p class="note">${esc(hitNote)}</p>` : "";
+        const rows = items.map((it, i) => `<div class="pboard-li">
+            <div class="pboard-li-top"><span class="pboard-li-art"${it.c ? ` style="background-image:url(${esc(it.c)})"` : ""}>${it.c ? "" : esc(it.n.charAt(0).toUpperCase())}</span>
+              <input type="text" class="pboard-text" data-pb-li="${i}:n" maxlength="60" value="${esc(it.n)}" aria-label="Name"></div>
+            <input type="text" class="pboard-text" data-pb-li="${i}:s" maxlength="40" placeholder="${kind === "games" ? "Small line, like ★ 8.9" : "Artist"}" value="${esc(it.s ?? "")}" aria-label="Small line">
+            <input type="text" class="pboard-text" data-pb-li="${i}:c" maxlength="500" placeholder="Cover picture address" value="${esc(it.c ?? "")}" aria-label="Cover address">
+            <div class="seg">
+              <button type="button" class="seg-btn" data-pb-li-find="${i}">Find cover</button>
+              <button type="button" class="seg-btn" data-pb-li-file="${i}">Upload</button>
+              <button type="button" class="seg-btn" data-pb-li-up="${i}"${i === 0 ? " disabled" : ""} aria-label="Move earlier">↑</button>
+              <button type="button" class="seg-btn" data-pb-li-down="${i}"${i === items.length - 1 ? " disabled" : ""} aria-label="Move later">↓</button>
+              <button type="button" class="seg-btn" data-pb-li-del="${i}" aria-label="Remove">✕</button>
+            </div></div>`).join("");
+        words = `<div class="pboard-opt"><span>${findIdx === null ? `Add a ${noun}` : `Find a cover for “${esc(items[findIdx]?.n ?? "")}”`}</span>
+            <div class="pboard-search"><input type="search" class="pboard-text" data-pb-find placeholder="${kind === "games" ? "Search for a game" : "Search for a song or album"}" value="${esc(findQ)}" maxlength="80"><button class="btn-ghost" type="button" data-pb-find-go>Search</button></div></div>
+          ${hitsHTML}
+          ${findIdx === null ? `<button class="btn-ghost" type="button" data-pb-li-blank style="justify-content:center"${items.length >= MAX_LIST ? " disabled" : ""}>Add one without searching</button>` : `<button class="btn-ghost" type="button" data-pb-find-cancel style="justify-content:center">Cancel</button>`}
+          ${rows}
+          ${slider("cw", "Card width", box.cardW ?? 172, 110, 320, "px", 2)}
+          ${flag("dots", "Show the dots under the cards", box.dots !== false)}
+          <p class="note">${kind === "games" ? "Covers come from the Steam store. A game that is not on Steam needs a cover of your own: paste an address or upload one." : "Covers come from the iTunes catalogue. Add your own for anything it cannot find."} Found covers are saved to your own uploads.</p>`;
       } else if (kind === "item") {
         const mode = box.mode ?? "link";
         const groups = boxes().filter(b => kindOf(b.id) === "group");
@@ -399,7 +461,10 @@ export const pageboardPane: Pane = {
           <div class="pboard-opt"><span>Height</span><div class="seg" role="group" aria-label="Height">${seg("height", "auto", "Fit the content", !box.fixedH)}${seg("height", "fixed", "Fixed", Boolean(box.fixedH))}</div></div>
           ${box.fixedH ? slider("h", "Piece height", Math.min(1600, box.h), 16, 1600, "px", 8) : ""}
           <div class="pboard-opt"><span>Line up</span><div class="seg" role="group" aria-label="Line up">${BOX_ALIGNS.map(a => seg("align", a, ALIGN_LABELS[a], a === align)).join("")}</div></div>
-          <div class="pboard-opt"><span>Up and down</span><div class="seg" role="group" aria-label="Up and down">${setSeg("valign", "top", "Top", vAlign === "top")}${setSeg("valign", "middle", "Middle", vAlign === "middle")}${setSeg("valign", "bottom", "Bottom", vAlign === "bottom")}</div></div>`),
+          <div class="pboard-opt"><span>Up and down</span><div class="seg" role="group" aria-label="Up and down">${setSeg("valign", "top", "Top", vAlign === "top")}${setSeg("valign", "middle", "Middle", vAlign === "middle")}${setSeg("valign", "bottom", "Bottom", vAlign === "bottom")}</div></div>
+          ${flag("locked", "Lock it in place (no moving or resizing)", Boolean(box.locked))}
+          ${flag("ratio", "Keep its shape when a corner is pulled", Boolean(box.ratio))}
+          <p class="note">Hold Shift while pulling a corner to keep the shape for one pull. Hold Alt to move without snapping. Arrow keys nudge the picked piece.</p>`),
         group("fill", "Fill and colour", `
           <div class="pboard-opt"><span>Fill</span><div class="seg" role="group" aria-label="Fill">${BOX_FILLS.map(f => seg("fill", f, FILL_LABELS[f], f === fill)).join("")}</div></div>
           ${colorRow("Background colour", "bgc", box.bg, "bgc-clear", "#111111", "Remove it")}
@@ -419,10 +484,34 @@ export const pageboardPane: Pane = {
         group("text", "Text", `
           ${marks ? "" : colorIn.replace("Colour", "Text colour").replace('aria-label="Colour"', 'aria-label="Text colour"')}
           ${slider("zm", "Size of everything inside", box.zoom ?? 100, 60, 160, "%", 5)}`),
-        group("effects", "Effects", `
-          <div class="pboard-opt"><span>When the pointer is over it</span><div class="seg" role="group" aria-label="Hover">${(["none", "lift", "grow", "glow"] as const).map(h => setSeg("hover", h, h === "none" ? "Nothing" : h[0]!.toUpperCase() + h.slice(1), (box.hover ?? "none") === h)).join("")}</div></div>
-          <div class="pboard-opt"><span>How it arrives</span><div class="seg" role="group" aria-label="Arrival">${(["none", "fade", "rise", "zoom", "slide"] as const).map(a => setSeg("anim", a, a === "none" ? "Nothing" : a[0]!.toUpperCase() + a.slice(1), (box.anim ?? "none") === a)).join("")}</div></div>
-          ${flag("float", "Floats gently up and down", Boolean(box.float))}`),
+        kind === "profile" ? group("namelook", "Name style", `
+          ${slider("ns", "Name size", box.nsz ?? store.profile.nameSize, 14, 96, "px")}
+          <div class="pboard-opt"><span>Weight</span><div class="seg" role="group" aria-label="Weight">${([400, 500, 600, 700, 800] as const).map(w => setSeg("nwt", String(w), String(w), (box.nwt ?? store.profile.nameWeight) === w)).join("")}</div></div>
+          ${colorRow("Name colour", "col-ncol", box.ncol, "col-clear-ncol", "#ffffff", "Use the page colour")}
+          ${slider("nt", "Letter spacing", box.ntr ?? store.profile.nameTracking, -6, 20, "")}
+          <div class="pboard-opt"><span>Capitals</span><div class="seg" role="group" aria-label="Capitals">${setSeg("ncase", "normal", "As typed", (box.ncase ?? "normal") === "normal")}${setSeg("ncase", "upper", "ABC", box.ncase === "upper")}${setSeg("ncase", "lower", "abc", box.ncase === "lower")}</div></div>
+          <div class="pboard-opt"><span>Style</span><div class="seg" role="group" aria-label="Name style">${setSeg("nfx", "plain", "Plain", (box.nfx ?? (store.profile.nameGradient ? "gradient" : store.profile.nameGlow ? "glow" : "plain")) === "plain")}${setSeg("nfx", "glow", "Glow", (box.nfx ?? (store.profile.nameGradient ? "gradient" : store.profile.nameGlow ? "glow" : "plain")) === "glow")}${setSeg("nfx", "gradient", "Gradient", (box.nfx ?? (store.profile.nameGradient ? "gradient" : store.profile.nameGlow ? "glow" : "plain")) === "gradient")}</div></div>`) : "",
+        group("theme", "Theme and effect", `
+          <div class="pboard-opt"><span>Theme</span><div class="pboard-themes" role="group" aria-label="Theme">
+            <button type="button" class="pboard-theme none" data-pb-set="theme:none" aria-pressed="${!box.theme}" title="No theme">∅</button>
+            ${Object.entries(PIECE_THEMES).map(([k, [a, b]]) => `<button type="button" class="pboard-theme" data-pb-set="theme:${k}" aria-pressed="${box.theme === k}" title="${k}" style="--a:${a};--b:${b}"></button>`).join("")}
+            <button type="button" class="pboard-theme custom" data-pb-set="theme:custom" aria-pressed="${box.theme === "custom"}" title="Pick your own colours" style="--a:${box.tc1 ?? "#7c3aed"};--b:${box.tc2 ?? "#db2777"}"></button></div></div>
+          ${box.theme === "custom" ? `<div class="pboard-opt"><span>Your two colours</span><div class="pboard-colorrow"><input type="color" data-pb-col="tc1" value="${esc(box.tc1 ?? "#7c3aed")}" aria-label="First colour"><input type="color" data-pb-col="tc2" value="${esc(box.tc2 ?? "#db2777")}" aria-label="Second colour"></div></div>` : ""}
+          ${box.theme ? slider("th", "How strong the theme is", box.tha ?? 38, 10, 90, "%") : ""}
+          <div class="pboard-opt"><span>Effect over it</span><div class="seg wrap" role="group" aria-label="Effect">${PIECE_FX.map(f => setSeg("fx", f, f === "none" ? "Nothing" : f[0]!.toUpperCase() + f.slice(1), (box.fx ?? "none") === f)).join("")}</div></div>
+          ${box.fx && box.fx !== "none" ? slider("fn", "How much of it", box.fxn ?? 30, 5, 80, "") : ""}`),
+        group("motion", "Animation", `
+          <div class="pboard-opt"><span>How it arrives</span><div class="seg wrap" role="group" aria-label="Arrival">${BOX_ANIMS.map(a => setSeg("anim", a, a === "none" ? "Nothing" : a[0]!.toUpperCase() + a.slice(1), (box.anim ?? "none") === a)).join("")}</div></div>
+          ${box.anim && box.anim !== "none" ? `
+            ${slider("am", "How long it takes", box.animMs ?? 800, 200, 3000, "ms", 50)}
+            ${slider("ad", "Wait before it arrives", box.animDelay ?? 0, 0, 3000, "ms", 50)}
+            <div class="pboard-opt"><span>It arrives</span><div class="seg" role="group" aria-label="When it arrives">${setSeg("animOn", "load", "When the page opens", (box.animOn ?? "load") === "load")}${setSeg("animOn", "view", "When scrolled to", box.animOn === "view")}</div></div>` : ""}
+          <div class="pboard-opt"><span>It keeps moving</span><div class="seg wrap" role="group" aria-label="Movement">${BOX_LOOPS.map(l => setSeg("loop", l, l === "none" ? "Still" : l[0]!.toUpperCase() + l.slice(1), (loopOf(box) ?? "none") === l)).join("")}</div></div>
+          ${loopOf(box) ? slider("lm", "Time for one round", box.loopMs ?? 4000, 600, 12000, "ms", 100) : ""}
+          ${slider("pr", "Drifts as the page scrolls", box.par ?? 0, -60, 60, "%")}
+          <div class="pboard-opt"><span>When the pointer is over it</span><div class="seg wrap" role="group" aria-label="Hover">${BOX_HOVERS.map(h => setSeg("hover", h, h === "none" ? "Nothing" : h[0]!.toUpperCase() + h.slice(1), (box.hover ?? "none") === h)).join("")}</div></div>
+          <button class="btn-ghost" type="button" data-pb-play style="justify-content:center">▶ Play the animation</button>
+          <p class="note">Pieces keep still while you edit. Play shows how this one moves on your page.</p>`),
         child ? "" : group("layer", "Layer and phones", `
           <div class="pboard-opt"><span>Layer <em>${layer}</em></span><div class="seg" role="group" aria-label="Layer">${act("back", "Send back")}${act("forward", "Bring forward")}</div></div>
           ${flag("hideMobile", "Leave it out on phones", Boolean(box.hideMobile))}`),
@@ -470,9 +559,12 @@ export const pageboardPane: Pane = {
       resize.observe(el);
       inner = new ResizeObserver(grow);
     }
+    let listsOff: (() => void) | null = null;
     const watch = (): void => {
       inner?.disconnect();
       for (const c of canvas.querySelectorAll(".fbox-in")) inner?.observe(c);
+      listsOff?.();
+      listsOff = watchLists(canvas);
     };
     watch();
 
@@ -527,6 +619,7 @@ export const pageboardPane: Pane = {
       const card = cardOf(box.id);
       if (!card) return;
       applyBoxLook(card, box);
+      card.classList.toggle("is-locked", Boolean(box.locked));
       card.style.height = box.fixedH ? `${box.h}px` : "";
       grow();
     };
@@ -534,6 +627,7 @@ export const pageboardPane: Pane = {
     /** Whether the owner moved the options to a side themselves. Until then they go to the side away from the piece. */
     let sideChosen = false;
     const pick = (id: string | null): void => {
+      if (id !== selected) { findIdx = null; findQ = ""; hits = []; hitNote = ""; }
       selected = id;
       const at = id ? cardOf(id)?.getBoundingClientRect() : null;
       if (at && !sideChosen) wrap.dataset.side = (at.left + at.right) / 2 > window.innerWidth / 2 ? "left" : "right";
@@ -732,7 +826,11 @@ export const pageboardPane: Pane = {
         const readout = opts.querySelector<HTMLElement>(`[data-pb-${input.dataset.key}-val]`);
         if (readout) readout.textContent = `${input.value}${input.dataset.unit ?? ""}`;
       }),
-      delegate(el, "change", "[data-pb-range]", commit),
+      delegate(el, "change", "[data-pb-range]", (_e, t) => {
+        commit();
+        // How much of an effect there is changes what is drawn, not just a look.
+        if (t.dataset.key === "fn") { draw(); watch(); }
+      }),
 
       // Where the piece sits on the board: right at an edge, not near it.
       delegate(el, "click", "[data-pb-at-left], [data-pb-at-center], [data-pb-at-right], [data-pb-at-top], [data-pb-at-full]", (_e, t) => {
@@ -863,17 +961,28 @@ export const pageboardPane: Pane = {
         if (redraw) drawOpts();
       }),
       // Choices that set one thing: up and down, border line, hover, how it arrives.
+      // Shows how the picked piece arrives and moves, since pieces keep still while they are edited.
+      delegate(el, "click", "[data-pb-play]", () => {
+        const box = picked();
+        const card = box ? cardOf(box.id) : null;
+        if (!box || !card) return;
+        card.classList.remove("pv", "in");
+        void card.offsetWidth;
+        card.classList.add("pv", "in");
+        window.setTimeout(() => card.classList.remove("pv"), (box.animMs ?? 800) + (box.animDelay ?? 0) + 4000);
+      }),
       delegate(el, "click", "[data-pb-set]", (_e, t) => {
         const box = picked();
         const [key, value] = (t.dataset.pbSet ?? "").split(":");
         if (!box || !key || !value) return;
-        (box as unknown as Record<string, unknown>)[key] = value;
+        (box as unknown as Record<string, unknown>)[key] = key === "nwt" ? Number(value) : value;
+        if (key === "theme" && value === "none") delete box.theme;
         // A line of text starts without a little picture, and a link with one picked from its address.
         if (key === "mode") { if (value === "text" && (!box.icon || box.icon === "auto")) box.icon = "none"; else if (value === "link" && (!box.icon || box.icon === "none")) box.icon = "auto"; }
         change(box, {});
         commit();
         // What an item is, and how a group lays out its items, changes what is drawn.
-        if (key === "mode" || key === "flow") { draw(); watch(); } else drawOpts();
+        if (["mode", "flow", "nfx", "ncase", "handle", "fx"].includes(key)) { draw(); watch(); } else drawOpts();
       }),
 
       // A link or a line of text: its little picture, and which group it is in.
@@ -925,9 +1034,13 @@ export const pageboardPane: Pane = {
         if (!box || !key) return;
         const on = (t as HTMLInputElement).checked;
         const rec = box as unknown as Record<string, unknown>;
-        if (on) rec[key] = true; else delete rec[key];
+        // The dots are on unless they are switched off, so that flag is kept the other way round.
+        if (key === "dots") { if (on) delete box.dots; else box.dots = false; }
+        else if (on) rec[key] = true; else delete rec[key];
         change(box, {});
+        syncFrame();
         commit();
+        if (["banner", "noav", "dots"].includes(key)) { draw(); watch(); }
       }),
       delegate(el, "input", "[data-pb-bgc]", (_e, t) => { const box = picked(); if (box) change(box, { bg: (t as HTMLInputElement).value }); }),
       delegate(el, "change", "[data-pb-bgc]", () => { commit(); drawOpts(); }),
@@ -935,6 +1048,89 @@ export const pageboardPane: Pane = {
       delegate(el, "input", "[data-pb-bcc]", (_e, t) => { const box = picked(); if (box) change(box, { bc: (t as HTMLInputElement).value }); }),
       delegate(el, "change", "[data-pb-bcc]", () => { commit(); drawOpts(); }),
       delegate(el, "click", "[data-pb-bcc-clear]", () => { const box = picked(); if (!box) return; delete box.bc; change(box, {}); commit(); drawOpts(); }),
+      // The name of the profile piece, and colours with an address of their own.
+      delegate(el, "input", "[data-pb-str-ntext]", (_e, t) => {
+        const box = picked();
+        if (!box) return;
+        const v = (t as HTMLInputElement).value;
+        if (v.trim()) box.ntext = v; else delete box.ntext;
+        refresh(box);
+      }),
+      delegate(el, "change", "[data-pb-str-ntext]", commit),
+      delegate(el, "input", "[data-pb-col-ncol]", (_e, t) => { const box = picked(); if (box) change(box, { ncol: (t as HTMLInputElement).value }); }),
+      delegate(el, "change", "[data-pb-col-ncol]", () => { commit(); drawOpts(); }),
+      delegate(el, "click", "[data-pb-col-clear-ncol]", () => { const box = picked(); if (!box) return; delete box.ncol; change(box, {}); commit(); drawOpts(); }),
+      delegate(el, "input", "[data-pb-col]", (_e, t) => {
+        const box = picked();
+        const key = (t as HTMLInputElement).dataset.pbCol;
+        if (box && (key === "tc1" || key === "tc2")) change(box, { [key]: (t as HTMLInputElement).value } as Partial<BoardBox>);
+      }),
+      delegate(el, "change", "[data-pb-col]", commit),
+
+      // Games and music lists: find a cover, add, change and put in order.
+      delegate(el, "input", "[data-pb-find]", (_e, t) => { findQ = (t as HTMLInputElement).value; }),
+      delegate(el, "keydown", "[data-pb-find]", (e) => { if ((e as KeyboardEvent).key === "Enter") { e.preventDefault(); void doFind(); } }),
+      delegate(el, "click", "[data-pb-find-go]", () => { void doFind(); }),
+      delegate(el, "click", "[data-pb-find-cancel]", () => { findIdx = null; findQ = ""; hits = []; hitNote = ""; drawOpts(); }),
+      delegate(el, "click", "[data-pb-hit]", async (_e, t) => {
+        const box = picked();
+        const hit = hits[Number(t.dataset.pbHit)];
+        if (!box || !hit) return;
+        const items = box.items ?? (box.items = []);
+        if (findIdx === null && items.length >= MAX_LIST) { toast("That list is full."); return; }
+        toast("Saving the cover…");
+        let cover: string | undefined;
+        try { cover = (await api.saveCover(hit.cover)).url; } catch (e) { toast(e instanceof Error ? e.message : "The cover could not be saved."); }
+        if (findIdx !== null && items[findIdx]) { if (cover) items[findIdx]!.c = cover; }
+        else items.push({ n: hit.name, ...(kindOf(box.id) === "listen" && hit.sub ? { s: hit.sub.split(" · ")[0]! } : {}), ...(cover ? { c: cover } : {}) });
+        hits = []; hitNote = ""; findIdx = null; findQ = "";
+        commit();
+        draw();
+        watch();
+      }),
+      delegate(el, "click", "[data-pb-li-blank]", () => {
+        const box = picked();
+        if (!box) return;
+        (box.items ??= []).push({ n: kindOf(box.id) === "games" ? "New game" : "New song" });
+        commit(); draw(); watch();
+      }),
+      delegate(el, "input", "[data-pb-li]", (_e, t) => {
+        const box = picked();
+        const [i, key] = ((t as HTMLInputElement).dataset.pbLi ?? "").split(":");
+        const it = box?.items?.[Number(i)];
+        if (!box || !it || (key !== "n" && key !== "s" && key !== "c")) return;
+        const v = (t as HTMLInputElement).value;
+        if (key === "n") it.n = v; else if (v.trim()) it[key] = v.trim(); else delete it[key];
+        refresh(box);
+      }),
+      delegate(el, "change", "[data-pb-li]", () => { commit(); drawOpts(); }),
+      delegate(el, "click", "[data-pb-li-find]", (_e, t) => {
+        const box = picked();
+        const i = Number(t.dataset.pbLiFind);
+        if (!box?.items?.[i]) return;
+        findIdx = i; findQ = box.items[i]!.n; hits = []; hitNote = "";
+        void doFind();
+      }),
+      delegate(el, "click", "[data-pb-li-file]", async (_e, t) => {
+        const box = picked();
+        const it = box?.items?.[Number(t.dataset.pbLiFile)];
+        if (!box || !it) return;
+        const r = await chooseMedia();
+        if (!r || r.video) { if (r?.video) toast("Use a picture for a cover."); return; }
+        it.c = r.url;
+        commit(); draw(); watch();
+      }),
+      delegate(el, "click", "[data-pb-li-up], [data-pb-li-down], [data-pb-li-del]", (_e, t) => {
+        const box = picked();
+        const items = box?.items;
+        if (!box || !items) return;
+        const d = t.dataset;
+        const i = Number(d.pbLiUp ?? d.pbLiDown ?? d.pbLiDel);
+        if (!items[i]) return;
+        if ("pbLiDel" in d) items.splice(i, 1);
+        else { const j = i + ("pbLiDown" in d ? 1 : -1); if (!items[j]) return; [items[i], items[j]] = [items[j]!, items[i]!]; }
+        commit(); draw(); watch();
+      }),
       delegate(el, "click", "[data-pb-copy]", () => {
         const box = picked();
         if (!box) return;
@@ -1029,6 +1225,7 @@ export const pageboardPane: Pane = {
       if (full) setFull(false);
       offs.forEach(fn => fn());
       detachMoves();
+      listsOff?.();
       for (const fn of cleanups.splice(0)) fn();
     };
   },

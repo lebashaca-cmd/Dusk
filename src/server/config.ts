@@ -52,17 +52,16 @@ export const discordConfigured = Boolean(config.discord.clientId && config.disco
 /**
  * Where lyrics come from.
  *
- * LRCLIB and Genius work out of the box. Polaris is a self-hosted lyrics service: point
- * POLARIS_LYRICS_URL at it and it answers with LRC or plain text. The URL may hold
- * {title}, {artist}, {album} and {duration}, which are filled in with the song.
+ * LRCLIB, Genius and PetitLyrics answer on their own. Spicy Lyrics and Musixmatch need a key
+ * from their developer sites; until one is set, LRCLIB is used instead so a song still gets its words.
  */
 export const lyrics = {
   /** A Genius access token. Optional: the public search works without one. */
   geniusToken: env.GENIUS_TOKEN ?? "",
-  /** The Polaris service. */
-  polarisUrl: env.POLARIS_LYRICS_URL ?? "",
-  /** A second Polaris service that only ever gives plain lyrics. Falls back to the one above. */
-  polarisMonoUrl: env.POLARIS_MONO_LYRICS_URL ?? "",
+  /** A Spicy Lyrics secret key (sl_sk_...), from https://developers.spicylyrics.org. */
+  spicyKey: env.SPICYLYRICS_API_KEY ?? "",
+  /** A Musixmatch API key, from https://developer.musixmatch.com. */
+  musixmatchKey: env.MUSIXMATCH_API_KEY ?? "",
 } as const;
 
 /**

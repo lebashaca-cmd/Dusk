@@ -7,6 +7,9 @@ export interface DiscordUser {
   username: string;
   global_name: string | null;
   avatar: string | null;
+  /** The banner hash and the accent colour, when the account has them. */
+  banner?: string | null;
+  accent_color?: number | null;
 }
 
 export function authorizeUrl(state: string): string {
@@ -48,6 +51,18 @@ export async function fetchDiscordUser(accessToken: string): Promise<DiscordUser
   });
   if (!res.ok) throw new Error(`Could not read your Discord account (${res.status}).`);
   return (await res.json()) as DiscordUser;
+}
+
+/** The banner picture of a Discord account, if it has one. */
+export function discordBannerUrl(id: string, hash: string | null | undefined, size = 600): string | null {
+  if (!hash) return null;
+  const ext = hash.startsWith("a_") ? "gif" : "png";
+  return `https://cdn.discordapp.com/banners/${id}/${hash}.${ext}?size=${size}`;
+}
+
+/** The accent colour of a Discord account as #rrggbb, when it has one. */
+export function discordAccentHex(n: number | null | undefined): string | null {
+  return typeof n === "number" && n >= 0 && n <= 0xffffff ? `#${n.toString(16).padStart(6, "0")}` : null;
 }
 
 export function discordAvatarUrl(id: string, hash: string | null, size = 256): string | null {

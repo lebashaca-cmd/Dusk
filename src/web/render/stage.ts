@@ -11,6 +11,7 @@ import { bioLines, cardHTML } from "./card";
 import { kindOf } from "../../shared/constants";
 import { isVideoUrl } from "../../shared/url";
 import { applyBoxLook, boxInner, fitFree, freeHTML, railHTML } from "./free";
+import { watchMotion } from "./motion";
 import { IslandPanel } from "./island";
 import { LyricPanel, panelSignature } from "./lyricpanel";
 import { nowCardHTML, tickNowCard } from "./nowcard";
@@ -288,6 +289,9 @@ export class Stage {
   }
 
   /** A rail docked to the side of the screen stays there while the page scrolls, so it sits outside the board. */
+  /** Undoes what the scroll-driven motion of the board set up. */
+  private motionOff: (() => void) | null = null;
+
   private buildDock(free: boolean): void {
     this.el.querySelectorAll(".frail-dock").forEach(d => d.remove());
     if (!free) return;
@@ -328,6 +332,8 @@ export class Stage {
     this.buildDock(free);
     this.syncRail();
     this.boxes?.disconnect();
+    this.motionOff?.();
+    this.motionOff = free ? watchMotion(this.el) : null;
     if (free) for (const box of this.mount.querySelectorAll(".fbox-in")) this.boxes?.observe(box);
     if (p.typewriter) this.stopTyping = startTypewriter(this.mount.querySelector<HTMLElement>(".bio-text"), bioLines(p.bio));
 
@@ -361,6 +367,7 @@ export class Stage {
     this.resize = null;
     this.boxes?.disconnect();
     this.boxes = null;
+    this.motionOff?.();
     this.cleanups.forEach(fn => fn());
     player.setQueue([], { loop: false, volume: this.model.profile.music.volume });
     lanyard.ensure(null);

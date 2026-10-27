@@ -41,6 +41,8 @@ function upsertUser(du: DiscordUser, wantedUsername: string, ip: string | undefi
       page.discordName = displayName;
       page.discordAvatar = du.avatar;
       page.discordHandle = du.username;
+      page.discordBanner = du.banner ?? null;
+      page.discordAccent = du.accent_color ?? null;
       page.roles = roles;
       page.rolesAt = Date.now();
       page.lastLoginIp = ip ?? null;
@@ -63,6 +65,8 @@ function upsertUser(du: DiscordUser, wantedUsername: string, ip: string | undefi
     views: 0,
     createdAt: Date.now(),
     discordHandle: du.username,
+    discordBanner: du.banner ?? null,
+    discordAccent: du.accent_color ?? null,
     signupIp: ip ?? null,
     lastLoginIp: ip ?? null,
     lastLoginAt: Date.now(),

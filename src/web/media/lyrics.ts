@@ -44,7 +44,7 @@ export function lyricsForSpotify(sp: SpotifyActivity, provider: LyricProvider = 
   if (hit) return hit;
   cache.set(key, "loading");
   api
-    .lyrics({ title: sp.title, artist: sp.artist.split(",")[0]?.trim() ?? sp.artist, album: sp.album, duration: (sp.end - sp.start) / 1000 }, provider)
+    .lyrics({ title: sp.title, artist: sp.artist.split(",")[0]?.trim() ?? sp.artist, album: sp.album, duration: (sp.end - sp.start) / 1000, id: sp.id }, provider)
     .catch(() => NO_LYRICS)
     .then(l => { cache.set(key, l); listeners.forEach(fn => fn()); });
   return null;

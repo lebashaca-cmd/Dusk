@@ -114,7 +114,7 @@ publicRouter.get("/lyrics", rateLimit(60_000, 40), asyncHandler(async (req, res)
   // The page asks for the service its owner picked, when it says which one.
   const wanted = String(req.query.provider ?? "").slice(0, 20);
   const provider = LYRIC_PROVIDERS.includes(wanted as LyricProvider) ? (wanted as LyricProvider) : "lrclib";
-  const lyrics = await findLyricsForCached(provider, { title, artist, album, duration: Number.isFinite(duration) && duration > 0 ? duration : undefined });
+  const lyrics = await findLyricsForCached(provider, { title, artist, album, duration: Number.isFinite(duration) && duration > 0 ? duration : undefined, spotifyId: /^[A-Za-z0-9]{22}$/.test(String(req.query.id ?? "")) ? String(req.query.id) : undefined });
   res.json(lyrics);
 }));
 

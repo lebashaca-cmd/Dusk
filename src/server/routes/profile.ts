@@ -18,6 +18,7 @@ import { extForMime } from "../services/cover";
 import { parseProfile } from "../validation";
 import { LIMITS, limitProfile } from "../../shared/constants";
 import { isVip } from "../pages";
+import { coverAllowed, downloadCover, searchGames, searchMusic } from "../services/covers";
 
 export const profileRouter = Router();
 
@@ -97,6 +98,31 @@ profileRouter.post("/media", requireAuth, rateLimit(60_000, 20), mediaUpload.sin
   await pushFile(user.id, name);
   await pruneMedia(user, name);
   res.json({ url: `/media/file/${user.id}/${name}`, video: kind.video });
+}));
+
+/** Looks up covers for the games and music lists on the page board. */
+profileRouter.get("/covers", requireAuth, rateLimit(60_000, 30), asyncHandler(async (req, res) => {
+  const q = String(req.query.q ?? "").trim().slice(0, 80);
+  if (q.length < 2) { res.json({ results: [] }); return; }
+  const results = String(req.query.kind) === "music" ? await searchMusic(q).catch(() => []) : await searchGames(q).catch(() => []);
+  res.json({ results });
+}));
+
+/** Keeps a cover that was found: it is copied into the person's own uploads, so the page never depends on someone else's server. */
+profileRouter.post("/covers/save", requireAuth, rateLimit(60_000, 30), asyncHandler(async (req, res) => {
+  const user = currentUser(req);
+  const url = String((req.body as { url?: unknown })?.url ?? "");
+  if (!coverAllowed(url)) throw new HttpError(400, "That cover can't be used.");
+  const data = await downloadCover(url);
+  if (!data) throw new HttpError(502, "The cover could not be fetched. Try another one, or add a picture of your own.");
+  const tmp = path.join(userDir(user.id), `tmp-${crypto.randomBytes(6).toString("hex")}`);
+  await fs.writeFile(tmp, data);
+  const kind = await mediaType(tmp);
+  if (!kind || kind.video) { await fs.rm(tmp, { force: true }); throw new HttpError(400, "That is not a picture."); }
+  const name = `m-${crypto.randomBytes(8).toString("hex")}.${kind.ext}`;
+  await fs.rename(tmp, path.join(userDir(user.id), name));
+  await pushFile(user.id, name);
+  res.json({ url: `/media/file/${user.id}/${name}` });
 }));
 
 /** Uploaded pictures and videos nothing on the page uses any more are removed, unless they are only minutes old. */

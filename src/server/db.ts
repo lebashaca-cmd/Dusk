@@ -30,6 +30,9 @@ export interface UserRecord {
   createdAt: number;
   /** Discord's own @handle, as opposed to the display name above. Older accounts may not have it. */
   discordHandle?: string;
+  /** The Discord banner hash and accent colour, as of the last login. */
+  discordBanner?: string | null;
+  discordAccent?: number | null;
   /** IP address the account was created from, kept for abuse prevention. Never sent to the web app. */
   signupIp?: string | null;
   /** Discord ID of the account that owns this page. Missing on a first page, where the ID is the owner. */

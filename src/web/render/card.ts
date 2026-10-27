@@ -1,4 +1,4 @@
-import type { LinkItem, Profile, RenderModel } from "../../shared/types";
+import type { BoardBox, LinkItem, Profile, RenderModel } from "../../shared/types";
 import { BRANDS, brandForUrl } from "../../shared/brands";
 import { safeUrl } from "../../shared/url";
 import { icon } from "../ui/icons";
@@ -53,7 +53,7 @@ export function linksHTML(p: Profile): string {
  * The top of the card: the picture, the name, the tags, the place and the bio.
  * The free-form page puts this in a box of its own.
  */
-export function headHTML(m: RenderModel): string {
+export function headHTML(m: RenderModel, box?: BoardBox): string {
   const p = m.profile;
   const lines = bioLines(p.bio);
   const cycles = p.typewriter && lines.length > 1;
@@ -65,8 +65,14 @@ export function headHTML(m: RenderModel): string {
 
   const location = p.showLocation && p.location.trim() ? `<div class="meta"><span>${icon("pin")}${esc(p.location)}</span></div>` : "";
 
-  const avatar = `<div class="avwrap"><div class="av${p.avatar.ring ? " ring" : ""}">${avatarInner(m)}</div><span class="pres" hidden></span></div>`;
-  const nameBlock = `<div class="nameblock"><h2 class="pname${p.nameGlow ? " glow" : ""}${p.nameGradient ? " grad" : ""}">${esc(p.name || m.username)}</h2><span class="phandle">@${esc(m.username)}</span></div>`;
+  const avatar = box?.noav ? "" : `<div class="avwrap"><div class="av${p.avatar.ring ? " ring" : ""}">${avatarInner(m)}</div><span class="pres" hidden></span></div>`;
+  // A piece on the board can have a name look of its own; otherwise the page's look is used.
+  const glow = box?.nfx ? box.nfx === "glow" : p.nameGlow;
+  const grad = box?.nfx ? box.nfx === "gradient" : p.nameGradient;
+  const cased = box?.ncase === "upper" ? " uc" : box?.ncase === "lower" ? " lc" : box?.ncase === "normal" ? " nc" : "";
+  const shown = box?.ntext?.trim() || p.name || m.username;
+  const handle = box?.handle === "none" ? "" : box?.handle === "discord" ? (m.discordTag ? `@${m.discordTag}` : "") : `@${m.username}`;
+  const nameBlock = `<div class="nameblock"><h2 class="pname${glow ? " glow" : ""}${grad ? " grad" : ""}${cased}">${esc(shown)}</h2>${handle ? `<span class="phandle">${esc(handle)}</span>` : ""}</div>`;
   const bioBlock = lines.length ? `<p class="pbio${cycles ? " type" : ""}"><span class="bio-text">${bio}</span></p>` : "";
   // Centered: the usual stack. Left: the bio sits beside the picture, under the name.
   const beside = p.card.align === "left";

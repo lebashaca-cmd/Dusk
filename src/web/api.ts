@@ -52,8 +52,8 @@ export const api = {
   countView: (username: string) => send<{ views: number }>("POST", `/api/public/${encodeURIComponent(username)}/view`),
   countClick: (username: string, id: string) => send<{ ok: boolean }>("POST", `/api/public/${encodeURIComponent(username)}/click`, { id }),
   insights: () => get<Insights>("/api/insights"),
-  lyrics: (q: { title: string; artist: string; album: string; duration: number }, provider?: string) =>
-    get<Lyrics>(`/api/lyrics?${new URLSearchParams({ ...q, duration: String(Math.round(q.duration)), ...(provider ? { provider } : {}) })}`),
+  lyrics: (q: { title: string; artist: string; album: string; duration: number; id?: string }, provider?: string) =>
+    get<Lyrics>(`/api/lyrics?${new URLSearchParams({ title: q.title, artist: q.artist, album: q.album, duration: String(Math.round(q.duration)), ...(q.id ? { id: q.id } : {}), ...(provider ? { provider } : {}) })}`),
   createPage: (username: string) => send<MeResponse>("POST", "/api/pages", { username }),
   switchPage: (id: string) => send<MeResponse>("PUT", "/api/pages/active", { id }),
   deletePage: (id: string) => send<{ loggedOut: boolean }>("DELETE", `/api/pages/${encodeURIComponent(id)}`),
@@ -71,6 +71,8 @@ export const api = {
     fd.append("file", blob, "avatar.jpg");
     return send<MeResponse>("POST", "/api/avatar", fd);
   },
+  covers: (kind: "game" | "music", q: string) => get<{ results: Array<{ name: string; sub?: string; cover: string; thumb: string }> }>(`/api/covers?${new URLSearchParams({ kind, q })}`),
+  saveCover: (url: string) => send<{ url: string }>("POST", "/api/covers/save", { url }),
   uploadMedia: (file: File) => {
     const fd = new FormData();
     fd.append("file", file, file.name);
