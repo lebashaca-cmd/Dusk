@@ -2,6 +2,7 @@ import { icon } from "../ui/icons";
 import { esc } from "../util/dom";
 import { clamp, fmtTime } from "../util/format";
 import { activeLine, lyricsMessage } from "../media/lyrics";
+import { lineHTML, lineSpan, paintLines, sweepLine } from "./lyrfx";
 import type { NowPlaying } from "../media/nowplaying";
 
 /** What decides whether the panel has to be drawn again (as opposed to just moved along). */
@@ -24,7 +25,7 @@ export class LyricPanel {
     const plain = l?.status === "plain" && l.plain.trim();
 
     let content: string;
-    if (synced && l) content = `<div class="lyr-body"><div class="lyr-track">${l.lines.map(x => `<div class="lyr-line">${esc(x.text) || "♪"}</div>`).join("")}</div></div>`;
+    if (synced && l) content = `<div class="lyr-body"><div class="lyr-track">${l.lines.map(x => `<div class="lyr-line">${lineHTML(x.text)}</div>`).join("")}</div></div>`;
     else if (plain && l) content = `<div class="lyr-plain">${esc(l.plain)}</div>`;
     else content = `<div class="lyr-body"><div class="lyr-track"><div class="lyr-line msg">${esc(lyricsMessage(l))}</div></div></div>`;
 
@@ -63,7 +64,8 @@ export class LyricPanel {
     const i = activeLine(l.lines, pos / 1000);
     if (i === this.last) return;
     this.last = i;
-    this.lines.forEach((line, n) => line.classList.toggle("cur", n === i));
+    paintLines(this.lines, i);
+    if (i >= 0) sweepLine(this.lines[i], pos / 1000 - (l.lines[i]?.t ?? 0), lineSpan(l.lines.map(x => x.t), i));
     const target = this.lines[Math.max(0, i)];
     if (!target) return;
     const offset = this.body.clientHeight / 2 - (target.offsetTop + target.offsetHeight / 2);

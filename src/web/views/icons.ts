@@ -9,6 +9,7 @@ export const RAIL_ICONS: Record<string, string> = {
   page: '<rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><path d="M17.2 13.5v7.5M13.5 17.2H21"/>',
   groups: '<path d="M3 7h18M3 12h11M3 17h14"/><circle cx="18.5" cy="12" r="2.5"/>',
   insights: '<path d="M3 21h18M6.5 21v-7M12 21V5M17.5 21v-10"/>',
+  embed: '<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 4v16" stroke-width="3.4"/><path d="M8 9h9M8 12.5h6"/><rect x="8" y="15" width="9" height="3" rx="1"/>',
   share: '<circle cx="6" cy="12" r="2.5"/><circle cx="17" cy="6" r="2.5"/><circle cx="17" cy="18" r="2.5"/><path d="M8.2 10.8l6.6-3.6M8.2 13.2l6.6 3.6"/>',
   board: '<rect x="3" y="3" width="7.5" height="9" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="5.5" rx="1.6"/><rect x="3" y="15" width="7.5" height="6" rx="1.6"/><rect x="13.5" y="11.5" width="7.5" height="9.5" rx="1.6"/>',
   pageboard: '<rect x="3" y="4" width="8" height="7" rx="1.6"/><rect x="13" y="4" width="8" height="7" rx="1.6"/><rect x="3" y="14" width="8" height="6" rx="1.6"/><path d="M13 15h8M13 18h5"/>',

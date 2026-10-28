@@ -1,3 +1,4 @@
+import { lineHTML, lineSpan, paintLines, sweepLine } from "./lyrfx";
 import { clamp, fmtTime } from "../util/format";
 import { icon } from "../ui/icons";
 import { esc } from "../util/dom";
@@ -213,7 +214,7 @@ export class IslandPanel {
     this.lastLine = -2;
     area.classList.remove("plain");
     if (l?.status === "synced") {
-      track.innerHTML = l.lines.map(x => `<div class="di-line">${esc(x.text) || "♪"}</div>`).join("");
+      track.innerHTML = l.lines.map(x => `<div class="di-line">${lineHTML(x.text)}</div>`).join("");
       this.lines = Array.from(track.querySelectorAll<HTMLElement>(".di-line"));
     } else if (l?.status === "plain" && l.plain.trim()) {
       area.classList.add("plain");
@@ -233,7 +234,8 @@ export class IslandPanel {
     const i = activeLine(l.lines, posMs / 1000);
     if (i === this.lastLine) return;
     this.lastLine = i;
-    this.lines.forEach((line, n) => line.classList.toggle("cur", n === i));
+    paintLines(this.lines, i);
+    if (i >= 0) sweepLine(this.lines[i], posMs / 1000 - (l.lines[i]?.t ?? 0), lineSpan(l.lines.map(x => x.t), i));
     const target = this.lines[Math.max(0, i)];
     if (!target) return;
     const area = this.q(".di-lyrics");

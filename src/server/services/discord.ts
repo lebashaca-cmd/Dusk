@@ -10,6 +10,21 @@ export interface DiscordUser {
   /** The banner hash and the accent colour, when the account has them. */
   banner?: string | null;
   accent_color?: number | null;
+  /** The server tag the account shows next to its name, when it has one switched on. */
+  primary_guild?: { identity_guild_id?: string | null; identity_enabled?: boolean | null; tag?: string | null; badge?: string | null } | null;
+}
+
+/** The server tag of a Discord account: the 2 to 4 letters, the server it belongs to and its badge hash. Null when none is shown. */
+export function serverTagOf(du: DiscordUser): { tag: string; guildId: string | null; badge: string | null } | null {
+  const g = du.primary_guild;
+  if (!g || g.identity_enabled === false || !g.tag || !g.tag.trim()) return null;
+  return { tag: g.tag.trim().slice(0, 4), guildId: g.identity_guild_id ?? null, badge: g.badge ?? null };
+}
+
+/** The little badge picture of a server tag. */
+export function serverBadgeUrl(guildId: string | null | undefined, hash: string | null | undefined): string | null {
+  if (!guildId || !hash || !/^\d{5,25}$/.test(guildId) || !/^[a-f0-9]{8,64}$/i.test(hash)) return null;
+  return `https://cdn.discordapp.com/guild-tag-badges/${guildId}/${hash}.png?size=64`;
 }
 
 export function authorizeUrl(state: string): string {

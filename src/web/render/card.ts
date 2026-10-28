@@ -72,7 +72,8 @@ export function headHTML(m: RenderModel, box?: BoardBox): string {
   const cased = box?.ncase === "upper" ? " uc" : box?.ncase === "lower" ? " lc" : box?.ncase === "normal" ? " nc" : "";
   const shown = box?.ntext?.trim() || p.name || m.username;
   const handle = box?.handle === "none" ? "" : box?.handle === "discord" ? (m.discordTag ? `@${m.discordTag}` : "") : `@${m.username}`;
-  const nameBlock = `<div class="nameblock"><h2 class="pname${glow ? " glow" : ""}${grad ? " grad" : ""}${cased}">${esc(shown)}</h2>${handle ? `<span class="phandle">${esc(handle)}</span>` : ""}</div>`;
+  const serverTagHTML = (t: NonNullable<RenderModel["serverTag"]>): string => `<span class="stag">${t.badgeUrl ? `<img src="${esc(t.badgeUrl)}" alt="" referrerpolicy="no-referrer">` : ""}<b>${esc(t.tag)}</b></span>`;
+  const nameBlock = `<div class="nameblock"><h2 class="pname${glow ? " glow" : ""}${grad ? " grad" : ""}${cased}">${esc(shown)}</h2>${box?.stag && m.serverTag ? serverTagHTML(m.serverTag) : ""}${handle ? `<span class="phandle">${esc(handle)}</span>` : ""}</div>`;
   const bioBlock = lines.length ? `<p class="pbio${cycles ? " type" : ""}"><span class="bio-text">${bio}</span></p>` : "";
   // Centered: the usual stack. Left: the bio sits beside the picture, under the name.
   const beside = p.card.align === "left";

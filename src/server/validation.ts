@@ -2,7 +2,7 @@ import { z } from "zod";
 import { BOX_ANIMS, BOX_HOVERS, BOX_LOOPS, LIMITS, MAX_LIST, PIECE_FX, newId } from "../shared/constants";
 import {
   ALIGNS, AVATAR_KINDS, AVATAR_SHAPES, BG_TYPES, BORDER_COLORS, CARD_STYLES, NAME_CASES, ENTRANCES, FONT_KEYS, ICON_NAMES, ICON_COLORS, LINK_HOVERS,
-  LINK_LAYOUTS, LYRIC_PROVIDERS, LYRIC_STYLES, PAGE_LAYOUTS, TAG_STYLES, THEME_KEYS,
+  EMBED_IMAGES, LINK_LAYOUTS, LYRIC_PROVIDERS, LYRIC_STYLES, PAGE_LAYOUTS, TAG_STYLES, THEME_KEYS,
   type Profile,
 } from "../shared/types";
 import { safeUrl } from "../shared/url";
@@ -77,6 +77,7 @@ const profileSchema = z.object({
   nameGlow: z.boolean(),
   nameGradient: z.boolean(),
   effects: z.object({ tilt: z.boolean(), cursorGlow: z.boolean(), entrance: z.enum(ENTRANCES) }),
+  embed: z.object({ title: text(70), desc: text(200), site: text(40), color: z.union([z.literal(""), hex]), image: z.enum(EMBED_IMAGES), large: z.boolean() }),
   page: z.object({
     views: z.boolean(),
     share: z.boolean(),
@@ -153,6 +154,8 @@ const profileSchema = z.object({
       fxn: z.number().int().min(5).max(80).optional(),
       cardW: z.number().int().min(110).max(320).optional(),
       dots: z.boolean().optional(),
+      stag: z.boolean().optional(),
+      lmo: z.enum(["flow", "slide", "none"]).optional(),
       items: z.array(z.object({ n: z.string().max(60), s: z.string().max(40).optional(), c: z.string().max(500).transform(safeUrl).optional() })).max(MAX_LIST).optional(),
       float: z.boolean().optional(),
       hideMobile: z.boolean().optional(),

@@ -56,6 +56,22 @@ export type AvatarShape = (typeof AVATAR_SHAPES)[number];
 export const FONT_KEYS = ["inter", "dm", "syne", "mono", "serif", "bebas", "space", "outfit", "caveat"] as const;
 export type FontKey = (typeof FONT_KEYS)[number];
 
+/** The picture a link preview shows: the card made for the page, the profile picture, the background picture, or none. */
+export const EMBED_IMAGES = ["card", "avatar", "background", "none"] as const;
+export type EmbedImage = (typeof EMBED_IMAGES)[number];
+
+/** How a link to the page looks when it is posted in Discord and other apps. Empty text means the default. */
+export interface EmbedSettings {
+  title: string;
+  desc: string;
+  site: string;
+  /** The colour of the bar beside the preview, or empty for the page's accent colour. */
+  color: string;
+  image: EmbedImage;
+  /** A big picture under the text, or a small one beside it. */
+  large: boolean;
+}
+
 export const ENTRANCES = ["rise", "fade", "zoom", "blur", "slide", "none"] as const;
 export type Entrance = (typeof ENTRANCES)[number];
 
@@ -67,7 +83,7 @@ export const PAGE_LAYOUTS = ["regular", "experimental"] as const;
 export type PageLayout = (typeof PAGE_LAYOUTS)[number];
 
 /** Where the lyrics come from. */
-export const LYRIC_PROVIDERS = ["lrclib", "genius", "spicy", "musixmatch", "petit"] as const;
+export const LYRIC_PROVIDERS = ["lrclib", "genius", "musixmatch", "petit"] as const;
 export type LyricProvider = (typeof LYRIC_PROVIDERS)[number];
 
 /** Backgrounds only VIP members can pick. */
@@ -266,6 +282,8 @@ export interface BoardBox {
   handle?: "site" | "discord" | "none";
   /** The profile piece: show the Discord banner, how tall it is, and whether the picture is left out. */
   banner?: boolean;
+  /** The profile piece: show my Discord server tag next to the name. */
+  stag?: boolean;
   bnh?: number;
   noav?: boolean;
   /** The profile piece: how big the picture is, in pixels. */
@@ -282,6 +300,8 @@ export interface BoardBox {
   items?: ListEntry[];
   cardW?: number;
   dots?: boolean;
+  /** How the cards move when the list slides: scroll-linked depth, a plain slide, or nothing. */
+  lmo?: "flow" | "slide" | "none";
   /** Left out when the pieces are stacked on a phone. */
   hideMobile?: boolean;
 }
@@ -372,6 +392,7 @@ export interface Profile {
   nameGradient: boolean;
   effects: EffectSettings;
   page: PageSettings;
+  embed: EmbedSettings;
   music: MusicSettings;
   discord: DiscordSettings;
 }
@@ -413,6 +434,12 @@ export interface Track {
 
 /* ---------- API payloads ---------- */
 
+/** A Discord server tag: the letters, and the server's badge picture when it has one. */
+export interface ServerTag {
+  tag: string;
+  badgeUrl: string | null;
+}
+
 export interface UserInfo {
   /** The ID of this page. For a first page it is the Discord user ID. */
   id: string;
@@ -423,6 +450,8 @@ export interface UserInfo {
   discordTag: string | null;
   discordBannerUrl: string | null;
   discordAccent: string | null;
+  /** The Discord server tag of this account, when it shows one. */
+  serverTag: ServerTag | null;
 }
 
 export interface PageInfo {
@@ -475,6 +504,8 @@ export interface RenderModel {
   discordTag?: string | null;
   discordBannerUrl?: string | null;
   discordAccent?: string | null;
+  /** The Discord server tag. Only set when the profile piece is set to show it. */
+  serverTag?: ServerTag | null;
   /** Only set when the owner turned on live Discord status. */
   discordId: string | null;
   tracks: Track[];

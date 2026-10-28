@@ -52,14 +52,12 @@ export const discordConfigured = Boolean(config.discord.clientId && config.disco
 /**
  * Where lyrics come from.
  *
- * LRCLIB, Genius and PetitLyrics answer on their own. Spicy Lyrics and Musixmatch need a key
- * from their developer sites; until one is set, LRCLIB is used instead so a song still gets its words.
+ * LRCLIB, Genius and PetitLyrics answer on their own. Musixmatch needs a key
+ * from its developer site; until one is set, LRCLIB is used instead so a song still gets its words.
  */
 export const lyrics = {
   /** A Genius access token. Optional: the public search works without one. */
   geniusToken: env.GENIUS_TOKEN ?? "",
-  /** A Spicy Lyrics secret key (sl_sk_...), from https://developers.spicylyrics.org. */
-  spicyKey: env.SPICYLYRICS_API_KEY ?? "",
   /** A Musixmatch API key, from https://developer.musixmatch.com. */
   musixmatchKey: env.MUSIXMATCH_API_KEY ?? "",
 } as const;

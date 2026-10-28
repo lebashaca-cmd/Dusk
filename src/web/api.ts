@@ -53,7 +53,7 @@ export const api = {
   countClick: (username: string, id: string) => send<{ ok: boolean }>("POST", `/api/public/${encodeURIComponent(username)}/click`, { id }),
   insights: () => get<Insights>("/api/insights"),
   lyrics: (q: { title: string; artist: string; album: string; duration: number; id?: string }, provider?: string) =>
-    get<Lyrics>(`/api/lyrics?${new URLSearchParams({ title: q.title, artist: q.artist, album: q.album, duration: String(Math.round(q.duration)), ...(q.id ? { id: q.id } : {}), ...(provider ? { provider } : {}) })}`),
+    get<Lyrics>(`/api/lyrics?${new URLSearchParams({ title: q.title, artist: q.artist, album: q.album, duration: String(Math.round(q.duration)), ...(provider ? { provider } : {}) })}`),
   createPage: (username: string) => send<MeResponse>("POST", "/api/pages", { username }),
   switchPage: (id: string) => send<MeResponse>("PUT", "/api/pages/active", { id }),
   deletePage: (id: string) => send<{ loggedOut: boolean }>("DELETE", `/api/pages/${encodeURIComponent(id)}`),

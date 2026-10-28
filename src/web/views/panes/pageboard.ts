@@ -393,8 +393,10 @@ export const pageboardPane: Pane = {
         const me = store.me;
         const missingTag = box.handle === "discord" && !me?.user.discordTag;
         words = `${textIn("str-ntext", "Name shown", box.ntext ?? "", store.profile.name || "Your name", 40)}
-           <div class="pboard-opt"><span>Under the name</span><div class="seg" role="group" aria-label="Under the name">${setSeg("handle", "site", "Your page name", (box.handle ?? "site") === "site")}${setSeg("handle", "discord", "Discord tag", box.handle === "discord")}${setSeg("handle", "none", "Nothing", box.handle === "none")}</div></div>
+           <div class="pboard-opt"><span>Under the name</span><div class="seg" role="group" aria-label="Under the name">${setSeg("handle", "site", "Your page name", (box.handle ?? "site") === "site")}${setSeg("handle", "discord", "Discord username", box.handle === "discord")}${setSeg("handle", "none", "Nothing", box.handle === "none")}</div></div>
            ${missingTag ? `<p class="note">Your Discord username isn't known for this page. Log in with Discord to bring it in.</p>` : ""}
+           ${flag("stag", "Show my Discord server tag", Boolean(box.stag))}
+           ${box.stag && !me?.user.serverTag ? `<p class="note">No server tag is known for this account. Pick one in Discord (Settings → Profiles → Server Tag), then log in with Discord again.</p>` : ""}
            ${flag("banner", "Show my Discord banner", Boolean(box.banner))}
            ${box.banner ? `${slider("bn", "Banner height", box.bnh ?? 110, 60, 260, "px", 5)}${me?.user.discordBannerUrl || me?.user.discordAccent ? "" : `<p class="note">This account has no Discord banner or colour yet, so nothing shows. If you just added one, log in with Discord again.</p>`}` : ""}
            ${flag("noav", "Hide the picture", Boolean(box.noav))}
@@ -423,6 +425,7 @@ export const pageboardPane: Pane = {
           ${findIdx === null ? `<button class="btn-ghost" type="button" data-pb-li-blank style="justify-content:center"${items.length >= MAX_LIST ? " disabled" : ""}>Add one without searching</button>` : `<button class="btn-ghost" type="button" data-pb-find-cancel style="justify-content:center">Cancel</button>`}
           ${rows}
           ${slider("cw", "Card width", box.cardW ?? 172, 110, 320, "px", 2)}
+          <div class="pboard-opt"><span>Card motion</span><div class="seg" role="group" aria-label="Card motion">${setSeg("lmo", "flow", "Flow", (box.lmo ?? "flow") === "flow")}${setSeg("lmo", "slide", "Slide", box.lmo === "slide")}${setSeg("lmo", "none", "None", box.lmo === "none")}</div></div>
           ${flag("dots", "Show the dots under the cards", box.dots !== false)}
           <p class="note">${kind === "games" ? "Covers come from the Steam store. A game that is not on Steam needs a cover of your own: paste an address or upload one." : "Covers come from the iTunes catalogue. Add your own for anything it cannot find."} Found covers are saved to your own uploads.</p>`;
       } else if (kind === "item") {
@@ -982,7 +985,7 @@ export const pageboardPane: Pane = {
         change(box, {});
         commit();
         // What an item is, and how a group lays out its items, changes what is drawn.
-        if (["mode", "flow", "nfx", "ncase", "handle", "fx"].includes(key)) { draw(); watch(); } else drawOpts();
+        if (["mode", "flow", "nfx", "ncase", "handle", "fx", "lmo"].includes(key)) { draw(); watch(); } else drawOpts();
       }),
 
       // A link or a line of text: its little picture, and which group it is in.
@@ -1040,7 +1043,7 @@ export const pageboardPane: Pane = {
         change(box, {});
         syncFrame();
         commit();
-        if (["banner", "noav", "dots"].includes(key)) { draw(); watch(); }
+        if (["banner", "noav", "dots", "stag"].includes(key)) { draw(); watch(); }
       }),
       delegate(el, "input", "[data-pb-bgc]", (_e, t) => { const box = picked(); if (box) change(box, { bg: (t as HTMLInputElement).value }); }),
       delegate(el, "change", "[data-pb-bgc]", () => { commit(); drawOpts(); }),

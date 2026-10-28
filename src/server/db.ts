@@ -33,6 +33,10 @@ export interface UserRecord {
   /** The Discord banner hash and accent colour, as of the last login. */
   discordBanner?: string | null;
   discordAccent?: number | null;
+  /** The server tag text, its server and the badge hash, as of the last login. Null when the account shows none. */
+  discordServerTag?: string | null;
+  discordServerId?: string | null;
+  discordServerBadge?: string | null;
   /** IP address the account was created from, kept for abuse prevention. Never sent to the web app. */
   signupIp?: string | null;
   /** Discord ID of the account that owns this page. Missing on a first page, where the ID is the owner. */

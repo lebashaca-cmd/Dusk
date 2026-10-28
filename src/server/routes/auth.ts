@@ -12,7 +12,7 @@ import { csrfGuard, parseCookies, startSession } from "../session";
 import { HttpError } from "../http";
 import { hashPassword, verifyPassword } from "../services/password";
 import { memberRoles } from "../services/guild";
-import { authorizeUrl, exchangeCode, fetchDiscordUser, type DiscordUser } from "../services/discord";
+import { authorizeUrl, exchangeCode, fetchDiscordUser, serverTagOf, type DiscordUser } from "../services/discord";
 
 export const authRouter = Router();
 authRouter.use(rateLimit(60_000, 40));
@@ -35,6 +35,7 @@ function pickUsername(wanted: string, discordUsername: string): string {
 
 function upsertUser(du: DiscordUser, wantedUsername: string, ip: string | undefined, roles: RoleTag[] = []): UserRecord {
   const displayName = du.global_name || du.username;
+  const st = serverTagOf(du);
   const pages = db.pagesOf(du.id);
   if (pages.length) {
     for (const page of pages) {
@@ -43,6 +44,9 @@ function upsertUser(du: DiscordUser, wantedUsername: string, ip: string | undefi
       page.discordHandle = du.username;
       page.discordBanner = du.banner ?? null;
       page.discordAccent = du.accent_color ?? null;
+      page.discordServerTag = st?.tag ?? null;
+      page.discordServerId = st?.guildId ?? null;
+      page.discordServerBadge = st?.badge ?? null;
       page.roles = roles;
       page.rolesAt = Date.now();
       page.lastLoginIp = ip ?? null;
@@ -67,6 +71,9 @@ function upsertUser(du: DiscordUser, wantedUsername: string, ip: string | undefi
     discordHandle: du.username,
     discordBanner: du.banner ?? null,
     discordAccent: du.accent_color ?? null,
+    discordServerTag: st?.tag ?? null,
+    discordServerId: st?.guildId ?? null,
+    discordServerBadge: st?.badge ?? null,
     signupIp: ip ?? null,
     lastLoginIp: ip ?? null,
     lastLoginAt: Date.now(),

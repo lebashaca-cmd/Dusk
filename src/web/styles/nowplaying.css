@@ -93,3 +93,21 @@
 .lyr-open { background: #1ed760; color: #000; }
 .lyr-open:hover { background: #1ed760; filter: brightness(1.1); }
 .lyr-open .ic svg { fill: currentColor; stroke: none; }
+
+/* Animated lyrics, in the style of Spicy Lyrics for Spicetify: the line being sung grows and glows, every word
+   fills in as it is sung, and the lines around it soften and blur the farther they are. lyrfx.ts sets --d (how far
+   a line is from the current one) and the word timings. */
+.lyr-line, .di-line { transform-origin: 0 60%; filter: blur(calc(min(var(--d, 0), 4) * 0.9px)); opacity: max(0.16, calc(0.62 - var(--d, 0) * 0.13)); transform: scale(0.94); transition: opacity 0.55s ease, filter 0.55s ease, transform 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+.di-line { transform-origin: 50% 60%; }
+.lyr-line.cur, .di-line.cur { opacity: 1; filter: none; transform: scale(1.04); }
+.lyr-line.msg, .di-line.msg { filter: none; transform: none; }
+.lyr-line .w, .di-line .w { display: inline-block; }
+/* A line that is not being sung is plain white. The current line starts every word dim and fills it in turn. */
+.lyr-line.cur .w, .di-line.cur .w { color: transparent; -webkit-text-fill-color: transparent; background: linear-gradient(90deg, #fff 0 50%, rgba(255, 255, 255, 0.34) 50% 100%) 100% 0 / 200% 100% no-repeat; -webkit-background-clip: text; background-clip: text; animation: lyr-fill linear both, lyr-lift ease-out both; }
+.lyr-line.cur { text-shadow: 0 0 22px color-mix(in srgb, #fff 26%, transparent); }
+@keyframes lyr-fill { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@keyframes lyr-lift { 0% { translate: 0 2px; } 40% { translate: 0 -2px; } 100% { translate: 0 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .lyr-line, .di-line { transition: opacity 0.2s; filter: none; transform: none; }
+  .lyr-line.cur .w, .di-line.cur .w { animation: none; background: none; color: #fff; -webkit-text-fill-color: #fff; }
+}

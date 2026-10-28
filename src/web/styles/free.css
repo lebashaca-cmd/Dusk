@@ -518,3 +518,21 @@ a.fitem.is-text { text-decoration: underline; text-underline-offset: 3px; }
 .pboard-theme { width: 30px; height: 30px; border-radius: 999px; border: 2px solid var(--line-2); background: linear-gradient(135deg, var(--a, #333), var(--b, #111)); cursor: pointer; color: var(--dim); font-size: 14px; display: grid; place-items: center; padding: 0; }
 .pboard-theme.none { background: var(--glass); }
 .pboard-theme[aria-pressed="true"] { border-color: #fff; box-shadow: 0 0 0 2px rgb(255 255 255 / 0.25); }
+
+/* Sliding a games or music list: the cards lean away from the middle, glide with the eased scroll, and rise in when they land. */
+.flist-track { overscroll-behavior-x: contain; }
+.flist.sliding .flist-track { scroll-snap-type: none; }
+.flist[data-motion="flow"] .fcard { transform: perspective(900px) rotateY(calc(var(--k, 0) * -15deg)) scale(calc(1 - var(--a, 0) * 0.07)); opacity: calc(1 - var(--a, 0) * 0.3); will-change: transform; }
+.fcard.land { animation: fcard-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards; animation-delay: calc(var(--i, 0) * 70ms); }
+@keyframes fcard-rise { from { translate: 0 18px; filter: blur(4px); } to { translate: 0 0; filter: blur(0); } }
+.flist-dots i:hover { background: color-mix(in srgb, var(--p-text) 60%, transparent); }
+.flist-dots i:active { transform: scale(0.8); }
+@media (prefers-reduced-motion: reduce) {
+  .flist[data-motion="flow"] .fcard { transform: none; opacity: 1; }
+  .fcard.land { animation: none; }
+}
+
+/* The Discord server tag: the badge and its letters, in a small pill next to the name. */
+.stag { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; padding: 2px 9px 2px 6px; border-radius: 8px; font-size: 12px; line-height: 1.5; color: var(--p-text); background: color-mix(in srgb, var(--p-text) 12%, transparent); border: 1px solid color-mix(in srgb, var(--p-text) 16%, transparent); }
+.stag img { width: 14px; height: 14px; border-radius: 3px; object-fit: contain; }
+.stag b { font-weight: 700; letter-spacing: 0.04em; }

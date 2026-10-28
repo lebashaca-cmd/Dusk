@@ -62,7 +62,7 @@ function listHTML(box: BoardBox | undefined, kind: string): string {
     const art = it.c ? `<span class="fcard-img" style="background-image:url(${esc(it.c)})"></span>` : "";
     return `<figure class="fcard" role="listitem"><div class="fcard-art"><span class="fcard-ph">${letter}</span>${art}</div><figcaption><b>${esc(it.n)}</b>${it.s ? `<small>${esc(it.s)}</small>` : ""}</figcaption></figure>`;
   }).join("");
-  return `<div class="flist" data-list="${kind}"${box?.dots === false ? ' data-nodots="1"' : ""}><div class="flist-track" role="list">${cards}</div><div class="flist-dots" aria-hidden="true"></div></div>`;
+  return `<div class="flist" data-list="${kind}"${box?.dots === false ? ' data-nodots="1"' : ""} data-motion="${box?.lmo ?? "flow"}"><div class="flist-track" role="list">${cards}</div><div class="flist-dots" aria-hidden="true"></div></div>`;
 }
 
 /** The effect that plays over a piece: a set of small shapes, each with its own place, size and timing, so it looks the same every time. */

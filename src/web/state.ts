@@ -47,6 +47,7 @@ class AppStore {
       discordTag: me.user.discordTag,
       discordBannerUrl: me.user.discordBannerUrl,
       discordAccent: me.user.discordAccent,
+      serverTag: me.user.serverTag,
       discordId: me.ownerId,
       tracks: me.tracks,
       views: me.views,

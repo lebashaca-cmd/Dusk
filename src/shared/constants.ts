@@ -1,6 +1,6 @@
 import {
-  LYRIC_PROVIDERS, PAGE_LAYOUTS, VIP_BG_TYPES,
-  type BgType, type BoardBox, type BoxAlign, type BoxFill, type BoxFit, type FontKey, type IconName, type ListEntry, type LyricProvider, type PageSettings, type PresenceStatus, type Profile, type ProfileColors, type ThemeName,
+  EMBED_IMAGES, LYRIC_PROVIDERS, PAGE_LAYOUTS, VIP_BG_TYPES,
+  type BgType, type BoardBox, type BoxAlign, type BoxFill, type BoxFit, type EmbedSettings, type FontKey, type IconName, type ListEntry, type LyricProvider, type PageSettings, type PresenceStatus, type Profile, type ProfileColors, type ThemeName,
 } from "./types";
 
 export const LIMITS = {
@@ -164,7 +164,6 @@ export function defaultBoard(): BoardBox[] {
 export const LYRIC_PROVIDER_NAMES: Record<LyricProvider, string> = {
   lrclib: "LRCLIB",
   genius: "Genius",
-  spicy: "Spicy Lyrics",
   musixmatch: "Musixmatch",
   petit: "PetitLyrics",
 };
@@ -208,6 +207,7 @@ export function defaultProfile(name: string): Profile {
     nameGradient: false,
     effects: { tilt: true, cursorGlow: false, entrance: "rise" },
     page: { views: true, share: true, enter: true, enterText: "tap to enter", layout: "regular", board: [], lyricsProvider: "lrclib" },
+    embed: { title: "", desc: "", site: "", color: "", image: "card", large: true },
     music: { enabled: true, autoplay: true, loop: true, showProgress: true, showLyrics: true, lyricsOpen: false, lyricsStyle: "panel", volume: 0.7 },
     discord: { enabled: true, showCard: true, showActivity: true, showSpotify: true, showProgress: true, showLyrics: true, lyricsOpen: false, lyricsStyle: "panel" },
   };
@@ -249,8 +249,23 @@ export function normalizeProfile(saved: Partial<Profile> | undefined, name: stri
       lyricsProvider: oneOf(LYRIC_PROVIDERS, page.lyricsProvider) ?? d.page.lyricsProvider,
       board: normalizeBoard(page.board),
     },
+    embed: normalizeEmbed(s.embed, d.embed),
     music: { ...d.music, ...s.music },
     discord: { ...d.discord, ...s.discord },
+  };
+}
+
+/** The link preview settings, with anything odd put back to the default. */
+export function normalizeEmbed(e: unknown, d: EmbedSettings): EmbedSettings {
+  const o = (e && typeof e === "object" ? e : {}) as Partial<EmbedSettings>;
+  const str = (v: unknown, max: number, dflt: string): string => (typeof v === "string" ? v.slice(0, max) : dflt);
+  return {
+    title: str(o.title, 70, d.title),
+    desc: str(o.desc, 200, d.desc),
+    site: str(o.site, 40, d.site),
+    color: typeof o.color === "string" && /^#[0-9a-fA-F]{6}$/.test(o.color) ? o.color : "",
+    image: oneOf(EMBED_IMAGES, o.image) ?? d.image,
+    large: typeof o.large === "boolean" ? o.large : d.large,
   };
 }
 
@@ -331,6 +346,8 @@ export function normalizeBoard(board: unknown): BoardBox[] {
     const fxn = nn(box.fxn, 5, 80); if (fxn !== undefined) piece.fxn = fxn;
     const cardW = nn(box.cardW, 110, 320); if (cardW !== undefined) piece.cardW = cardW;
     if (box.dots === false) piece.dots = false;
+    if (box.stag) piece.stag = true;
+    if (box.lmo === "slide" || box.lmo === "none") piece.lmo = box.lmo;
     if (Array.isArray(box.items) && (kindOf(box.id) === "games" || kindOf(box.id) === "listen")) {
       const own = /^\/media\/file\/[A-Za-z0-9_-]{1,40}\/m-[a-f0-9]{16}\.(jpg|png|webp|gif)$/;
       piece.items = (box.items as unknown[]).slice(0, MAX_LIST).flatMap((raw): ListEntry[] => {

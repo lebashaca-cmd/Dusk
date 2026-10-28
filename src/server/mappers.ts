@@ -4,7 +4,10 @@ import type { TrackRecord, UserRecord } from "./db";
 import { db, ownerOf } from "./db";
 import { limitProfile } from "../shared/constants";
 import { canHaveManyPages, isVip } from "./pages";
-import { discordAccentHex, discordAvatarUrl, discordBannerUrl } from "./services/discord";
+import { discordAccentHex, discordAvatarUrl, discordBannerUrl, serverBadgeUrl } from "./services/discord";
+import type { ServerTag } from "../shared/types";
+
+const serverTagOf = (u: UserRecord): ServerTag | null => u.discordServerTag ? { tag: u.discordServerTag, badgeUrl: serverBadgeUrl(u.discordServerId, u.discordServerBadge) } : null;
 import { providerInfo } from "./services/lyrics";
 import { filePresent } from "./storage";
 
@@ -42,6 +45,7 @@ export function toMe(u: UserRecord): MeResponse {
       discordTag: u.discordHandle ?? null,
       discordBannerUrl: discordBannerUrl(ownerOf(u), u.discordBanner),
       discordAccent: discordAccentHex(u.discordAccent),
+      serverTag: serverTagOf(u),
     },
     ownerId: ownerOf(u),
     pages: db.pagesOf(ownerOf(u)).map(p => ({ id: p.id, username: p.username, active: p.id === u.id })),
@@ -73,6 +77,7 @@ export function toPublic(u: UserRecord): RenderModel {
     discordTag: showTag ? u.discordHandle ?? null : null,
     discordBannerUrl: showBanner ? discordBannerUrl(ownerOf(u), u.discordBanner) : null,
     discordAccent: showBanner ? discordAccentHex(u.discordAccent) : null,
+    serverTag: piece?.stag ? serverTagOf(u) : null,
     discordId: u.profile.discord.enabled && isDiscordAccount(u) ? ownerOf(u) : null,
     tracks: u.profile.music.enabled ? db.tracksOf(u.id).map(toTrack) : [],
     views: u.views,

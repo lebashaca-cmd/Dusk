@@ -24,7 +24,6 @@ export interface LyricsQuery {
   /** Seconds. Helps LRCLIB pick the right version of a song. */
   duration?: number;
   /** The Spotify id of the song, when it is playing on Spotify. */
-  spotifyId?: string;
 }
 
 export const NO_LYRICS: Lyrics = { status: "none", lines: [], plain: "" };

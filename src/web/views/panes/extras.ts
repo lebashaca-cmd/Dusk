@@ -14,7 +14,7 @@ const LAYOUT_CHOICES: readonly Choice[] = [
 ];
 
 /** The order the lyrics services are offered in. */
-const PROVIDER_ORDER: readonly LyricProvider[] = ["lrclib", "genius", "spicy", "musixmatch", "petit"];
+const PROVIDER_ORDER: readonly LyricProvider[] = ["lrclib", "genius", "musixmatch", "petit"];
 
 /** Pages you own (owners and devs can have several) and the delete button. */
 function pagesHTML(): string {
