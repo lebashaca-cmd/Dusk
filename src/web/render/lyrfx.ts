@@ -7,12 +7,14 @@ export function lineHTML(text: string): string {
   return t.split(/\s+/).map(w => `<span class="w" data-t="${esc(w)}">${esc(w)}</span>`).join(" ");
 }
 
-/** Marks the line being sung, the ones already sung, and how far every other line is from it (the farther, the softer). */
+/** Marks the line being sung, the ones already sung (sharp, softer the longer ago) and the ones still to come (blurrier the farther away). */
 export function paintLines(lines: readonly HTMLElement[], cur: number): void {
   lines.forEach((el, n) => {
     el.classList.toggle("cur", n === cur);
     el.classList.toggle("past", n < cur);
-    el.style.setProperty("--d", String(Math.min(4, Math.abs(n - cur))));
+    el.classList.toggle("next", n > cur);
+    el.style.setProperty("--p", String(Math.max(0, cur - n)));
+    el.style.setProperty("--u", String(Math.max(0, n - cur)));
   });
 }
 

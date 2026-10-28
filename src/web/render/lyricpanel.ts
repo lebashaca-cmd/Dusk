@@ -68,7 +68,8 @@ export class LyricPanel {
     if (i >= 0) sweepLine(this.lines[i], pos / 1000 - (l.lines[i]?.t ?? 0), lineSpan(l.lines.map(x => x.t), i));
     const target = this.lines[Math.max(0, i)];
     if (!target) return;
-    const offset = this.body.clientHeight / 2 - (target.offsetTop + target.offsetHeight / 2);
+    // The line being sung rests about a third of the way down, so the lines already sung stay in view above it.
+    const offset = this.body.clientHeight * 0.3 - target.offsetTop;
     this.track.style.transform = `translateY(${Math.min(this.body.clientHeight * 0.3, offset)}px)`;
   }
 }

@@ -94,20 +94,22 @@
 .lyr-open:hover { background: #1ed760; filter: brightness(1.1); }
 .lyr-open .ic svg { fill: currentColor; stroke: none; }
 
-/* Animated lyrics, in the style of Spicy Lyrics for Spicetify: the line being sung grows and glows, every word
-   fills in as it is sung, and the lines around it soften and blur the farther they are. lyrfx.ts sets --d (how far
-   a line is from the current one) and the word timings. */
-.lyr-line, .di-line { transform-origin: 0 60%; filter: blur(calc(min(var(--d, 0), 4) * 0.9px)); opacity: max(0.16, calc(0.62 - var(--d, 0) * 0.13)); transform: scale(0.94); transition: opacity 0.55s ease, filter 0.55s ease, transform 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
-.di-line { transform-origin: 50% 60%; }
-.lyr-line.cur, .di-line.cur { opacity: 1; filter: none; transform: scale(1.04); }
-.lyr-line.msg, .di-line.msg { filter: none; transform: none; }
+/* Animated lyrics, after the reference recording: every line is the same size and left-aligned. The line being sung
+   is bright and its words fill in as they are sung, lines already sung stay readable and sharp, and the lines still to
+   come soften and blur the farther away they are. lyrfx.ts sets --p (how many lines ago a line was sung), --u (how many
+   lines until it is sung) and the word timings. */
+.lyr-line, .di-line { opacity: 0.55; filter: none; transition: opacity 0.5s ease, filter 0.5s ease; }
+.lyr-line { font-size: 1.28rem; font-weight: 700; line-height: 1.22; padding: 6px 0; letter-spacing: -0.005em; }
+.lyr-line.past, .di-line.past { opacity: max(0.3, calc(0.62 - var(--p, 0) * 0.04)); }
+.lyr-line.next, .di-line.next { opacity: max(0.16, calc(0.5 - var(--u, 1) * 0.06)); filter: blur(calc(min(var(--u, 1), 6) * 0.75px)); }
+.lyr-line.cur, .di-line.cur { opacity: 1; filter: none; }
+.lyr-line.msg, .di-line.msg { filter: none; }
 .lyr-line .w, .di-line .w { display: inline-block; }
-/* A line that is not being sung is plain white. The current line starts every word dim and fills it in turn. */
-.lyr-line.cur .w, .di-line.cur .w { color: transparent; -webkit-text-fill-color: transparent; background: linear-gradient(90deg, #fff 0 50%, rgba(255, 255, 255, 0.34) 50% 100%) 100% 0 / 200% 100% no-repeat; -webkit-background-clip: text; background-clip: text; animation: lyr-fill linear both, lyr-lift ease-out both; }
-.lyr-line.cur { text-shadow: 0 0 22px color-mix(in srgb, #fff 26%, transparent); }
+/* The line being sung starts every word dim and fills each one with white as it is sung, with a little lift and glow. */
+.lyr-line.cur .w, .di-line.cur .w { color: transparent; -webkit-text-fill-color: transparent; background: linear-gradient(90deg, #fff 0 50%, rgba(255, 255, 255, 0.5) 50% 100%) 100% 0 / 200% 100% no-repeat; -webkit-background-clip: text; background-clip: text; animation: lyr-fill linear both, lyr-lift ease-out both; transform-origin: 0 80%; }
 @keyframes lyr-fill { from { background-position: 100% 0; } to { background-position: 0 0; } }
-@keyframes lyr-lift { 0% { translate: 0 2px; } 40% { translate: 0 -2px; } 100% { translate: 0 0; } }
+@keyframes lyr-lift { 0% { translate: 0 1px; scale: 1; filter: none; } 35% { translate: 0 -1.5px; scale: 1.05; filter: drop-shadow(0 0 7px rgba(255, 255, 255, 0.55)); } 100% { translate: 0 0; scale: 1; filter: none; } }
 @media (prefers-reduced-motion: reduce) {
-  .lyr-line, .di-line { transition: opacity 0.2s; filter: none; transform: none; }
+  .lyr-line, .di-line { transition: opacity 0.2s; filter: none !important; }
   .lyr-line.cur .w, .di-line.cur .w { animation: none; background: none; color: #fff; -webkit-text-fill-color: #fff; }
 }
