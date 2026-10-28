@@ -110,6 +110,7 @@
 @keyframes lyr-fill { from { background-position: 100% 0; } to { background-position: 0 0; } }
 @keyframes lyr-lift { 0% { translate: 0 1px; scale: 1; filter: none; } 35% { translate: 0 -1.5px; scale: 1.05; filter: drop-shadow(0 0 7px rgba(255, 255, 255, 0.55)); } 100% { translate: 0 0; scale: 1; filter: none; } }
 @media (prefers-reduced-motion: reduce) {
+  /* The words still fill as they are sung, because that is how the lyrics keep time. Only the glow, the swell and the blur go. */
   .lyr-line, .di-line { transition: opacity 0.2s; filter: none !important; }
-  .lyr-line.cur .w, .di-line.cur .w { animation: none; background: none; color: #fff; -webkit-text-fill-color: #fff; }
+  .lyr-line.cur .w, .di-line.cur .w { animation: lyr-fill linear both; }
 }

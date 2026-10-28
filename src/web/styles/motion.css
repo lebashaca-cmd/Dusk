@@ -56,6 +56,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .home .nav, .masthead .wordmark, .masthead .lede, .masthead .claim, .masthead .welcome, .masthead .demo, .ticker, .dash-top, .dash .side, .dash .tab, .dash .preview-pane,
-  .stage.is-intro .pcard > *, .stage.is-intro .plinks > li, .pslot.anim > *, .lyr-panel, .lyr-panel *, .di-root .di-island { animation: none !important; }
+  .stage.is-intro .pcard > *, .stage.is-intro .plinks > li, .pslot.anim > *, .lyr-panel, .lyr-panel .lyr-head, .lyr-panel .lyr-body, .lyr-panel .lyr-plain, .lyr-panel .lyr-foot, .di-root .di-island { animation: none !important; }
   .band [data-reveal], .stats[data-reveal], .deck-sec [data-reveal], .deck-sec[data-reveal], .masthead [data-reveal], .masthead[data-reveal], .cta-band [data-reveal], .cta-band[data-reveal] { opacity: 1; transform: none; transition: none; }
 }
