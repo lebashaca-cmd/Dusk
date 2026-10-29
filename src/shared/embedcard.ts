@@ -51,7 +51,7 @@ export function fillEmbedText(text: string, ctx: Pick<EmbedCtx, "name" | "userna
 /** The picture every page starts with, and keeps until its owner arranges their own. */
 export function defaultEmbedDesign(): EmbedDesign {
   return {
-    bg: { mode: "page", c1: "#07060f", c2: "#1b1140", angle: 160, glow: true, src: "background", url: "", dim: 40 },
+    bg: { mode: "page", c1: "#07060f", c2: "#1b1140", angle: 160, glow: true, src: "background", url: "", dim: 40, video: "" },
     boxes: [
       { id: "logo", x: 900, y: 64, w: 220, h: 112, op: 100 },
       { id: "text:1", x: 84, y: 104, w: 800, h: 100, text: "{name}", size: 78, wt: 800, align: "left" },
@@ -60,6 +60,14 @@ export function defaultEmbedDesign(): EmbedDesign {
       { id: "links", x: 84, y: 462, w: 1032, h: 60, size: 24, count: 3, align: "left" },
       { id: "text:4", x: 84, y: 546, w: 240, h: 40, text: "dusk", size: 24, wt: 700, color: "dim", align: "left" },
     ].map(b => ({ ...b, fixedH: true })) as EmbedBox[],
+  };
+}
+
+/** The enter screen when its owner starts arranging it: the plain one, as pieces. */
+export function defaultGateDesign(words = "tap to enter"): EmbedDesign {
+  return {
+    bg: { mode: "solid", c1: "#000000", c2: "#1b1140", angle: 160, glow: false, src: "background", url: "", dim: 0, video: "" },
+    boxes: [{ id: "text:1", x: 200, y: 270, w: 800, h: 90, text: words, size: 48, wt: 600, align: "center", fixedH: true }] as EmbedBox[],
   };
 }
 
@@ -118,6 +126,13 @@ function normalizeBox(raw: unknown): EmbedBox | null {
   return out;
 }
 
+/** A video address that is safe to use: one of the person's own files, or a plain https address of a video. */
+export function videoOf(v: unknown): string {
+  if (typeof v !== "string") return "";
+  if (/^\/media\/file\/[A-Za-z0-9_-]{1,40}\/m-[a-f0-9]{16}\.(mp4|webm|ogg)$/.test(v)) return v;
+  return /^https:\/\/[^\s"'<>]{1,280}\.(mp4|webm|ogg)(\?[^\s"'<>]{0,100})?$/i.test(v) ? v : "";
+}
+
 /** The design with anything odd put right, or null when there is none. */
 export function normalizeDesign(raw: unknown, fallback: EmbedDesign | null = null): EmbedDesign | null {
   if (!raw || typeof raw !== "object") return fallback;
@@ -146,6 +161,7 @@ export function normalizeDesign(raw: unknown, fallback: EmbedDesign | null = nul
       src: bg.src === "media" ? "media" : "background",
       url,
       dim: Math.round(num(bg.dim, 0, 90, dflt.dim)),
+      video: videoOf(bg.video),
     },
     boxes,
   };
@@ -161,6 +177,7 @@ export function stripDesign(d: EmbedDesign): EmbedDesign {
     if (embedKindOf(b.id) === "text" && b.text && !onlyTokens(b.text)) b.text = "";
     if (b.src === "media") delete b.url;
   }
+  if (out.bg.video.startsWith("/media/")) out.bg.video = "";
   if (out.bg.src === "media") { out.bg.url = ""; if (out.bg.mode === "image") out.bg.mode = "page"; }
   return out;
 }
@@ -237,7 +254,7 @@ function gradientVector(angle: number): { x1: number; y1: number; x2: number; y2
 }
 
 /** The picture as SVG markup. `idp` keeps the ids of two pictures on one page apart. */
-export function embedSvg(design: EmbedDesign, ctx: EmbedCtx, idp = "e"): string {
+export function embedSvg(design: EmbedDesign, ctx: EmbedCtx, idp = "e", seeThrough = false): string {
   const W = EMBED_W;
   const H = EMBED_H;
   const c = ctx.colors;
@@ -257,7 +274,10 @@ export function embedSvg(design: EmbedDesign, ctx: EmbedCtx, idp = "e"): string 
   // The background.
   const bg = design.bg;
   const bgPicture = bg.mode === "image" ? ctx.href(bg.src, bg.url) : null;
-  if (bg.mode === "solid") {
+  if (seeThrough) {
+    // A video plays behind the drawing, so only the darkening is drawn.
+    if (bg.dim > 0) body.push(`<rect width="${W}" height="${H}" fill="#000" fill-opacity="${(bg.dim / 100).toFixed(2)}"/>`);
+  } else if (bg.mode === "solid") {
     body.push(`<rect width="${W}" height="${H}" fill="${hexOf(bg.c1, "#07060f")}"/>`);
   } else if (bg.mode === "image" && bgPicture) {
     body.push(`<image href="${xml(bgPicture)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>`);
@@ -268,7 +288,7 @@ export function embedSvg(design: EmbedDesign, ctx: EmbedCtx, idp = "e"): string 
     defs.push(`<linearGradient id="${idp}sky" x1="${v.x1.toFixed(3)}" y1="${v.y1.toFixed(3)}" x2="${v.x2.toFixed(3)}" y2="${v.y2.toFixed(3)}"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient>`);
     body.push(`<rect width="${W}" height="${H}" fill="url(#${idp}sky)"/>`);
   }
-  if (bg.glow && bg.mode !== "image") {
+  if (bg.glow && bg.mode !== "image" && !seeThrough) {
     defs.push(`<radialGradient id="${idp}glow" gradientUnits="userSpaceOnUse" cx="${W * 0.78}" cy="${H * 0.22}" r="${W * 0.55}"><stop offset="0" stop-color="${accent}" stop-opacity="0.4"/><stop offset="1" stop-color="${accent}" stop-opacity="0"/></radialGradient>`);
     body.push(`<rect width="${W}" height="${H}" fill="url(#${idp}glow)"/>`);
   }

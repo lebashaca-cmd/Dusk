@@ -81,6 +81,19 @@ export function metaTags(user: UserRecord, origin: string): string {
     lines.push(`<meta property="og:image" content="${attr(pic.url)}">`);
     if (pic.card) lines.push(`<meta property="og:image:width" content="1200">`, `<meta property="og:image:height" content="630">`);
   }
+  // A video behind a designed picture: apps that play one (Discord does, for a direct video file) show it; the others show the picture.
+  const video = e.image === "card" ? absolute(e.design?.bg.video, origin) : null;
+  if (video) {
+    const type = /\.webm(\?|$)/i.test(video) ? "video/webm" : /\.ogg(\?|$)/i.test(video) ? "video/ogg" : "video/mp4";
+    lines.push(
+      `<meta property="og:video" content="${attr(video)}">`,
+      `<meta property="og:video:url" content="${attr(video)}">`,
+      `<meta property="og:video:secure_url" content="${attr(video)}">`,
+      `<meta property="og:video:type" content="${type}">`,
+      `<meta property="og:video:width" content="1200">`,
+      `<meta property="og:video:height" content="630">`,
+    );
+  }
   lines.push(
     `<meta name="twitter:card" content="${pic && e.large ? "summary_large_image" : "summary"}">`,
     `<meta name="twitter:title" content="${attr(title)}">`,

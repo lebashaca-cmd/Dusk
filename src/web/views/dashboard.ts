@@ -21,15 +21,15 @@ import { pageboardPane } from "./panes/pageboard";
 import { profilePane } from "./panes/profile";
 import { sharePane } from "./panes/share";
 import { stylePane } from "./panes/style";
-import { embedPane } from "./panes/embed";
+import { embedPane, gatePane } from "./panes/embed";
 import { rolesPane } from "./panes/roles";
 
-const PANES: Pane[] = [profilePane, linksPane, groupsPane, rolesPane, stylePane, embedPane, musicPane, discordPane, extrasPane, pageboardPane, insightsPane, sharePane, boardPane];
+const PANES: Pane[] = [profilePane, linksPane, groupsPane, rolesPane, stylePane, embedPane, gatePane, musicPane, discordPane, extrasPane, pageboardPane, insightsPane, sharePane, boardPane];
 
 /** The sections the panes belong to. The rail shows them as a tag on each row. */
 const SECTIONS: ReadonlyArray<{ label: string; ids: string[] }> = [
   { label: "Your page", ids: ["profile", "links", "groups"] },
-  { label: "Look", ids: ["style", "embed"] },
+  { label: "Look", ids: ["style", "embed", "gate"] },
   { label: "Extras", ids: ["music", "discord", "roles"] },
   { label: "Settings", ids: ["page", "pageboard"] },
   { label: "Measure", ids: ["insights", "share"] },

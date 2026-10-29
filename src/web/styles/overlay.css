@@ -60,3 +60,6 @@
 .toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 200; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; background: #111; border: 1px solid var(--line); border-radius: 999px; padding: 9px 18px; font-size: 13px; transition: 0.25s; max-width: calc(100% - 32px); }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 @media (prefers-reduced-motion: reduce) { .gate span { animation: none; } }
+.gate.designed { background: #000; backdrop-filter: none; -webkit-backdrop-filter: none; overflow: hidden; }
+.gate.designed .gate-art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.gate.designed .gate-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }

@@ -1,5 +1,6 @@
 import type { PublicProfile } from "../../shared/types";
 import { api, ApiError } from "../api";
+import { gateFill, gateHTML } from "../render/gate";
 import { Stage } from "../render/stage";
 import { store } from "../state";
 import { MARK_SVG, setMeta } from "../ui/chrome";
@@ -68,7 +69,9 @@ export function mountPublic(root: HTMLElement, username: string): () => void {
       const gate = document.createElement("button");
       gate.className = "gate";
       gate.type = "button";
-      gate.innerHTML = `<span>${esc(model.profile.page.enterText || "tap to enter")}</span>`;
+      const design = model.profile.page.gate;
+      if (design) { gate.classList.add("designed"); gate.style.background = gateFill(model, design); gate.setAttribute("aria-label", model.profile.page.enterText || "tap to enter"); gate.innerHTML = gateHTML(model, design); }
+      else gate.innerHTML = `<span>${esc(model.profile.page.enterText || "tap to enter")}</span>`;
       gate.addEventListener("click", () => { gate.classList.add("hide"); begin(); window.setTimeout(() => gate.remove(), 900); });
       host.append(gate);
     } else {

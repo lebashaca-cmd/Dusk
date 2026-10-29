@@ -50,7 +50,7 @@ if (fs.existsSync(path.join(config.webDir, "index.html"))) {
     const origin = `${req.protocol}://${req.get("host") ?? "localhost"}`;
     fs.readFile(indexFile, "utf8", (err, html) => {
       if (err) { res.sendStatus(500); return; }
-      res.type("html").send(injectMeta(html, user, origin));
+      res.type("html").set("Cache-Control", "no-cache").send(injectMeta(html, user, origin));
     });
   });
 }

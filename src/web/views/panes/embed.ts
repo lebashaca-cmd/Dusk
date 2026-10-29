@@ -1,5 +1,5 @@
 import { EMBED_IMAGES, type BoardBox, type EmbedBox, type EmbedDesign, type EmbedKind } from "../../../shared/types";
-import { defaultEmbedDesign, embedKindOf, embedSvg, EMBED_H, EMBED_W, MAX_EMBED_BOXES, type EmbedCtx } from "../../../shared/embedcard";
+import { defaultEmbedDesign, defaultGateDesign, embedKindOf, embedSvg, EMBED_H, EMBED_W, MAX_EMBED_BOXES, type EmbedCtx } from "../../../shared/embedcard";
 import { store } from "../../state";
 import { chooseMedia } from "../../ui/media";
 import { delegate, esc } from "../../util/dom";
@@ -117,13 +117,29 @@ export const embedPane: Pane = {
   label: "Embed",
   hint: "How your link looks when someone posts it in Discord and other apps.",
   wide: true,
-  mount(el) {
+  mount: el => mountDesigner(el, "embed"),
+};
+
+/** The enter screen, arranged the same way: drag, size and add pieces, and put a video behind them. */
+export const gatePane: Pane = {
+  id: "gate",
+  label: "Enter screen",
+  hint: "The screen people tap before your page opens.",
+  wide: true,
+  mount: el => mountDesigner(el, "gate"),
+};
+
+function mountDesigner(el: HTMLElement, kind: "embed" | "gate"): () => void {
+  {
+    const gate = kind === "gate";
     const cleanups: Array<() => void> = [];
     let selected: string | null = null;
     let scale = 1;
     let detachMoves: (() => void) | null = null;
 
-    const design = (): EmbedDesign | null => store.profile.embed.design;
+    const design = (): EmbedDesign | null => (gate ? store.profile.page.gate : store.profile.embed.design);
+    const setDesign = (d: EmbedDesign | null): void => { if (gate) store.profile.page.gate = d; else store.profile.embed.design = d; };
+    const standard = (): EmbedDesign => (gate ? defaultGateDesign(store.profile.page.enterText || "tap to enter") : defaultEmbedDesign());
     const boxes = (): EmbedBox[] => design()?.boxes ?? [];
     const kindOf = (b: EmbedBox): EmbedKind => embedKindOf(b.id) ?? "text";
     const picked = (): EmbedBox | undefined => boxes().find(b => b.id === selected);
@@ -136,10 +152,22 @@ export const embedPane: Pane = {
       detachMoves = null;
       const e = store.profile.embed;
       const address = `${location.origin}/${encodeURIComponent(store.me?.user.username ?? "")}`;
+      if (gate) {
+        const pg = store.profile.page;
+        el.innerHTML = `<div class="emb-layout"><div class="emb-side">${group("Enter screen",
+          toggle("page.enter", "Show an enter screen first", pg.enter) +
+          textField("page.enterText", "Enter screen text", pg.enterText, { max: 24 }) +
+          `<p class="note">People see this before your page opens, and it is also what starts your music. Without a design of your own it is just these words on a dark blur. Arrange your own to add pictures, shapes and a video. The whole screen is the picture you see here, so on a tall phone it is shown smaller.</p>`)}</div>
+          <div class="emb-design" data-emb-design></div></div>`;
+        drawDesigner();
+        return;
+      }
       el.innerHTML = `<div class="emb-layout">
         <div class="emb-side">${[
           group("Preview", `<div class="emb-stage" data-emb-preview>${previewHTML()}</div>
-            <p class="note">A drawing of the link ${esc(address)} in a Discord message. Discord keeps a link it has already seen for a while, so a change can take some time to show on one that was posted before. Updates to dusk itself refresh the picture's address, so apps fetch a new one.</p>`),
+            <p class="note">A drawing of the link ${esc(address)} in a Discord message. Discord keeps a link it has already seen for a while, so a change can take some time to show on one that was posted before. Updates to dusk itself refresh the picture's address, so apps fetch a new one.</p>
+            <button class="btn-ghost" type="button" data-emb-fresh style="justify-content:center">Copy a fresh link</button>
+            <p class="note">Posting the fresh link makes Discord read your page again, so it shows what you have now. It opens the same page.</p>`),
           group("Words",
             textField("embed.title", "Title", e.title, { max: 70, placeholder: `${store.profile.name || "Your name"} · dusk` }) +
             `<label class="fld">Description<textarea data-p="embed.desc" data-t="text" maxlength="200" placeholder="The first line of your bio">${esc(e.desc)}</textarea></label>` +
@@ -175,9 +203,19 @@ export const embedPane: Pane = {
     /** The picture drawn from the design, with the piece being dragged drawn where the pointer has taken it. */
     const drawArt = (live?: { id: string; x: number; y: number; w: number; h: number }): void => {
       if (!art) return;
-      const d = shownDesign();
+      const d = design() ?? standard();
       const shown: EmbedDesign = live ? { ...d, boxes: d.boxes.map(b => (b.id === live.id ? { ...b, ...live } : b)) } : d;
-      art.innerHTML = embedSvg(shown, ctxOf(), "ed");
+      art.innerHTML = embedSvg(shown, ctxOf(), "ed", Boolean(d.bg.video));
+    };
+
+    /** The video behind the pieces in the designer, as it will play. */
+    const syncVideo = (): void => {
+      const v = canvas?.querySelector<HTMLVideoElement>("[data-emb-vid]");
+      const src = design()?.bg.video ?? "";
+      if (!v) return;
+      v.hidden = !src;
+      if (src && v.getAttribute("src") !== src) { v.src = src; void v.play().catch(() => {}); }
+      if (!src) v.removeAttribute("src");
     };
 
     const syncFrame = (): void => {
@@ -373,7 +411,13 @@ export const embedPane: Pane = {
         ${bg.mode === "solid" || bg.mode === "gradient" ? `<div class="emb-colrow"><input type="color" data-ed-col="bg.c1" value="${esc(bg.c1)}" aria-label="First colour">${bg.mode === "gradient" ? `<input type="color" data-ed-col="bg.c2" value="${esc(bg.c2)}" aria-label="Second colour">` : ""}</div>` : ""}
         ${bg.mode === "gradient" ? slider("bg.angle", "Angle", bg.angle, 0, 360, "°", 5) : ""}
         ${bg.mode === "image" ? `${seg("Picture", "bg.src", [["media", "A file of mine"], ["background", "My background"]], bg.src)}${bg.src === "media" ? `<button class="btn-ghost" type="button" data-ed-pickbg style="justify-content:center">${bg.url ? "Choose another file" : "Choose a file from my device"}</button>` : ""}${slider("bg.dim", "Darken it", bg.dim, 0, 90, "%", 5)}` : ""}
-        ${bg.mode !== "image" ? flag("bg.glow", "Soft light of my accent colour", bg.glow) : ""}
+        ${bg.mode !== "image" && !bg.video ? flag("bg.glow", "Soft light of my accent colour", bg.glow) : ""}
+        <div class="emb-video"><h4>Video behind it</h4>
+          <label class="fld">Video address<input type="text" data-ed-str="bg.video" data-ed-vid maxlength="300" value="${esc(bg.video)}" placeholder="https://…/clip.mp4"></label>
+          <div class="emb-colrow"><button class="btn-ghost" type="button" data-ed-pickvideo>Choose a video from my device</button>${bg.video ? `<button class="btn-ghost" type="button" data-ed-clearvideo>Remove it</button>` : ""}</div>
+          ${bg.video && bg.mode !== "image" ? slider("bg.dim", "Darken it", bg.dim, 0, 90, "%", 5) : ""}
+          <p class="note">${gate ? "It plays muted on a loop behind your pieces, across the whole screen. MP4 or WebM works best, and a short one keeps your page quick." : "Apps that can play a video, such as Discord, show it in place of the still picture when your link is posted. Others show the still picture. It has to be a direct MP4 or WebM file, and Discord only plays small ones."}</p>
+        </div>
       </div>`;
     };
 
@@ -385,7 +429,7 @@ export const embedPane: Pane = {
       canvas = art = scaleBox = frame = optsEl = null;
       if (!host) return;
       const e = store.profile.embed;
-      if (e.image !== "card") {
+      if (!gate && e.image !== "card") {
         host.innerHTML = group("Design the picture", `<p class="note">The picture of your link is set to “${esc(IMAGE_LABELS[e.image])}”. Pick “${esc(IMAGE_LABELS.card)}” under Look to arrange your own.</p>`);
         refreshPreview();
         return;
@@ -393,21 +437,22 @@ export const embedPane: Pane = {
       const d = design();
       if (!d) {
         host.innerHTML = group("Design the picture",
-          `<div class="emb-stage emb-standard">${embedSvg(defaultEmbedDesign(), ctxOf(), "st")}</div>
-           <p class="note">This is the standard picture. It follows every update of dusk on its own and always shows your name, handle and bio. Arrange your own to move things, add text, pictures and shapes. Yours then stays exactly as you set it.</p>
+          `<div class="emb-stage emb-standard">${embedSvg(standard(), ctxOf(), "st")}</div>
+           <p class="note">${gate ? "This is the plain enter screen. Arrange your own to move things, add text, pictures and shapes, and to put a video behind them." : "This is the standard picture. It follows every update of dusk on its own and always shows your name, handle and bio. Arrange your own to move things, add text, pictures and shapes. Yours then stays exactly as you set it."}</p>
            <button class="btn-primary" type="button" data-emb-own style="justify-content:center">Arrange my own</button>`);
         refreshPreview();
         return;
       }
       host.innerHTML = group("Design the picture", `<div class="emb-tools">
           <span>Add</span>${ADD_ORDER.map(k => `<button type="button" class="seg-btn" data-ed-add="${k}"${d.boxes.length >= MAX_EMBED_BOXES ? " disabled" : ""}>${esc(KIND_LABEL[k])}</button>`).join("")}
-          <button type="button" class="btn-ghost emb-reset" data-emb-standard>Back to the standard picture</button>
+          <button type="button" class="btn-ghost emb-reset" data-emb-standard>${gate ? "Back to the plain screen" : "Back to the standard picture"}</button>
         </div>
-        <div class="emb-scale" data-emb-scale><div class="pboard-canvas emb-canvas" data-emb-canvas><div class="emb-art" data-emb-art></div></div></div>
+        <div class="emb-scale" data-emb-scale><div class="pboard-canvas emb-canvas" data-emb-canvas><video class="emb-vid" data-emb-vid muted loop playsinline autoplay aria-hidden="true"></video><div class="emb-art" data-emb-art></div></div></div>
         <div class="emb-opts" data-emb-opts></div>
         <div class="emb-bgwrap"><h4>Background</h4>${bgHTML()}</div>`);
       canvas = host.querySelector<HTMLElement>("[data-emb-canvas]");
       art = host.querySelector<HTMLElement>("[data-emb-art]");
+      syncVideo();
       scaleBox = host.querySelector<HTMLElement>("[data-emb-scale]");
       optsEl = host.querySelector<HTMLElement>("[data-emb-opts]");
       if (!canvas) return;
@@ -495,16 +540,16 @@ export const embedPane: Pane = {
 
     cleanups.push(
       // The words, the look and the picture choice.
-      bindFields(el, path => path === "embed.image", draw),
+      bindFields(el, path => path === "embed.image" || path === "page.enter", draw),
       delegate(el, "input", "[data-p]", refreshPreview),
       delegate(el, "change", "[data-p]", refreshPreview),
       delegate(el, "click", "[data-emb-reset-color]", () => { store.profile.embed.color = ""; save(); draw(); }),
 
       // The standard picture, or one of their own.
-      delegate(el, "click", "[data-emb-own]", () => { store.profile.embed.design = structuredClone(defaultEmbedDesign()); selected = null; save(); draw(); }),
+      delegate(el, "click", "[data-emb-own]", () => { setDesign(structuredClone(standard())); selected = null; save(); draw(); }),
       delegate(el, "click", "[data-emb-standard]", () => {
-        if (!window.confirm("Go back to the standard picture? Your arrangement is lost. The standard one follows every update on its own.")) return;
-        store.profile.embed.design = null;
+        if (!window.confirm(gate ? "Go back to the plain enter screen? Your arrangement is lost." : "Go back to the standard picture? Your arrangement is lost. The standard one follows every update on its own.")) return;
+        setDesign(null);
         selected = null;
         save();
         draw();
@@ -530,7 +575,18 @@ export const embedPane: Pane = {
         if (field === "src" || field === "shape" || field === "color") canvas?.querySelectorAll<HTMLElement>(".ebox").forEach(c => { const b = boxes().find(x => x.id === c.dataset.widget); if (b) c.classList.toggle("empty", isEmpty(b)); });
       }),
       delegate(el, "input", "[data-ed-str]", (_e, t) => {
-        apply((t as HTMLElement).dataset.edStr ?? "", (t as HTMLInputElement).value);
+        const field = (t as HTMLElement).dataset.edStr ?? "";
+        const value = (t as HTMLInputElement).value.trim();
+        // A video address is only kept once it is a real one; it is checked again when saved.
+        if (field === "bg.video") {
+          const ok = value === "" || /^(\/media\/file\/[\w-]+\/m-[a-f0-9]{16}\.(mp4|webm|ogg)|https:\/\/\S+\.(mp4|webm|ogg)(\?\S*)?)$/i.test(value);
+          if (!ok) return;
+          apply(field, value);
+          syncVideo();
+          changed();
+          return;
+        }
+        apply(field, (t as HTMLInputElement).value);
         const b = picked();
         if (b) cardOf(b.id)?.classList.toggle("empty", isEmpty(b));
         changed();
@@ -572,6 +628,26 @@ export const embedPane: Pane = {
         changed(true);
         cardOf(b.id)?.classList.toggle("empty", isEmpty(b));
       }),
+      delegate(el, "click", "[data-ed-pickvideo]", async () => {
+        const d = design();
+        const r = await chooseMedia();
+        if (!d || !r) return;
+        if (!r.video) { window.alert("Choose a video file (MP4 or WebM)."); return; }
+        d.bg.video = r.url;
+        changed();
+        drawDesigner();
+      }),
+      delegate(el, "click", "[data-ed-clearvideo]", () => {
+        const d = design();
+        if (!d) return;
+        d.bg.video = "";
+        changed();
+        drawDesigner();
+      }),
+      delegate(el, "click", "[data-emb-fresh]", (_e, t) => {
+        const link = `${location.origin}/${encodeURIComponent(store.me?.user.username ?? "")}?e=${Date.now().toString(36)}`;
+        void navigator.clipboard.writeText(link).then(() => { t.textContent = "Copied"; window.setTimeout(() => { t.textContent = "Copy a fresh link"; }, 1600); }).catch(() => { t.textContent = link; });
+      }),
       delegate(el, "click", "[data-ed-pickbg]", async () => {
         const d = design();
         const r = await chooseMedia();
@@ -608,5 +684,5 @@ export const embedPane: Pane = {
       detachMoves?.();
       cleanups.forEach(fn => fn());
     };
-  },
-};
+  }
+}

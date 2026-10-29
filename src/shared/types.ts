@@ -112,6 +112,8 @@ export interface EmbedBackground {
   url: string;
   /** How much the picture is darkened, 0 to 90. */
   dim: number;
+  /** A video that plays behind the pieces where it can (on the enter screen; in a link preview in apps that play one). Empty for none. */
+  video: string;
 }
 
 /** The pieces and background of the picture a link preview shows. */
@@ -403,6 +405,8 @@ export interface PageSettings {
   share: boolean;
   enter: boolean;
   enterText: string;
+  /** The enter screen arranged by hand. Null is the plain one with just the words. */
+  gate: EmbedDesign | null;
   /** Regular is the usual column. Experimental is the free-form board. */
   layout: PageLayout;
   /** Where the pieces sit on the free-form board. */

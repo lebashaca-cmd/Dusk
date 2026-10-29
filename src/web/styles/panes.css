@@ -96,3 +96,7 @@
 .emb-bgwrap h4 { margin: 0; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3, #999); }
 .emb-bg { display: flex; flex-direction: column; gap: 10px; }
 .emb-side .grp, .emb-design .grp { margin-bottom: 26px; }
+.emb-vid { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; pointer-events: none; }
+.emb-vid[hidden] { display: none; }
+.emb-video { display: grid; gap: 8px; margin-top: 12px; }
+.emb-video h4 { margin: 0; }

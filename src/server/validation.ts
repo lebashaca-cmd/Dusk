@@ -85,6 +85,7 @@ const profileSchema = z.object({
     share: z.boolean(),
     enter: z.boolean(),
     enterText: text(24),
+    gate: z.unknown().transform(v => normalizeDesign(v)),
     layout: z.enum(PAGE_LAYOUTS),
     lyricsProvider: z.enum(LYRIC_PROVIDERS),
     board: z.array(z.object({
