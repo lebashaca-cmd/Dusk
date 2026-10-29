@@ -60,6 +60,66 @@ export type FontKey = (typeof FONT_KEYS)[number];
 export const EMBED_IMAGES = ["card", "avatar", "background", "none"] as const;
 export type EmbedImage = (typeof EMBED_IMAGES)[number];
 
+/** The kinds of piece that can stand on the picture of a link preview. */
+export const EMBED_KINDS = ["text", "links", "avatar", "image", "shape", "logo"] as const;
+export type EmbedKind = (typeof EMBED_KINDS)[number];
+
+/** One piece on the picture of a link preview. Its box is in the picture's own 1200 by 630 pixels. */
+export interface EmbedBox {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Set by the move engine, which is shared with the page board. Not used for drawing. */
+  anc?: "l" | "c" | "r" | "s";
+  fixedH?: boolean;
+  /** Kept where it is. */
+  locked?: boolean;
+  ratio?: boolean;
+  /** The words of a text piece. {name}, {username}, {bio}, {views}, {links} and {tag} are filled in. */
+  text?: string;
+  /** Text size in pixels, weight, colour (empty is the page's text colour), alignment. */
+  size?: number;
+  wt?: 400 | 500 | 600 | 700 | 800;
+  color?: string;
+  align?: "left" | "center" | "right";
+  /** How solid the whole piece is, 10 to 100. */
+  op?: number;
+  /** A shape's or a pill's fill colour and how solid it is, its outline, and how round its corners are. */
+  fill?: string;
+  fillOp?: number;
+  stroke?: string;
+  strokeW?: number;
+  radius?: number;
+  /** For a picture: whose picture it is, where an uploaded one lives, how it fills the box and what shape it is cut to. */
+  src?: "avatar" | "background" | "media";
+  url?: string;
+  fit?: "cover" | "contain";
+  shape?: "circle" | "round" | "square";
+  /** For the links piece: how many links at most. */
+  count?: number;
+}
+
+export interface EmbedBackground {
+  mode: "page" | "solid" | "gradient" | "image";
+  c1: string;
+  c2: string;
+  angle: number;
+  /** The soft light of the accent colour in the corner. */
+  glow: boolean;
+  src: "background" | "media";
+  url: string;
+  /** How much the picture is darkened, 0 to 90. */
+  dim: number;
+}
+
+/** The pieces and background of the picture a link preview shows. */
+export interface EmbedDesign {
+  bg: EmbedBackground;
+  boxes: EmbedBox[];
+}
+
 /** How a link to the page looks when it is posted in Discord and other apps. Empty text means the default. */
 export interface EmbedSettings {
   title: string;
@@ -70,6 +130,38 @@ export interface EmbedSettings {
   image: EmbedImage;
   /** A big picture under the text, or a small one beside it. */
   large: boolean;
+  /** The pieces of the picture, when the owner arranged them. Null is the standard picture, which follows every update. */
+  design: EmbedDesign | null;
+}
+
+/** What the mouse looks like and does on the page. */
+export const CURSOR_STYLES = ["default", "dot", "ring", "arrow", "crosshair", "heart", "star", "sparkle", "custom"] as const;
+export type CursorStyle = (typeof CURSOR_STYLES)[number];
+export const TRAIL_STYLES = ["none", "dots", "glow", "sparkles", "stars", "hearts", "ribbon", "comet"] as const;
+export type TrailStyle = (typeof TRAIL_STYLES)[number];
+export const CLICK_SOUNDS = ["none", "pop", "click", "tick", "chime", "bubble", "thud", "custom"] as const;
+export type ClickSound = (typeof CLICK_SOUNDS)[number];
+
+export interface MouseSettings {
+  cursor: CursorStyle;
+  /** The cursor's colour, or empty for the accent colour. */
+  cursorColor: string;
+  cursorSize: number;
+  /** A picture of the person's own, for the "custom" cursor. */
+  cursorImage: string;
+  trail: TrailStyle;
+  /** The trail's colour, or empty for the accent colour. */
+  trailColor: string;
+  trailRainbow: boolean;
+  /** How long a piece of the trail lasts, in tenths of a second, and how big it is. */
+  trailLife: number;
+  trailSize: number;
+  click: ClickSound;
+  clickVolume: number;
+  /** An address of a sound, for the "custom" click. */
+  clickUrl: string;
+  /** Whether the sound plays anywhere on the page or only on links and buttons. */
+  clickLinks: boolean;
 }
 
 export const ENTRANCES = ["rise", "fade", "zoom", "blur", "slide", "none"] as const;
@@ -391,6 +483,7 @@ export interface Profile {
   nameGlow: boolean;
   nameGradient: boolean;
   effects: EffectSettings;
+  mouse: MouseSettings;
   page: PageSettings;
   embed: EmbedSettings;
   music: MusicSettings;

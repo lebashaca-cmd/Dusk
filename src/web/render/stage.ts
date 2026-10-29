@@ -18,6 +18,7 @@ import { nowCardHTML, tickNowCard } from "./nowcard";
 import { presenceCardHTML } from "./presence";
 import { applyTheme } from "./theme";
 import { startTypewriter } from "./typewriter";
+import { startMouse } from "./mouse";
 
 export interface StageOptions {
   /** Fixed card width, used by the preview frame. */
@@ -46,6 +47,8 @@ export class Stage {
   private model: RenderModel;
   private readonly cleanups: Array<() => void> = [];
   private stopTyping: () => void = () => {};
+  private mouseOff: () => void = () => {};
+  private mouseSig = "";
   private panel: LyricView | null = null;
   private island: IslandPanel | null = null;
   private islandSource: Source | null = null;
@@ -337,6 +340,14 @@ export class Stage {
     if (free) for (const box of this.mount.querySelectorAll(".fbox-in")) this.boxes?.observe(box);
     if (p.typewriter) this.stopTyping = startTypewriter(this.mount.querySelector<HTMLElement>(".bio-text"), bioLines(p.bio));
 
+    // The mouse effects only start over when one of their own settings changes, so typing in the editor does not flicker them.
+    const mouseSig = JSON.stringify([p.mouse, p.colors.accent]);
+    if (mouseSig !== this.mouseSig) {
+      this.mouseSig = mouseSig;
+      this.mouseOff();
+      this.mouseOff = startMouse(this.el, p.mouse, p.colors.accent);
+    }
+
     if (p.effects.entrance !== this.entrance) {
       this.entrance = p.effects.entrance;
       this.mount.style.animation = "none";
@@ -359,6 +370,7 @@ export class Stage {
     window.clearTimeout(this.introTimer);
     window.clearTimeout(this.slotTimer);
     this.stopTyping();
+    this.mouseOff();
     this.field.destroy();
     cancelAnimationFrame(this.tiltRaf);
     this.grid.destroy();

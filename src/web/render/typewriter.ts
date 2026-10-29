@@ -1,9 +1,12 @@
 /**
  * Cycles through bio lines by deleting one and typing the next.
  * The first line is already on screen, so the page never looks empty. Returns a function that stops it.
+ *
+ * It does not look at the "reduce motion" setting of the device: it changes words, it does not move anything, and
+ * the owner switched it on. (Leaving it out because of that setting made it look broken on every device that has it on.)
  */
 export function startTypewriter(el: HTMLElement | null, lines: string[]): () => void {
-  if (!el || lines.length < 2 || matchMedia("(prefers-reduced-motion: reduce)").matches) return () => {};
+  if (!el || lines.length < 2) return () => {};
   let line = 0;
   let chars = lines[0]?.length ?? 0;
   let deleting = true;

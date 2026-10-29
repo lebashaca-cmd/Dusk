@@ -1,5 +1,6 @@
+import { normalizeDesign } from "../shared/embedcard";
 import { z } from "zod";
-import { BOX_ANIMS, BOX_HOVERS, BOX_LOOPS, LIMITS, MAX_LIST, PIECE_FX, newId } from "../shared/constants";
+import { BOX_ANIMS, BOX_HOVERS, BOX_LOOPS, LIMITS, MAX_LIST, PIECE_FX, defaultProfile, newId, normalizeMouse } from "../shared/constants";
 import {
   ALIGNS, AVATAR_KINDS, AVATAR_SHAPES, BG_TYPES, BORDER_COLORS, CARD_STYLES, NAME_CASES, ENTRANCES, FONT_KEYS, ICON_NAMES, ICON_COLORS, LINK_HOVERS,
   EMBED_IMAGES, LINK_LAYOUTS, LYRIC_PROVIDERS, LYRIC_STYLES, PAGE_LAYOUTS, TAG_STYLES, THEME_KEYS,
@@ -77,7 +78,8 @@ const profileSchema = z.object({
   nameGlow: z.boolean(),
   nameGradient: z.boolean(),
   effects: z.object({ tilt: z.boolean(), cursorGlow: z.boolean(), entrance: z.enum(ENTRANCES) }),
-  embed: z.object({ title: text(70), desc: text(200), site: text(40), color: z.union([z.literal(""), hex]), image: z.enum(EMBED_IMAGES), large: z.boolean() }),
+  mouse: z.unknown().transform(v => normalizeMouse(v, defaultProfile("").mouse)),
+  embed: z.object({ title: text(70), desc: text(200), site: text(40), color: z.union([z.literal(""), hex]), image: z.enum(EMBED_IMAGES), large: z.boolean(), design: z.unknown().transform(v => normalizeDesign(v)) }),
   page: z.object({
     views: z.boolean(),
     share: z.boolean(),

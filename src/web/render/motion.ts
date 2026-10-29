@@ -60,7 +60,6 @@ export function watchMotion(root: HTMLElement): () => void {
 }
 
 const ease = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-const calm = (): boolean => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
  * The games and music lists. The dots under a list are one for each screenful of cards. Pressing a dot glides there
@@ -104,7 +103,7 @@ export function watchLists(root: HTMLElement): () => void {
 
     /** Cards that have just arrived rise in turn. */
     const land = (): void => {
-      if (mode === "none" || calm()) return;
+      if (mode === "none") return;
       const left = track.scrollLeft;
       const right = left + track.clientWidth;
       let n = 0;
@@ -122,7 +121,7 @@ export function watchLists(root: HTMLElement): () => void {
       stop();
       const from = track.scrollLeft;
       const to = Math.max(0, Math.min(reach(), target));
-      if (mode === "none" || calm() || Math.abs(to - from) < 2) { track.scrollTo({ left: to, behavior: "auto" }); return; }
+      if (mode === "none" || Math.abs(to - from) < 2) { track.scrollTo({ left: to, behavior: "auto" }); return; }
       const dur = Math.min(950, 460 + Math.abs(to - from) * 0.35);
       const t0 = performance.now();
       list.classList.add("sliding");

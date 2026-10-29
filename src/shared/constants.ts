@@ -1,7 +1,8 @@
 import {
-  EMBED_IMAGES, LYRIC_PROVIDERS, PAGE_LAYOUTS, VIP_BG_TYPES,
-  type BgType, type BoardBox, type BoxAlign, type BoxFill, type BoxFit, type EmbedSettings, type FontKey, type IconName, type ListEntry, type LyricProvider, type PageSettings, type PresenceStatus, type Profile, type ProfileColors, type ThemeName,
+  CLICK_SOUNDS, CURSOR_STYLES, EMBED_IMAGES, LYRIC_PROVIDERS, TRAIL_STYLES, PAGE_LAYOUTS, VIP_BG_TYPES,
+  type BgType, type BoardBox, type BoxAlign, type BoxFill, type BoxFit, type EmbedDesign, type EmbedSettings, type MouseSettings, type FontKey, type IconName, type ListEntry, type LyricProvider, type PageSettings, type PresenceStatus, type Profile, type ProfileColors, type ThemeName,
 } from "./types";
+import { normalizeDesign, stripDesign } from "./embedcard";
 
 export const LIMITS = {
   links: 20,
@@ -206,8 +207,9 @@ export function defaultProfile(name: string): Profile {
     nameGlow: false,
     nameGradient: false,
     effects: { tilt: true, cursorGlow: false, entrance: "rise" },
+    mouse: { cursor: "default", cursorColor: "", cursorSize: 28, cursorImage: "", trail: "none", trailColor: "", trailRainbow: false, trailLife: 8, trailSize: 10, click: "none", clickVolume: 50, clickUrl: "", clickLinks: false },
     page: { views: true, share: true, enter: true, enterText: "tap to enter", layout: "regular", board: [], lyricsProvider: "lrclib" },
-    embed: { title: "", desc: "", site: "", color: "", image: "card", large: true },
+    embed: { title: "", desc: "", site: "", color: "", image: "card", large: true, design: null },
     music: { enabled: true, autoplay: true, loop: true, showProgress: true, showLyrics: true, lyricsOpen: false, lyricsStyle: "panel", volume: 0.7 },
     discord: { enabled: true, showCard: true, showActivity: true, showSpotify: true, showProgress: true, showLyrics: true, lyricsOpen: false, lyricsStyle: "panel" },
   };
@@ -242,6 +244,7 @@ export function normalizeProfile(saved: Partial<Profile> | undefined, name: stri
     colors: { ...d.colors, ...s.colors },
     card: { ...d.card, ...s.card },
     effects: { ...d.effects, ...s.effects },
+    mouse: normalizeMouse(s.mouse, d.mouse),
     page: {
       ...d.page,
       ...page,
@@ -252,6 +255,30 @@ export function normalizeProfile(saved: Partial<Profile> | undefined, name: stri
     embed: normalizeEmbed(s.embed, d.embed),
     music: { ...d.music, ...s.music },
     discord: { ...d.discord, ...s.discord },
+  };
+}
+
+/** The mouse settings, with anything odd put back to the default. */
+export function normalizeMouse(m: unknown, d: MouseSettings): MouseSettings {
+  const o = (m && typeof m === "object" ? m : {}) as Partial<MouseSettings>;
+  const n = (v: unknown, min: number, max: number, dflt: number): number => (typeof v === "number" && Number.isFinite(v) ? Math.max(min, Math.min(max, Math.round(v))) : dflt);
+  const hex = (v: unknown): string => (typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v) ? v : "");
+  const image = typeof o.cursorImage === "string" && /^\/media\/file\/[A-Za-z0-9_-]{1,40}\/m-[a-f0-9]{16}\.(jpg|png|webp|gif)$/.test(o.cursorImage) ? o.cursorImage : "";
+  const url = typeof o.clickUrl === "string" && /^https:\/\/\S{1,290}$/i.test(o.clickUrl) ? o.clickUrl : "";
+  return {
+    cursor: oneOf(CURSOR_STYLES, o.cursor) ?? d.cursor,
+    cursorColor: hex(o.cursorColor),
+    cursorSize: n(o.cursorSize, 12, 64, d.cursorSize),
+    cursorImage: image,
+    trail: oneOf(TRAIL_STYLES, o.trail) ?? d.trail,
+    trailColor: hex(o.trailColor),
+    trailRainbow: o.trailRainbow === true,
+    trailLife: n(o.trailLife, 3, 20, d.trailLife),
+    trailSize: n(o.trailSize, 4, 32, d.trailSize),
+    click: oneOf(CLICK_SOUNDS, o.click) ?? d.click,
+    clickVolume: n(o.clickVolume, 0, 100, d.clickVolume),
+    clickUrl: url,
+    clickLinks: o.clickLinks === true,
   };
 }
 
@@ -266,6 +293,7 @@ export function normalizeEmbed(e: unknown, d: EmbedSettings): EmbedSettings {
     color: typeof o.color === "string" && /^#[0-9a-fA-F]{6}$/.test(o.color) ? o.color : "",
     image: oneOf(EMBED_IMAGES, o.image) ?? d.image,
     large: typeof o.large === "boolean" ? o.large : d.large,
+    design: normalizeDesign(o.design),
   };
 }
 
@@ -381,18 +409,70 @@ export const STYLE_KEYS = [
   "density", "bgImage", "bgBlur", "bgDim", "bgSpeed", "linkGap", "nameTracking", "nameCase", "bioScale", "card", "font", "nameSize", "nameWeight", "nameGlow", "nameGradient", "effects",
 ] as const satisfies ReadonlyArray<keyof Profile>;
 
-export type TemplateStyle = Pick<Profile, (typeof STYLE_KEYS)[number]>;
+/**
+ * A shared template is the look of a page and its arrangement: the layout, every piece of the board where it stands and how it
+ * looks, and the picture of the link preview. It never carries what someone wrote or put in: names, text, links, covers and pictures
+ * are left out, so whoever uses it fills the pieces with their own.
+ */
+export type TemplateStyle = Pick<Profile, (typeof STYLE_KEYS)[number]> & {
+  /** Present in templates shared since the arrangement was included. Older ones only have the look. */
+  layout?: PageLayoutName;
+  board?: BoardBox[];
+  embedDesign?: EmbedDesign | null;
+  mouse?: MouseSettings;
+};
+type PageLayoutName = Profile["page"]["layout"];
+
+/** The words and things someone put in a piece. They are the only parts of a box a template does not keep. */
+const BOARD_CONTENT: ReadonlyArray<keyof BoardBox> = ["ntext", "items", "text", "label", "url", "target"];
+
+/** The board as a template keeps it: every piece and its look, with what was put in them removed. */
+export function stripBoard(board: readonly BoardBox[]): BoardBox[] {
+  return board.map(b => {
+    const copy = structuredClone(b) as BoardBox;
+    for (const k of BOARD_CONTENT) delete copy[k];
+    return copy;
+  });
+}
+
+/** What the person has put into the pieces of their own board, by the piece's id, so a template can be filled with it. */
+function contentOf(board: readonly BoardBox[]): Map<string, Partial<BoardBox>> {
+  const out = new Map<string, Partial<BoardBox>>();
+  for (const b of board) {
+    const keep: Partial<BoardBox> = {};
+    for (const k of BOARD_CONTENT) if (b[k] !== undefined) (keep as Record<string, unknown>)[k] = structuredClone(b[k]);
+    if (Object.keys(keep).length) out.set(b.id, keep);
+  }
+  return out;
+}
 
 export function pickStyle(p: Profile): TemplateStyle {
   const out: Record<string, unknown> = {};
   for (const k of STYLE_KEYS) out[k] = structuredClone(p[k]);
+  out.layout = p.page.layout;
+  out.board = stripBoard(p.page.board);
+  out.embedDesign = p.embed.design ? stripDesign(p.embed.design) : null;
+  // The mouse effects are part of the look, but the person's own picture and sound are not.
+  out.mouse = { ...p.mouse, cursorImage: "", clickUrl: "", cursor: p.mouse.cursor === "custom" ? "default" : p.mouse.cursor, click: p.mouse.click === "custom" ? "none" : p.mouse.click };
   return out as unknown as TemplateStyle;
 }
 
 export function applyStyle(p: Profile, style: TemplateStyle): Profile {
-  return { ...p, ...structuredClone(style) };
+  const { layout, board, embedDesign, mouse, ...look } = style;
+  const next: Profile = { ...p, ...structuredClone(look) };
+  if (board) {
+    // The arrangement is the template's. A piece that stands in both keeps what its owner put in it.
+    const mine = contentOf(p.page.board);
+    next.page = {
+      ...p.page,
+      layout: layout ?? p.page.layout,
+      board: structuredClone(board).map(b => ({ ...b, ...(mine.get(b.id) ?? {}) })),
+    };
+  }
+  if (mouse) next.mouse = { ...mouse, cursorImage: p.mouse.cursorImage, clickUrl: p.mouse.clickUrl };
+  if (embedDesign !== undefined) next.embed = { ...p.embed, design: embedDesign ? structuredClone(embedDesign) : null };
+  return next;
 }
-
 /** Is this background one only VIP members may use? */
 export const isVipBg = (b: BgType): boolean => VIP_BG_TYPES.includes(b);
 

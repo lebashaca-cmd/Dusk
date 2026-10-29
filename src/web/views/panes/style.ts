@@ -1,4 +1,5 @@
-import { ALIGNS, BORDER_COLORS, CARD_STYLES, ENTRANCES, FONT_KEYS, NAME_CASES, THEME_KEYS, type BgType, type ThemeName } from "../../../shared/types";
+import { ALIGNS, BORDER_COLORS, CARD_STYLES, CLICK_SOUNDS, CURSOR_STYLES, ENTRANCES, FONT_KEYS, NAME_CASES, THEME_KEYS, TRAIL_STYLES, type BgType, type MouseSettings, type ThemeName } from "../../../shared/types";
+import { playClick } from "../../render/mouse";
 import { FONTS, THEMES } from "../../../shared/constants";
 import { store } from "../../state";
 import { chooseMedia } from "../../ui/media";
@@ -18,6 +19,28 @@ const BACKGROUNDS: readonly PickerOption[] = [
 const MOVING: readonly BgType[] = ["aurora", "mesh", "stars", "rain", "waves", "bokeh", "beams", "glitch", "grain", "topo"];
 
 const cap = (s: string): string => s[0]!.toUpperCase() + s.slice(1);
+
+const mouseGroup = (m: MouseSettings): string =>
+  selectField("mouse.cursor", "Cursor", m.cursor, CURSOR_STYLES.map(c => [c, c === "default" ? "Normal" : cap(c)] as const)) +
+  (m.cursor === "custom"
+    ? `<button class="btn-ghost" type="button" data-pick-cursor style="justify-content:center">${m.cursorImage ? "Change your cursor picture" : "Choose a cursor picture"}</button><p class="note">A small PNG with a see-through background works best. The top left corner is the point.</p>`
+    : "") +
+  (m.cursor !== "default" && m.cursor !== "custom" ? colorField("mouse.cursorColor", "Cursor color", m.cursorColor || store.profile.colors.accent) : "") +
+  (m.cursor !== "default" ? rangeField("mouse.cursorSize", "Cursor size", m.cursorSize, 12, 64, 2, "px") : "") +
+  selectField("mouse.trail", "Trail", m.trail, TRAIL_STYLES.map(t => [t, t === "none" ? "None" : cap(t)] as const)) +
+  (m.trail !== "none"
+    ? toggle("mouse.trailRainbow", "Rainbow trail", m.trailRainbow) +
+      (m.trailRainbow ? "" : colorField("mouse.trailColor", "Trail color", m.trailColor || store.profile.colors.accent)) +
+      rangeField("mouse.trailLife", "How long it lasts", m.trailLife, 3, 20, 1, "×0.1s") +
+      rangeField("mouse.trailSize", "Trail size", m.trailSize, 4, 40, 1, "px")
+    : "") +
+  selectField("mouse.click", "Click sound", m.click, CLICK_SOUNDS.map(c => [c, cap(c)] as const)) +
+  (m.click === "custom" ? textField("mouse.clickUrl", "Sound address (https)", m.clickUrl, { max: 500, placeholder: "https://…/click.mp3" }) : "") +
+  (m.click !== "none"
+    ? rangeField("mouse.clickVolume", "Volume", m.clickVolume, 0, 100, 5, "%") +
+      toggle("mouse.clickLinks", "Only on links and buttons", m.clickLinks) +
+      `<button class="btn-ghost" type="button" data-play-click style="justify-content:center">Play it</button>`
+    : "");
 
 export const stylePane: Pane = {
   id: "style",
@@ -72,6 +95,7 @@ export const stylePane: Pane = {
           selectField("effects.entrance", "Entrance", p.effects.entrance, ENTRANCES.map(x => [x, cap(x)] as const)) +
           toggle("effects.tilt", "Card tilts toward the cursor", p.effects.tilt) +
           toggle("effects.cursorGlow", "Light follows the cursor", p.effects.cursorGlow)),
+        group("Mouse", mouseGroup(p.mouse)),
       ].join("");
     };
     draw();
@@ -87,12 +111,20 @@ export const stylePane: Pane = {
         }
       }
       if (path.startsWith("colors.")) store.profile.theme = "custom";
-      return path === "bgType" || path === "card.border" || path === "theme";
+      return path === "bgType" || path === "card.border" || path === "theme" || path === "mouse.cursor" || path === "mouse.trail" || path === "mouse.click" || path === "mouse.trailRainbow";
     };
 
     const offs = [
       bindFields(el, after, draw),
       bindPickers(el, after, draw),
+      delegate(el, "click", "[data-pick-cursor]", async () => {
+        const r = await chooseMedia();
+        if (!r) return;
+        store.profile.mouse.cursorImage = r.url;
+        store.profileChanged();
+        draw();
+      }),
+      delegate(el, "click", "[data-play-click]", () => playClick(store.profile.mouse)),
       delegate(el, "click", "[data-pick-bg]", async () => {
         const r = await chooseMedia();
         if (!r) return;

@@ -1,6 +1,7 @@
 import { ownerOf, type UserRecord } from "./db";
 import { customAvatarUrl } from "./mappers";
 import { discordAvatarUrl } from "./services/discord";
+import { embedRev } from "./services/card";
 import { isVip } from "./pages";
 import { safeUrl } from "../shared/url";
 
@@ -35,7 +36,8 @@ function absolute(url: string | null | undefined, origin: string): string | null
 
 /** What the preview shows for the picture the owner picked. A picture that is not there falls back to the generated card. */
 function pictureOf(user: UserRecord, origin: string): { url: string; card: boolean } | null {
-  const card = { url: `${origin}/api/public/${encodeURIComponent(user.username)}/card.png`, card: true };
+  // The version in the address changes with every update and every change to the picture, so apps fetch it again.
+  const card = { url: `${origin}/api/public/${encodeURIComponent(user.username)}/card.png?v=${embedRev(user)}`, card: true };
   switch (user.profile.embed.image) {
     case "none": return null;
     case "avatar": {

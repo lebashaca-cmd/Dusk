@@ -527,12 +527,13 @@ a.fitem.is-text { text-decoration: underline; text-underline-offset: 3px; }
 @keyframes fcard-rise { from { translate: 0 18px; filter: blur(4px); } to { translate: 0 0; filter: blur(0); } }
 .flist-dots i:hover { background: color-mix(in srgb, var(--p-text) 60%, transparent); }
 .flist-dots i:active { transform: scale(0.8); }
-@media (prefers-reduced-motion: reduce) {
-  .flist[data-motion="flow"] .fcard { transform: none; opacity: 1; }
-  .fcard.land { animation: none; }
-}
 
 /* The Discord server tag: the badge and its letters, in a small pill next to the name. */
-.stag { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; padding: 2px 9px 2px 6px; border-radius: 8px; font-size: 12px; line-height: 1.5; color: var(--p-text); background: color-mix(in srgb, var(--p-text) 12%, transparent); border: 1px solid color-mix(in srgb, var(--p-text) 16%, transparent); }
+.stag { display: inline-flex; align-items: center; gap: 5px; flex: none; padding: 2px 9px 2px 6px; border-radius: 8px; font-size: 12px; line-height: 1.5; color: var(--p-text); background: color-mix(in srgb, var(--p-text) 12%, transparent); border: 1px solid color-mix(in srgb, var(--p-text) 16%, transparent); }
 .stag img { width: 14px; height: 14px; border-radius: 3px; object-fit: contain; }
 .stag b { font-weight: 700; letter-spacing: 0.04em; }
+
+/* The name and the server tag stand on one line, the tag right after the name. */
+.nameline { display: flex; align-items: center; justify-content: center; gap: 10px; max-width: 100%; min-width: 0; flex-wrap: wrap; }
+.stage[data-align="left"] .nameline { justify-content: flex-start; }
+.nameline .pname { min-width: 0; }
