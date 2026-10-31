@@ -162,3 +162,12 @@ a.cm-card:hover {
   .cm-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
 }
 @media (prefers-reduced-motion: reduce) { .cm-card { animation: none; } a.cm-card:hover { transform: none; } }
+
+/* Changelog */
+.cl-list { display: grid; gap: 28px; max-width: 760px; margin: 0; padding-bottom: 64px; }
+.cl-entry { display: grid; grid-template-columns: 150px 1fr; gap: 24px; padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+.cl-entry time { color: var(--dim, #9a9aa5); font-size: 13px; padding-top: 4px; }
+.cl-entry h2 { margin: 0 0 10px; font-size: 20px; }
+.cl-tag { margin: 14px 0 6px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim, #9a9aa5); }
+.cl-entry ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; line-height: 1.5; }
+@media (max-width: 640px) { .cl-entry { grid-template-columns: 1fr; gap: 6px; } }

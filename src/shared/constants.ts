@@ -33,7 +33,7 @@ export const oneOf = <T extends string>(list: readonly T[], value: unknown): T |
 export const RESERVED_USERNAMES: readonly string[] = [
   "api", "auth", "media", "dashboard", "login", "logout", "assets", "static", "admin", "root",
   "support", "help", "www", "dusk", "settings", "about", "terms", "privacy", "explore",
-  "community", "favicon.ico", "robots.txt", "index.html", "official", "staff", "null", "undefined",
+  "community", "changelog", "favicon.ico", "robots.txt", "index.html", "official", "staff", "null", "undefined",
 ];
 
 export const PRESENCE_COLORS: Record<PresenceStatus, string> = {

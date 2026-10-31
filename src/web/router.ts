@@ -4,6 +4,7 @@ export type Route =
   | { name: "home" }
   | { name: "dashboard" }
   | { name: "community" }
+  | { name: "changelog" }
   | { name: "public"; username: string };
 
 export function parseRoute(pathname: string): Route {
@@ -11,6 +12,7 @@ export function parseRoute(pathname: string): Route {
   if (path === "") return { name: "home" };
   if (path === "dashboard") return { name: "dashboard" };
   if (path === "community") return { name: "community" };
+  if (path === "changelog") return { name: "changelog" };
   const first = path.split("/")[0]?.toLowerCase() ?? "";
   if (RESERVED_USERNAMES.includes(first)) return { name: "home" };
   return { name: "public", username: first };

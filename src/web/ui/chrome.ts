@@ -40,7 +40,7 @@ export function siteFooter(): string {
       <div><b class="figure" data-stat="users">–</b><span>users</span></div>
       <div><b class="figure" data-stat="online">–</b><span><i class="live-dot"></i>online now</span></div>
     </div>
-    <p class="credit">©Provided By <a id="credit-link" href="#" target="_blank" rel="noopener noreferrer">Risk</a></p>
+    <p class="credit"><a href="/changelog" data-link>Changelog</a> · ©Provided By <a id="credit-link" href="#" target="_blank" rel="noopener noreferrer">Risk</a></p>
   </footer>`;
 }
 
