@@ -13,7 +13,7 @@ export function mark(href = "/", label = "dusk"): string {
 export interface NavOptions {
   loggedIn: boolean;
   /** Which section is the current one, so it can be marked as such. */
-  current?: "community" | "dashboard" | "";
+  current?: "community" | "changelog" | "dashboard" | "";
   /** Extra buttons on the right, before the account ones. */
   extra?: string;
 }
@@ -27,6 +27,7 @@ export function siteNav(o: NavOptions): string {
     <div class="nav-r">
       ${o.extra ?? ""}
       ${link("/community", "Community", "community")}
+      ${link("/changelog", "Changelog", "changelog")}
       ${o.loggedIn ? link("/dashboard", "Dashboard", "dashboard") : `<a class="btn-text" href="/auth/discord" data-login="login">Log in</a>`}
     </div>
   </nav>`;
